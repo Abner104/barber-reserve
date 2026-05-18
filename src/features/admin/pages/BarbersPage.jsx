@@ -1,0 +1,288 @@
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { Plus, Pencil, Power, X, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import ImageUpload from "../../../components/shared/ImageUpload";
+import WhatsAppStatus from "../components/WhatsAppStatus";
+import { getAdminBarbers, createBarber, updateBarber, toggleBarberActive, getBarberWorkingHours, upsertWorkingHours } from "../services/adminService";
+import { DAYS_OF_WEEK, DAY_LABEL } from "../../../lib/constants";
+import TimeSelect from "../../../components/shared/TimeSelect";
+
+const O = "var(--brand, #FF6B2C)";
+
+const EMPTY_BARBER = { full_name: "", phone: "", specialty: "", bio: "", avatar_url: "", does_delivery: true, delivery_radius: 10, commission_pct: 0, callmebot_key: "" };
+
+export default function BarbersPage() {
+  const qc = useQueryClient();
+  const [modal, setModal]       = useState(null); // null | 'create' | barber obj
+  const [expanded, setExpanded] = useState(null); // barber id con horario expandido
+
+  const { data: barbers = [], isLoading } = useQuery({ queryKey: ["admin-barbers"], queryFn: getAdminBarbers });
+
+  const createMut = useMutation({
+    mutationFn: createBarber,
+    onSuccess: () => { qc.invalidateQueries(["admin-barbers"]); setModal(null); toast.success("Barbero creado"); },
+    onError: () => toast.error("Error al crear el barbero"),
+  });
+  const updateMut = useMutation({
+    mutationFn: ({ id, updates }) => updateBarber(id, updates),
+    onSuccess: () => { qc.invalidateQueries(["admin-barbers"]); setModal(null); toast.success("Barbero actualizado"); },
+    onError: () => toast.error("Error al actualizar el barbero"),
+  });
+  const toggleMut = useMutation({
+    mutationFn: ({ id, is_active }) => toggleBarberActive(id, is_active),
+    onSuccess: (_, { is_active }) => { qc.invalidateQueries(["admin-barbers"]); toast.success(is_active ? "Barbero activado" : "Barbero desactivado"); },
+    onError: () => toast.error("Error al cambiar el estado"),
+  });
+
+  return (
+    <div className="admin-page" style={{ maxWidth: 900 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 32 }}>
+        <div>
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: "var(--text)" }}>Barberos</h1>
+          <p style={{ color: "var(--text-faint)", fontSize: 13, marginTop: 4 }}>Gestiona tu equipo y sus horarios</p>
+        </div>
+        <button
+          onClick={() => setModal("create")}
+          style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", background: "var(--brand)", border: "none", borderRadius: 10, color: "var(--text)", fontWeight: 700, fontSize: 14, cursor: "pointer" }}
+        >
+          <Plus size={16} /> Nuevo barbero
+        </button>
+      </div>
+
+      {isLoading && <div style={{ color: "var(--text-faint)" }}>Cargando...</div>}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {barbers.map(b => (
+          <BarberRow
+            key={b.id}
+            barber={b}
+            expanded={expanded === b.id}
+            onExpand={() => setExpanded(expanded === b.id ? null : b.id)}
+            onEdit={() => setModal(b)}
+            onToggle={() => toggleMut.mutate({ id: b.id, is_active: !b.is_active })}
+          />
+        ))}
+        {!isLoading && barbers.length === 0 && (
+          <div style={{ textAlign: "center", padding: "60px 0", color: "var(--text-faint)" }}>
+            <p style={{ marginBottom: 8 }}>No hay barberos aún.</p>
+            <button onClick={() => setModal("create")} style={{ color: "var(--brand)", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
+              + Crear el primero
+            </button>
+          </div>
+        )}
+      </div>
+
+      {modal && (
+        <BarberModal
+          barber={modal === "create" ? null : modal}
+          onClose={() => setModal(null)}
+          onSave={(data) => {
+            if (modal === "create") createMut.mutate(data);
+            else updateMut.mutate({ id: modal.id, updates: data });
+          }}
+          loading={createMut.isPending || updateMut.isPending}
+        />
+      )}
+    </div>
+  );
+}
+
+function BarberRow({ barber, expanded, onExpand, onEdit, onToggle }) {
+  return (
+    <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 12, overflow: "hidden" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px" }}>
+        {/* avatar */}
+        <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--surface2)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 18, color: "var(--brand)", flexShrink: 0 }}>
+          {barber.full_name[0]}
+        </div>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 15 }}>{barber.full_name}</p>
+            <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: barber.is_active ? "rgba(34,197,94,0.1)" : "rgba(113,113,122,0.1)", color: barber.is_active ? "#22c55e" : "#71717a" }}>
+              {barber.is_active ? "Activo" : "Inactivo"}
+            </span>
+            {barber.does_delivery && (
+              <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: "var(--brand-alpha)", color: "var(--brand)" }}>Domicilio</span>
+            )}
+          </div>
+          {barber.specialty && <p style={{ color: "var(--text-faint)", fontSize: 12, marginTop: 2 }}>{barber.specialty}</p>}
+        </div>
+
+        <div style={{ display: "flex", gap: 6 }}>
+          <IconBtn onClick={onEdit} title="Editar"><Pencil size={15} /></IconBtn>
+          <IconBtn onClick={onToggle} title={barber.is_active ? "Desactivar" : "Activar"} danger={barber.is_active}>
+            <Power size={15} />
+          </IconBtn>
+          <IconBtn onClick={onExpand} title="Horarios">
+            {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+          </IconBtn>
+        </div>
+      </div>
+
+      {expanded && (
+        <>
+          <WorkingHoursEditor barberId={barber.id} />
+          <div style={{ padding: "12px 18px", borderTop: "1px solid var(--card-border)" }}>
+            <WhatsAppStatus barberId={barber.id} />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function WorkingHoursEditor({ barberId }) {
+  const qc = useQueryClient();
+  const { data: hours = [] } = useQuery({ queryKey: ["wh", barberId], queryFn: () => getBarberWorkingHours(barberId) });
+
+  const mut = useMutation({
+    mutationFn: ({ day, start_time, end_time, is_active }) => upsertWorkingHours(barberId, day, start_time, end_time, is_active),
+    onSuccess: () => { qc.invalidateQueries(["wh", barberId]); toast.success("Horario guardado"); },
+    onError: () => toast.error("Error al guardar el horario"),
+  });
+
+  const getDay = (day) => hours.find(h => h.day === day);
+
+  return (
+    <div style={{ borderTop: "1px solid var(--card-border)", padding: "16px 18px", background: "var(--sidebar-bg)" }}>
+      <p style={{ fontSize: 12, fontWeight: 700, color: "var(--text-faint)", letterSpacing: 1, textTransform: "uppercase", marginBottom: 12 }}>Horario semanal</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {DAYS_OF_WEEK.map(day => {
+          const h = getDay(day);
+          const active = h?.is_active ?? false;
+          return (
+            <div key={day} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              {/* toggle */}
+              <button
+                onClick={() => mut.mutate({ day, start_time: h?.start_time ?? "09:00", end_time: h?.end_time ?? "18:00", is_active: !active })}
+                style={{ width: 36, height: 20, borderRadius: 10, background: active ? O : "#2A2A2A", border: "none", cursor: "pointer", position: "relative", flexShrink: 0, transition: "background 0.2s" }}
+              >
+                <span style={{ position: "absolute", top: 2, left: active ? 18 : 2, width: 16, height: 16, borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />
+              </button>
+              <span style={{ width: 80, fontSize: 13, color: active ? "#fff" : "#555", fontWeight: active ? 600 : 400 }}>{DAY_LABEL[day]}</span>
+              {active && (
+                <>
+                  <TimeSelect
+                    value={h?.start_time ?? "09:00"}
+                    onChange={v => mut.mutate({ day, start_time: v, end_time: h?.end_time ?? "18:00", is_active: true })}
+                  />
+                  <span style={{ color: "var(--text-faint)", fontSize: 12 }}>–</span>
+                  <TimeSelect
+                    value={h?.end_time ?? "18:00"}
+                    onChange={v => mut.mutate({ day, start_time: h?.start_time ?? "09:00", end_time: v, is_active: true })}
+                  />
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function BarberModal({ barber, onClose, onSave, loading }) {
+  const [form, setForm] = useState(barber ? {
+    full_name: barber.full_name, phone: barber.phone ?? "", specialty: barber.specialty ?? "",
+    bio: barber.bio ?? "", does_delivery: barber.does_delivery, delivery_radius: barber.delivery_radius, commission_pct: barber.commission_pct, callmebot_key: barber.callmebot_key ?? "",
+  } : EMPTY_BARBER);
+
+  const inp = { background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", color: "var(--text)", fontSize: 14, width: "100%", boxSizing: "border-box", outline: "none" };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 20, padding: 28, width: "100%", maxWidth: 480, maxHeight: "90vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 800, color: "var(--text)" }}>{barber ? "Editar barbero" : "Nuevo barbero"}</h2>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-faint)" }}><X size={20} /></button>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <Field label="Nombre completo *">
+            <input style={inp} value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} placeholder="Carlos Rodríguez" />
+          </Field>
+          <Field label="Teléfono / WhatsApp">
+            <input style={inp} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="3001234567" />
+          </Field>
+          <Field label="Especialidad">
+            <input style={inp} value={form.specialty} onChange={e => setForm({ ...form, specialty: e.target.value })} placeholder="Fades, Barbas, Diseños" />
+          </Field>
+          <Field label="Foto del barbero">
+            <ImageUpload
+              value={form.avatar_url || ""}
+              onChange={url => setForm({ ...form, avatar_url: url })}
+              folder="avatars"
+              label="Subir foto del barbero"
+              aspect="square"
+              capture="user"
+            />
+          </Field>
+          <Field label="Bio">
+            <textarea style={{ ...inp, resize: "none" }} rows={2} value={form.bio} onChange={e => setForm({ ...form, bio: e.target.value })} placeholder="Breve descripción del barbero..." />
+          </Field>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <Field label="Comisión %">
+              <input style={inp} type="number" min={0} max={100} value={form.commission_pct} onChange={e => setForm({ ...form, commission_pct: Number(e.target.value) })} />
+            </Field>
+            <Field label="Radio domicilio (km)">
+              <input style={inp} type="number" min={1} value={form.delivery_radius} onChange={e => setForm({ ...form, delivery_radius: Number(e.target.value) })} />
+            </Field>
+          </div>
+
+          <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+            <input type="checkbox" checked={form.does_delivery} onChange={e => setForm({ ...form, does_delivery: e.target.checked })} />
+            <span style={{ color: "var(--text-muted)", fontSize: 14 }}>Hace domicilios</span>
+          </label>
+
+          <Field label="🔔 CallMeBot API Key (WhatsApp automático)">
+            <input style={inp} value={form.callmebot_key} onChange={e => setForm({ ...form, callmebot_key: e.target.value })}
+              placeholder="ej: 1234567" />
+            <div style={{ marginTop: 6, padding: "8px 10px", background: "var(--surface2)", borderRadius: 8, fontSize: 11, color: "var(--text-muted)", lineHeight: 1.5 }}>
+              El barbero envía <strong style={{ color: "var(--text)" }}>«I allow callmebot to send me messages»</strong> al{" "}
+              <strong style={{ color: "var(--text)" }}>+34 644 33 79 97</strong> por WhatsApp →
+              le responden su API Key → pégala aquí.
+            </div>
+          </Field>
+        </div>
+
+        <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: "12px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", fontWeight: 600, cursor: "pointer" }}>
+            Cancelar
+          </button>
+          <button
+            onClick={() => { if (form.full_name.trim()) onSave(form); }}
+            disabled={loading || !form.full_name.trim()}
+            style={{ flex: 1, padding: "12px", borderRadius: 10, background: "var(--brand)", border: "none", color: "var(--text)", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: loading ? 0.7 : 1 }}
+          >
+            {loading && <Loader2 size={16} />}
+            {barber ? "Guardar cambios" : "Crear barbero"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, children }) {
+  return (
+    <div>
+      <label style={{ display: "block", fontSize: 12, color: "var(--text-muted)", marginBottom: 6, fontWeight: 600 }}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function IconBtn({ onClick, children, title, danger }) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      style={{ width: 32, height: 32, borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: danger ? "#ef4444" : "#A0A0A0" }}
+    >
+      {children}
+    </button>
+  );
+}
