@@ -156,8 +156,18 @@ export default function CajaPage() {
       const barberId = ventaForm.barbero || barbers[0]?.id;
       if (!barberId) throw new Error("No hay barberos disponibles");
 
+      // Buscar servicio del catálogo si coincide
+      let serviceId = null;
+      if (ventaForm.service) {
+        const { data: svc } = await supabase.from("services")
+          .select("id").eq("shop_id", sid)
+          .ilike("name", `%${ventaForm.service}%`).maybeSingle();
+        serviceId = svc?.id ?? null;
+      }
+
       const { error } = await supabase.from("bookings").insert({
         shop_id: sid, client_id: clientId, barber_id: barberId,
+        service_id: serviceId,
         type: "in_store", status: "completed",
         payment_status: "paid", payment_method: ventaForm.payMethod,
         payment_proof_url: ventaForm.proofUrl || null,
