@@ -96,10 +96,11 @@ export async function deleteShop(shopId) {
 export async function getSaasConfig() {
   const { data, error } = await supabase
     .from("saas_config")
-    .select("*")
+    .select("id, base_price, price_per_barber, trial_days")
     .eq("id", 1)
-    .single();
-  if (error) throw error;
+    .maybeSingle();
+  // Si no existe la fila o hay error de permisos, devuelve defaults
+  if (error || !data) return { id: 1, base_price: 11990, price_per_barber: 2990, trial_days: 30 };
   return data;
 }
 
