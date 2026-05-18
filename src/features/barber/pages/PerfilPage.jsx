@@ -207,10 +207,18 @@ function HorarioEditor({ barberId, shopId }) {
                 <button
                   onClick={() => {
                     if (!active) {
-                      mut.mutate({ day, slots: slots.length ? slots : [], is_active: true });
-                      setOpenDay(day);
+                      // Activar el día — guardar con slots vacíos pero is_active=true
+                      // El barbero luego selecciona los slots
+                      supabase.from("working_hours").upsert({
+                        shop_id: shopId, barber_id: barberId, day,
+                        start_time: "09:00", end_time: "18:00",
+                        is_active: true, available_slots: null,
+                      }, { onConflict: "barber_id,day" }).then(({ error }) => {
+                        if (error) toast.error("Error: " + error.message);
+                        else { qc.invalidateQueries(["wh", barberId]); setOpenDay(day); toast.success("Día activado"); }
+                      });
                     } else {
-                      mut.mutate({ day, slots, is_active: false });
+                      mut.mutate({ day, slots: [], is_active: false });
                       setOpenDay(null);
                     }
                   }}
@@ -219,7 +227,10 @@ function HorarioEditor({ barberId, shopId }) {
                   <div style={{ position: "absolute", top: 2, width: 18, height: 18, borderRadius: "50%", background: "#fff", left: active ? 20 : 2, transition: "left 0.2s" }} />
                 </button>
 
-                <div style={{ flex: 1 }} onClick={() => active && setOpenDay(isOpen ? null : day)} style={{ flex: 1, cursor: active ? "pointer" : "default" }}>
+                <div
+                  style={{ flex: 1, cursor: active ? "pointer" : "default" }}
+                  onClick={() => active && setOpenDay(isOpen ? null : day)}
+                >
                   <p style={{ fontSize: 13, fontWeight: active ? 700 : 400, color: active ? "var(--text)" : "var(--text-faint)" }}>
                     {DAY_LABEL[day]}
                   </p>
