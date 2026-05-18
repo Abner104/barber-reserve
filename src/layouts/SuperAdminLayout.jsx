@@ -78,7 +78,7 @@ export default function SuperAdminLayout() {
             </div>
           </div>
         )}
-        <button onClick={async () => { await signOut(); navigate("/login"); }} style={{
+        <button onClick={async () => { try { await signOut(); } catch {} navigate("/login", { replace: true }); }} style={{
           display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", borderRadius: 10,
           background: "none", border: "none", cursor: "pointer", color: "#555", fontSize: 13, width: "100%",
         }}>

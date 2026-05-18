@@ -8,39 +8,54 @@ export const useAuthStore = create((set, get) => ({
   loading: true,
 
   init: async () => {
-    // sesión actual
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) {
-      await get().loadProfile(session.user);
-    }
-    set({ loading: false });
-
-    // escuchar cambios de sesión
-    supabase.auth.onAuthStateChange(async (_event, session) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         await get().loadProfile(session.user);
+      }
+    } catch (e) {
+      console.error("Auth init error:", e);
+    } finally {
+      // Siempre terminar el loading — nunca quedarse atascado
+      set({ loading: false });
+    }
+
+    // Escuchar cambios de sesión
+    supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        set({ loading: true });
+        try {
+          await get().loadProfile(session.user);
+        } finally {
+          set({ loading: false });
+        }
       } else {
-        set({ user: null, profile: null });
+        set({ user: null, profile: null, loading: false });
       }
     });
   },
 
   loadProfile: async (user) => {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .maybeSingle();
-    set({ user, profile });
-
-    // Cargar y aplicar el tema del shop
-    if (profile?.shop_id) {
-      const { data: shop } = await supabase
-        .from("barbershops")
-        .select("theme_mode, theme_color, theme_font")
-        .eq("id", profile.shop_id)
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
         .maybeSingle();
-      if (shop) applyTheme(shop);
+
+      set({ user, profile: profile ?? null });
+
+      if (profile?.shop_id) {
+        const { data: shop } = await supabase
+          .from("barbershops")
+          .select("theme_mode, theme_color, theme_font")
+          .eq("id", profile.shop_id)
+          .maybeSingle();
+        if (shop) applyTheme(shop);
+      }
+    } catch (e) {
+      console.error("loadProfile error:", e);
+      set({ user, profile: null });
     }
   },
 
@@ -51,9 +66,14 @@ export const useAuthStore = create((set, get) => ({
   },
 
   signOut: async () => {
-    await supabase.auth.signOut();
-    set({ user: null, profile: null });
-    resetTheme();
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.error("signOut error:", e);
+    } finally {
+      set({ user: null, profile: null, loading: false });
+      resetTheme();
+    }
   },
 
   isAdmin: () => {

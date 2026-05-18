@@ -40,8 +40,8 @@ export default function AdminLayout() {
   }
 
   async function handleSignOut() {
-    await signOut();
-    navigate("/login");
+    try { await signOut(); } catch {}
+    navigate("/login", { replace: true });
   }
 
   function closeDrawer() { setDrawerOpen(false); }

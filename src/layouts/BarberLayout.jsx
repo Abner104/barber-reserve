@@ -35,8 +35,8 @@ export default function BarberLayout() {
   }
 
   async function handleSignOut() {
-    await signOut();
-    navigate("/login");
+    try { await signOut(); } catch {}
+    navigate("/login", { replace: true });
     setDrawerOpen(false);
   }
 
