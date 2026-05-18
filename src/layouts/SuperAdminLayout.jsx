@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Outlet, Link, useLocation, useNavigate, Navigate } from "react-router-dom";
-import { Scissors, LayoutDashboard, Building2, LogOut, Menu, X, ChevronRight, Zap } from "lucide-react";
+import { Scissors, LayoutDashboard, Building2, LogOut, Menu, X, ChevronRight, Zap, Tag } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 
 const NAV = [
-  { to: "/superadmin",          icon: LayoutDashboard, label: "Overview",   exact: true },
-  { to: "/superadmin/shops",    icon: Building2,       label: "Barberías"  },
+  { to: "/superadmin",          icon: LayoutDashboard, label: "Overview",  exact: true },
+  { to: "/superadmin/shops",    icon: Building2,       label: "Barberías" },
+  { to: "/superadmin/pricing",  icon: Tag,             label: "Precios"   },
 ];
 
 export default function SuperAdminLayout() {

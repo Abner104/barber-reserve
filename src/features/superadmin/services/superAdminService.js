@@ -91,3 +91,23 @@ export async function deleteShop(shopId) {
     .from("barbershops").update({ is_active: false }).eq("id", shopId);
   if (error) throw error;
 }
+
+// ── SAAS CONFIG ──────────────────────────────────────────────
+export async function getSaasConfig() {
+  const { data, error } = await supabase
+    .from("saas_config")
+    .select("*")
+    .eq("id", 1)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateSaasConfig(updates) {
+  const { data, error } = await supabase
+    .from("saas_config")
+    .upsert({ id: 1, ...updates })
+    .select().single();
+  if (error) throw error;
+  return data;
+}

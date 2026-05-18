@@ -19,6 +19,7 @@ import CajaPage      from "../features/admin/pages/CajaPage";
 
 import OverviewPage  from "../features/superadmin/pages/OverviewPage";
 import ShopsPage     from "../features/superadmin/pages/ShopsPage";
+import PricingPage   from "../features/superadmin/pages/PricingPage";
 
 import AgendaPage     from "../features/barber/pages/AgendaPage";
 import BarberCajaPage from "../features/barber/pages/CajaPage";
@@ -52,8 +53,9 @@ export const router = createBrowserRouter([
     path: "/superadmin",
     element: <SuperAdminLayout />,
     children: [
-      { index: true,    element: <OverviewPage /> },
-      { path: "shops",  element: <ShopsPage />   },
+      { index: true,      element: <OverviewPage /> },
+      { path: "shops",    element: <ShopsPage />    },
+      { path: "pricing",  element: <PricingPage />  },
     ],
   },
 
