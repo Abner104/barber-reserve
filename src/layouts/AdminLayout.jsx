@@ -8,6 +8,8 @@ import { useAuthStore } from "../store/authStore";
 import { useRealtimeBookings } from "../features/admin/hooks/useRealtimeBookings";
 import BarberLoader from "../components/shared/BarberLoader";
 import { useShopTheme } from "../hooks/useShopTheme";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "../lib/supabase";
 
 const NAV = [
   { to: "/admin",          icon: LayoutDashboard, label: "Dashboard", exact: true },
@@ -23,9 +25,23 @@ export default function AdminLayout() {
   const navigate                    = useNavigate();
   const { signOut, profile, loading, user } = useAuthStore();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const isSuperAdmin                = profile?.role === "super_admin";
+  const isSuperAdmin = profile?.role === "super_admin";
 
   useRealtimeBookings();
+
+  // Detectar si el owner también es barbero (tiene profile_id en barbers)
+  const { data: isAlsoBarber } = useQuery({
+    queryKey: ["owner-is-barber", user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("barbers")
+        .select("id")
+        .eq("profile_id", user.id)
+        .maybeSingle();
+      return !!data;
+    },
+    enabled: !!user?.id,
+  });
 
   if (loading) return (
     <div style={{ minHeight: "100vh", background: "#0A0A0A", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -92,6 +108,19 @@ export default function AdminLayout() {
 
       {/* Footer */}
       <div style={{ padding: "12px 10px", borderTop: "1px solid var(--sidebar-border, #1E1E1E)", flexShrink: 0 }}>
+
+        {/* Switch a Mi Agenda si el owner también es barbero */}
+        {isAlsoBarber && (
+          <Link to="/barber" onClick={closeDrawer} style={{
+            display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", borderRadius: 10,
+            textDecoration: "none", background: "var(--brand-alpha, rgba(255,107,44,0.08))",
+            border: "1px solid var(--brand-alpha, rgba(255,107,44,0.2))", marginBottom: 8,
+          }}>
+            <Calendar size={14} color={brand} />
+            <span style={{ fontSize: 13, fontWeight: 600, color: brand }}>Mi agenda</span>
+          </Link>
+        )}
+
         {isSuperAdmin && (
           <Link to="/superadmin" onClick={closeDrawer} style={{
             display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", borderRadius: 10,

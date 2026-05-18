@@ -71,10 +71,17 @@ export default function BarberLayout() {
               {active?.label ?? "Mi Panel"}
             </p>
 
-            {/* Avatar */}
-            <div style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--brand-alpha)", display: "flex", alignItems: "center", justifyContent: "center", color: O, fontWeight: 800, fontSize: 15 }}>
-              {initl}
-            </div>
+            {/* Switch a Admin si es owner */}
+            {(profile?.role === "owner" || profile?.role === "super_admin") ? (
+              <Link to="/admin" style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 10, background: "var(--brand-alpha)", border: "1px solid rgba(255,107,44,0.25)", textDecoration: "none", color: O, fontSize: 12, fontWeight: 700 }}>
+                <Scissors size={13} />
+                Admin
+              </Link>
+            ) : (
+              <div style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--brand-alpha)", display: "flex", alignItems: "center", justifyContent: "center", color: O, fontWeight: 800, fontSize: 15 }}>
+                {initl}
+              </div>
+            )}
           </div>
         </div>
 
@@ -143,11 +150,11 @@ export default function BarberLayout() {
 
             {/* Footer drawer */}
             <div style={{ padding: "12px 10px", borderTop: "1px solid var(--border)" }}>
-              {profile?.role === "owner" && (
+              {(profile?.role === "owner" || profile?.role === "super_admin") && (
                 <Link
                   to="/admin"
                   onClick={() => setDrawerOpen(false)}
-                  style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 10, textDecoration: "none", color: "var(--text-faint)", fontSize: 13, marginBottom: 4 }}
+                  style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 10, textDecoration: "none", background: "var(--brand-alpha)", border: "1px solid rgba(255,107,44,0.2)", color: O, fontSize: 13, fontWeight: 700, marginBottom: 8 }}
                 >
                   <Scissors size={16} />
                   Panel Admin
