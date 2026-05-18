@@ -148,21 +148,20 @@ export default function AgendaPage() {
   const DAYS_ORDER = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];
 
   async function toggleDay(day, currentHour) {
-    if (!profile) { toast.error("Sin perfil"); return; }
-    console.log("toggleDay profile:", { id: profile.id, shop_id: profile.shop_id, day });
+    if (!profile?.id)       { toast.error("Tu cuenta no está vinculada a un barbero. Pídele al admin que te configure."); return; }
+    if (!profile?.shop_id)  { toast.error("Sin shop_id — contacta al administrador."); return; }
     const isActive = currentHour?.is_active ?? false;
     const payload = {
-      shop_id:         profile.shop_id,
-      barber_id:       profile.id,
+      shop_id:    profile.shop_id,
+      barber_id:  profile.id,
       day,
-      start_time:      currentHour?.start_time ?? "09:00",
-      end_time:        currentHour?.end_time   ?? "18:00",
-      is_active:       !isActive,
+      start_time: currentHour?.start_time ?? "09:00",
+      end_time:   currentHour?.end_time   ?? "18:00",
+      is_active:  !isActive,
     };
-    const { data, error } = await supabase.from("working_hours")
+    const { error } = await supabase.from("working_hours")
       .upsert(payload, { onConflict: "barber_id,day" })
       .select();
-    console.log("toggleDay result:", { data, error });
     if (error) toast.error("Error: " + error.message);
     else { refetchHours(); toast.success(!isActive ? "Día activado ✅" : "Día desactivado"); }
   }
