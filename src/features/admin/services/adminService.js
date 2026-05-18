@@ -377,3 +377,31 @@ export async function updateBookingNotes(id, barber_notes) {
   if (error) throw error;
   return data;
 }
+
+// ── PORTAFOLIO ───────────────────────────────────────────────
+export async function getBarberPortfolio(barberId) {
+  const { data, error } = await supabase
+    .from("barber_portfolio")
+    .select("id, image_url, caption")
+    .eq("barber_id", barberId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function addPortfolioPhoto(barberId, image_url, caption = "") {
+  const { data, error } = await supabase
+    .from("barber_portfolio")
+    .insert({ barber_id: barberId, image_url, caption })
+    .select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deletePortfolioPhoto(photoId) {
+  const { error } = await supabase
+    .from("barber_portfolio")
+    .delete()
+    .eq("id", photoId);
+  if (error) throw error;
+}

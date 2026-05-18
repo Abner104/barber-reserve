@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Pencil, Power, X, Loader2, ChevronDown, ChevronUp } from "lucide-react";
-import ImageUpload from "../../../components/shared/ImageUpload";
+import { Plus, Pencil, Power, X, Loader2, ChevronDown, ChevronUp, Images, Trash2, Upload } from "lucide-react";
+import ImageUpload, { uploadImage } from "../../../components/shared/ImageUpload";
 import WhatsAppStatus from "../components/WhatsAppStatus";
-import { getAdminBarbers, createBarber, updateBarber, toggleBarberActive, getBarberWorkingHours, upsertWorkingHours } from "../services/adminService";
+import { getAdminBarbers, createBarber, updateBarber, toggleBarberActive, getBarberWorkingHours, upsertWorkingHours, getBarberPortfolio, addPortfolioPhoto, deletePortfolioPhoto } from "../services/adminService";
 import { DAYS_OF_WEEK, DAY_LABEL } from "../../../lib/constants";
 import TimeSelect from "../../../components/shared/TimeSelect";
 
@@ -177,7 +177,7 @@ function BarberRow({ barber, expanded, onExpand, onEdit, onToggle }) {
 
       {expanded && (
         <>
-          <WorkingHoursEditor barberId={barber.id} />
+          <PortfolioEditor barberId={barber.id} />
           <div style={{ padding: "12px 18px", borderTop: "1px solid var(--card-border)" }}>
             <WhatsAppStatus barberId={barber.id} />
           </div>
@@ -404,6 +404,80 @@ function BarberModal({ barber, onClose, onSave, loading }) {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function PortfolioEditor({ barberId }) {
+  const qc       = useQueryClient();
+  const inputRef = useRef();
+  const [uploading, setUploading] = useState(false);
+
+  const { data: photos = [], isLoading } = useQuery({
+    queryKey: ["barber-portfolio", barberId],
+    queryFn:  () => getBarberPortfolio(barberId),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: deletePortfolioPhoto,
+    onSuccess:  () => { qc.invalidateQueries(["barber-portfolio", barberId]); toast.success("Foto eliminada"); },
+    onError:    () => toast.error("Error al eliminar"),
+  });
+
+  async function handleFile(file) {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error("Máx 5MB"); return; }
+    setUploading(true);
+    try {
+      const url = await uploadImage(file, "portfolio");
+      await addPortfolioPhoto(barberId, url);
+      qc.invalidateQueries(["barber-portfolio", barberId]);
+      toast.success("Foto agregada al portafolio");
+    } catch { toast.error("Error al subir la foto"); }
+    finally   { setUploading(false); }
+  }
+
+  return (
+    <div style={{ borderTop: "1px solid var(--card-border)", padding: "16px 18px", background: "var(--sidebar-bg)" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <p style={{ fontSize: 12, fontWeight: 700, color: "var(--text-faint)", letterSpacing: 1, textTransform: "uppercase" }}>
+          Portafolio · {photos.length} fotos
+        </p>
+        <button
+          onClick={() => inputRef.current.click()}
+          disabled={uploading}
+          style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, background: "var(--brand)", border: "none", color: "#fff", fontWeight: 600, fontSize: 12, cursor: "pointer", opacity: uploading ? 0.6 : 1 }}
+        >
+          {uploading ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : <Upload size={12} />}
+          Agregar foto
+        </button>
+        <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={e => handleFile(e.target.files[0])} />
+      </div>
+
+      {isLoading && <p style={{ fontSize: 12, color: "var(--text-faint)" }}>Cargando...</p>}
+
+      {!isLoading && photos.length === 0 && (
+        <div style={{ textAlign: "center", padding: "20px 0", color: "var(--text-faint)", fontSize: 13 }}>
+          <Images size={24} style={{ margin: "0 auto 6px", opacity: 0.3 }} />
+          <p>Sin fotos aún. Agrega trabajos del barbero.</p>
+        </div>
+      )}
+
+      {photos.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: 8 }}>
+          {photos.map(p => (
+            <div key={p.id} style={{ position: "relative", borderRadius: 8, overflow: "hidden", aspectRatio: "1" }}>
+              <img src={p.image_url} alt="portfolio" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <button
+                onClick={() => deleteMut.mutate(p.id)}
+                style={{ position: "absolute", top: 4, right: 4, width: 22, height: 22, borderRadius: 6, background: "rgba(239,68,68,0.85)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}
+              >
+                <Trash2 size={11} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
