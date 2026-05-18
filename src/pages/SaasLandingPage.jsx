@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { applyTheme } from "../lib/applyTheme";
+import { Player } from "@lottiefiles/react-lottie-player";
 import { ArrowRight, Check, Scissors, MapPin, Calendar, BarChart3, Users, Zap, Star } from "lucide-react";
 
 const O = "#FF6B2C";
@@ -81,6 +82,16 @@ export default function SaasLandingPage() {
           <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", background: "rgba(255,107,44,0.1)", border: "1px solid rgba(255,107,44,0.25)", borderRadius: 20, marginBottom: 28 }}>
             <Zap size={12} color={O} />
             <span style={{ color: O, fontSize: 12, fontWeight: 700 }}>El sistema que tu barbería necesita</span>
+          </div>
+
+          {/* Animación Lottie del barbero */}
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+            <Player
+              src="/animations/Barber.json"
+              autoplay
+              loop
+              style={{ width: 180, height: 180 }}
+            />
           </div>
 
           <h1 style={{ fontSize: "clamp(40px, 7vw, 76px)", fontWeight: 900, lineHeight: 1.05, letterSpacing: -2, marginBottom: 24 }}>

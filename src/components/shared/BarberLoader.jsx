@@ -8,7 +8,7 @@ import { Player } from "@lottiefiles/react-lottie-player";
 
 // URL de animación de loading — cámbiala por la que elijas
 // Esta es una animación de tijeras de Lottiefiles (pública)
-const LOTTIE_URL = "https://assets10.lottiefiles.com/packages/lf20_hqxfuorc.json";
+const LOTTIE_URL = "/animations/Scissors Cutting Animation.json";
 
 export default function BarberLoader({
   message  = "Cargando...",

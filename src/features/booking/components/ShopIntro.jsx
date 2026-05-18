@@ -7,7 +7,7 @@ import { Player } from "@lottiefiles/react-lottie-player";
  *
  * Cambia LOTTIE_URL por la animación de tijeras/barbería que elijas.
  */
-const LOTTIE_URL = "https://assets10.lottiefiles.com/packages/lf20_hqxfuorc.json";
+const LOTTIE_URL = "/animations/Scissors Cutting Animation.json";
 
 export default function ShopIntro({ shopName, logoUrl, color = "#FF6B2C", onDone }) {
   const [fading, setFading] = useState(false);

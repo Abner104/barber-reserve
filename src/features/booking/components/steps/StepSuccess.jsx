@@ -6,7 +6,7 @@ import { useBookingStore } from "../../../../store/bookingStore";
 import { Player } from "@lottiefiles/react-lottie-player";
 
 // Animación de checkmark — busca "success check" en lottiefiles.com y reemplaza
-const SUCCESS_LOTTIE = "https://assets9.lottiefiles.com/packages/lf20_jbrw3hcz.json";
+const SUCCESS_LOTTIE = "/animations/Success Green.json";
 
 const O = "var(--brand, #FF6B2C)";
 
