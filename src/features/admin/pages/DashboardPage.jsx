@@ -30,7 +30,7 @@ export default function DashboardPage() {
   const today = format(new Date(), "EEEE d 'de' MMMM", { locale: es });
 
   return (
-    <div className="admin-page" style={{ maxWidth: 1100 }}>
+    <div className="admin-page" style={{ maxWidth: "min(1100px, 100%)" }}>
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
         <p style={{ color: "var(--text-faint)", fontSize: 13, textTransform: "capitalize" }}>{today}</p>

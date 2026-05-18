@@ -85,13 +85,13 @@ export async function getMyAgenda(date) {
 
 export async function getMyCaja(date) {
   const barber = await getMyBarberId();
-  if (!barber) return { bookings: [], total: 0, commission: 0, deliveries: 0 };
+  if (!barber) return { bookings: [], total: 0, myEarnings: 0, deliveries: 0, model: "percentage" };
 
   const d = date ?? new Date().toLocaleDateString("en-CA", { timeZone: "America/Santiago" });
 
   const { data, error } = await supabase
     .from("bookings")
-    .select("id, price, delivery_fee, status, type, scheduled_at, services(name), clients(full_name)")
+    .select("id, price, price_final, delivery_fee, status, type, scheduled_at, services(name), clients(full_name)")
     .eq("barber_id", barber.id)
     .gte("scheduled_at", `${d}T00:00:00-04:00`)
     .lte("scheduled_at", `${d}T23:59:59-04:00`)
@@ -100,11 +100,28 @@ export async function getMyCaja(date) {
 
   if (error) throw error;
 
-  const total      = (data || []).reduce((s, b) => s + Number(b.price || 0), 0);
+  const total      = (data || []).reduce((s, b) => s + Number(b.price_final != null ? b.price_final : (b.price || 0)), 0);
   const deliveries = (data || []).reduce((s, b) => s + Number(b.delivery_fee || 0), 0);
-  const commission = total * (barber.commission_pct / 100);
+  const model      = barber.payment_model ?? "percentage";
 
-  return { bookings: data || [], total, commission, deliveries, commissionPct: barber.commission_pct };
+  let myEarnings = 0;
+  let modelInfo  = {};
+
+  if (model === "percentage") {
+    const pct   = Number(barber.commission_pct ?? 0);
+    myEarnings  = total * (pct / 100);
+    modelInfo   = { pct };
+  } else if (model === "chair_rent") {
+    // Barbero se queda con todo lo que factura, pero debe el arriendo
+    myEarnings = total;
+    modelInfo  = { rentAmount: Number(barber.chair_rent_amount ?? 0), rentPeriod: barber.chair_rent_period ?? "monthly" };
+  } else if (model === "day_rate") {
+    const dayRate = Number(barber.day_rate_amount ?? 0);
+    myEarnings    = total - dayRate;
+    modelInfo     = { dayRate };
+  }
+
+  return { bookings: data || [], total, myEarnings, deliveries, model, modelInfo };
 }
 
 export async function updateMyAvailability(updates) {

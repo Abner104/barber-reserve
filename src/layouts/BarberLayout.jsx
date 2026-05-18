@@ -79,7 +79,7 @@ export default function BarberLayout() {
         </div>
 
         {/* ── CONTENIDO ── */}
-        <div style={{ maxWidth: 600, margin: "0 auto", padding: "20px 16px 40px" }}>
+        <div style={{ width: "100%", maxWidth: 960, margin: "0 auto", padding: "clamp(16px, 3vw, 32px)" }}>
           <Outlet />
         </div>
       </div>

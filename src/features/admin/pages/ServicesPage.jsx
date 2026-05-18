@@ -45,7 +45,7 @@ export default function ServicesPage() {
   });
 
   return (
-    <div className="admin-page" style={{ maxWidth: 900 }}>
+    <div className="admin-page" style={{ maxWidth: "min(900px, 100%)" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 32, flexWrap: "wrap", gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 800, color: "var(--text)" }}>Servicios</h1>

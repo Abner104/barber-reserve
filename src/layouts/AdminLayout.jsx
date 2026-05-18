@@ -136,7 +136,7 @@ export default function AdminLayout() {
         .admin-sidebar  { width: 220px; background: var(--sidebar-bg, #0F0F0F); border-right: 1px solid var(--sidebar-border, #1E1E1E); flex-shrink: 0; position: sticky; top: 0; height: 100vh; overflow: hidden; }
         .admin-topbar   { display: none; }
         .admin-main     { flex: 1; min-width: 0; overflow-x: hidden; background: var(--bg, #0A0A0A); }
-        .admin-page     { padding: 32px; }
+        .admin-page     { padding: clamp(16px, 3vw, 40px); width: 100%; box-sizing: border-box; }
         .admin-drawer-overlay { display: none; }
         .admin-drawer   { display: none; }
 

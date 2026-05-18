@@ -252,7 +252,7 @@ export default function CajaPage() {
 
   // ── SIN TURNO ABIERTO ────────────────────────────────────────
   if (!turno) return (
-    <div className="admin-page" style={{ maxWidth: 600 }}>
+    <div className="admin-page" style={{ maxWidth: "min(600px, 100%)" }}>
       <h1 style={{ fontSize: 28, fontWeight: 800, color: "var(--text)", marginBottom: 8 }}>Caja</h1>
       <p style={{ color: "var(--text-faint)", marginBottom: 40 }}>No hay ningún turno abierto hoy.</p>
 
@@ -304,7 +304,7 @@ export default function CajaPage() {
 
   // ── TURNO ABIERTO ────────────────────────────────────────────
   return (
-    <div className="admin-page" style={{ maxWidth: 900 }}>
+    <div className="admin-page" style={{ maxWidth: "min(900px, 100%)" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
         <div>

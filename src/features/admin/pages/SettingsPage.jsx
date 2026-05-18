@@ -138,7 +138,7 @@ export default function SettingsPage() {
   const inp = { width: "100%", padding: "11px 13px", borderRadius: 10, background: "var(--input-bg, #1E1E1E)", border: "1px solid var(--border, #2A2A2A)", color: "var(--text, #fff)", fontSize: 14, boxSizing: "border-box", outline: "none" };
 
   return (
-    <div className="admin-page" style={{ maxWidth: 860 }}>
+    <div className="admin-page" style={{ maxWidth: "min(860px, 100%)" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 32, flexWrap: "wrap", gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 800, color: "var(--text)" }}>Configuración</h1>

@@ -117,7 +117,7 @@ export default function BookingsPage() {
     : "Todas las próximas";
 
   return (
-    <div className="admin-page" style={{ maxWidth: 1100 }}>
+    <div className="admin-page" style={{ maxWidth: "min(1100px, 100%)" }}>
 
       {/* ── HEADER ── */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28, flexWrap: "wrap", gap: 12 }}>
