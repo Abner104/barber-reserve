@@ -140,7 +140,7 @@ export default function AgendaPage() {
   // Horarios del barbero
   const { data: workingHours = [], refetch: refetchHours } = useQuery({
     queryKey: ["wh", profile?.id],
-    queryFn:  () => getBarberWorkingHours(profile?.id ? undefined : null),
+    queryFn:  () => getBarberWorkingHours(profile.id),
     enabled:  !!profile?.id,
   });
 
@@ -148,35 +148,43 @@ export default function AgendaPage() {
   const DAYS_ORDER = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];
 
   async function toggleDay(day, currentHour) {
-    if (!profile) return;
+    if (!profile) { toast.error("Sin perfil"); return; }
+    console.log("toggleDay profile:", { id: profile.id, shop_id: profile.shop_id, day });
     const isActive = currentHour?.is_active ?? false;
-    const { error } = await supabase.from("working_hours").upsert({
-      shop_id:    profile.shop_id,
-      barber_id:  profile.id,
+    const payload = {
+      shop_id:         profile.shop_id,
+      barber_id:       profile.id,
       day,
-      start_time: currentHour?.start_time ?? "09:00",
-      end_time:   currentHour?.end_time   ?? "18:00",
-      is_active:  !isActive,
-      available_slots: currentHour?.available_slots ?? null,
-    }, { onConflict: "barber_id,day" });
-    if (error) toast.error("Error al guardar");
-    else { refetchHours(); toast.success(!isActive ? "Día activado" : "Día desactivado"); }
+      start_time:      currentHour?.start_time ?? "09:00",
+      end_time:        currentHour?.end_time   ?? "18:00",
+      is_active:       !isActive,
+    };
+    const { data, error } = await supabase.from("working_hours")
+      .upsert(payload, { onConflict: "barber_id,day" })
+      .select();
+    console.log("toggleDay result:", { data, error });
+    if (error) toast.error("Error: " + error.message);
+    else { refetchHours(); toast.success(!isActive ? "Día activado ✅" : "Día desactivado"); }
   }
 
   async function saveSlots(day, slots) {
     if (!profile) return;
     const sorted = [...slots].sort();
-    const end = sorted.length ? (() => {
-      const [h,m] = sorted[sorted.length-1].split(":").map(Number);
-      const t = h*60+m+30;
-      return `${String(Math.floor(t/60)).padStart(2,"0")}:${String(t%60).padStart(2,"0")}`;
-    })() : "18:00";
+    const lastSlot = sorted[sorted.length - 1] ?? "09:00";
+    const [h, m]   = lastSlot.split(":").map(Number);
+    const t        = h * 60 + m + 30;
+    const end      = `${String(Math.floor(t/60)).padStart(2,"0")}:${String(t%60).padStart(2,"0")}`;
+
     const { error } = await supabase.from("working_hours").upsert({
-      shop_id: profile.shop_id, barber_id: profile.id, day,
-      start_time: sorted[0] ?? "09:00", end_time: end,
-      is_active: true, available_slots: sorted.length ? sorted : null,
+      shop_id:         profile.shop_id,
+      barber_id:       profile.id,
+      day,
+      start_time:      sorted[0] ?? "09:00",
+      end_time:        end,
+      is_active:       true,
+      available_slots: sorted.length ? sorted : null,
     }, { onConflict: "barber_id,day" });
-    if (error) toast.error("Error: " + error.message);
+    if (error) { console.error("saveSlots error:", error); toast.error("Error: " + error.message); }
     else { refetchHours(); toast.success("Horario guardado ✅"); }
   }
 
