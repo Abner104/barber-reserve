@@ -46,13 +46,22 @@ export async function getAvailableSlots({ barberId, date, durationMin }) {
   const dayNames = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
   const dayName  = dayNames[new Date(date + "T12:00:00").getDay()];
 
-  const { data: wh } = await supabase
-    .from("working_hours")
-    .select("start_time, end_time, available_slots")
-    .eq("barber_id", barberId)
-    .eq("day", dayName)
-    .eq("is_active", true)
-    .maybeSingle();
+  // Obtener horario y slot_duration_min del barbero en paralelo
+  const [{ data: wh }, { data: barberData }] = await Promise.all([
+    supabase.from("working_hours")
+      .select("start_time, end_time, available_slots")
+      .eq("barber_id", barberId)
+      .eq("day", dayName)
+      .eq("is_active", true)
+      .maybeSingle(),
+    supabase.from("barbers")
+      .select("slot_duration_min")
+      .eq("id", barberId)
+      .maybeSingle(),
+  ]);
+
+  // Intervalo entre slots según el barbero (default 30 min)
+  const slotInterval = barberData?.slot_duration_min ?? 30;
 
   if (!wh) return [];
 
@@ -106,7 +115,7 @@ export async function getAvailableSlots({ barberId, date, durationMin }) {
 
   while (addMinutes(cursor, durationMin) <= workEnd) {
     if (!isBlocked(cursor)) slots.push(format(cursor, "HH:mm"));
-    cursor = addMinutes(cursor, 30);
+    cursor = addMinutes(cursor, slotInterval);
   }
 
   return slots;

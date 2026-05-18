@@ -10,7 +10,7 @@ import TimeSelect from "../../../components/shared/TimeSelect";
 
 const O = "var(--brand, #FF6B2C)";
 
-const EMPTY_BARBER = { full_name: "", phone: "", specialty: "", bio: "", avatar_url: "", does_delivery: true, delivery_radius: 10, commission_pct: 0, callmebot_key: "", email: "" };
+const EMPTY_BARBER = { full_name: "", phone: "", specialty: "", bio: "", avatar_url: "", does_delivery: true, delivery_radius: 10, commission_pct: 0, callmebot_key: "", email: "", slot_duration_min: 30 };
 
 export default function BarbersPage() {
   const qc = useQueryClient();
@@ -240,7 +240,7 @@ function WorkingHoursEditor({ barberId }) {
 function BarberModal({ barber, onClose, onSave, loading }) {
   const [form, setForm] = useState(barber ? {
     full_name: barber.full_name, phone: barber.phone ?? "", specialty: barber.specialty ?? "",
-    bio: barber.bio ?? "", does_delivery: barber.does_delivery, delivery_radius: barber.delivery_radius, commission_pct: barber.commission_pct, callmebot_key: barber.callmebot_key ?? "",
+    bio: barber.bio ?? "", does_delivery: barber.does_delivery, delivery_radius: barber.delivery_radius, commission_pct: barber.commission_pct, callmebot_key: barber.callmebot_key ?? "", slot_duration_min: barber.slot_duration_min ?? 30,
   } : EMPTY_BARBER);
 
   const inp = { background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", color: "var(--text)", fontSize: 14, width: "100%", boxSizing: "border-box", outline: "none" };
@@ -286,12 +286,19 @@ function BarberModal({ barber, onClose, onSave, loading }) {
             <textarea style={{ ...inp, resize: "none" }} rows={2} value={form.bio} onChange={e => setForm({ ...form, bio: e.target.value })} placeholder="Breve descripción del barbero..." />
           </Field>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
             <Field label="Comisión %">
               <input style={inp} type="number" min={0} max={100} value={form.commission_pct} onChange={e => setForm({ ...form, commission_pct: Number(e.target.value) })} />
             </Field>
             <Field label="Radio domicilio (km)">
               <input style={inp} type="number" min={1} value={form.delivery_radius} onChange={e => setForm({ ...form, delivery_radius: Number(e.target.value) })} />
+            </Field>
+            <Field label="Intervalo de slots (min)">
+              <select style={{ ...inp, cursor: "pointer" }} value={form.slot_duration_min ?? 30} onChange={e => setForm({ ...form, slot_duration_min: Number(e.target.value) })}>
+                {[15, 20, 30, 45, 60, 90].map(v => (
+                  <option key={v} value={v}>{v} min</option>
+                ))}
+              </select>
             </Field>
           </div>
 
