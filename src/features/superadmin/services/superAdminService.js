@@ -106,8 +106,10 @@ export async function getSaasConfig() {
 export async function updateSaasConfig(updates) {
   const { data, error } = await supabase
     .from("saas_config")
-    .upsert({ id: 1, ...updates })
-    .select().single();
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq("id", 1)
+    .select()
+    .single();
   if (error) throw error;
   return data;
 }
