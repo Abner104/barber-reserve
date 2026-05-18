@@ -111,10 +111,8 @@ export default function RegisterPage() {
     <div style={{ minHeight: "100vh", background: "#0A0A0A", display: "flex" }}>
       {/* Panel izquierdo — solo desktop */}
       <div style={{ width: 420, background: "#0F0F0F", borderRight: "1px solid #1E1E1E", padding: "48px 40px", flexShrink: 0, display: "flex", flexDirection: "column" }} className="hidden lg:flex">
-        <Link to="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", marginBottom: 48 }}>
-          <div style={{ width: 32, height: 32, background: O, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Scissors size={15} color="#fff" />
-          </div>
+        <Link to="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", marginBottom: 48 }}>
+          <img src="/LogoC.png" alt="Clippr" style={{ width: 36, height: 36, objectFit: "contain", filter: "drop-shadow(0 0 8px rgba(255,107,44,.45))" }} />
           <span style={{ fontWeight: 900, fontSize: 18, color: "#fff" }}>Clippr</span>
         </Link>
 
@@ -141,10 +139,8 @@ export default function RegisterPage() {
         <div style={{ width: "100%", maxWidth: 440 }}>
 
           {/* Logo móvil */}
-          <Link to="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", marginBottom: 36, justifyContent: "center" }} className="lg:hidden">
-            <div style={{ width: 32, height: 32, background: O, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Scissors size={15} color="#fff" />
-            </div>
+          <Link to="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", marginBottom: 36, justifyContent: "center" }} className="lg:hidden">
+            <img src="/LogoC.png" alt="Clippr" style={{ width: 34, height: 34, objectFit: "contain", filter: "drop-shadow(0 0 8px rgba(255,107,44,.45))" }} />
             <span style={{ fontWeight: 900, fontSize: 18, color: "#fff" }}>Clippr</span>
           </Link>
 

@@ -77,10 +77,8 @@ export default function LoginPage() {
 
         {/* Logo */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 40 }}>
-          <div style={{ width: 40, height: 40, background: O, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Scissors size={20} color="#fff" />
-          </div>
-          <span style={{ fontWeight: 800, fontSize: 22, color: "#fff" }}>Clippr</span>
+          <img src="/LogoC.png" alt="Clippr" style={{ width: 40, height: 40, objectFit: "contain", filter: "drop-shadow(0 0 10px rgba(255,107,44,.5))" }} />
+          <span style={{ fontWeight: 900, fontSize: 22, color: "#fff" }}>Clippr</span>
         </div>
 
         {/* Card */}
