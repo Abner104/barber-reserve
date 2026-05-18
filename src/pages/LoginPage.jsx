@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Scissors, Loader2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore } from "../store/authStore";
+import { supabase } from "../lib/supabase";
 
 const O = "#FF6B2C";
 
@@ -19,9 +20,22 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      await signIn(form.email, form.password);
-      toast.success("¡Bienvenido de vuelta!");
-      navigate("/admin");
+      const { user } = await signIn(form.email, form.password);
+      // Cargar perfil para saber el rol
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      toast.success("¡Bienvenido!");
+      if (profile?.role === "barber") {
+        navigate("/barber");
+      } else if (profile?.role === "super_admin") {
+        navigate("/superadmin");
+      } else {
+        navigate("/admin");
+      }
     } catch (err) {
       setError("Email o contraseña incorrectos.");
       toast.error("Email o contraseña incorrectos.");
