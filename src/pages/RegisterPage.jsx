@@ -50,8 +50,8 @@ export default function RegisterPage() {
           city:     shop.city,
           phone:    shop.phone,
           plan:     "trial",
-          currency: "COP",
-          timezone: "America/Bogota",
+          currency: "CLP",
+          timezone: "America/Santiago",
           allows_delivery: true,
           delivery_fee_base: 5000,
           delivery_fee_per_km: 1500,
@@ -119,7 +119,7 @@ export default function RegisterPage() {
         <h2 style={{ fontSize: 26, fontWeight: 900, color: "#fff", marginBottom: 8 }}>Tu barbería digital en minutos.</h2>
         <p style={{ color: "#555", fontSize: 15, lineHeight: 1.6, marginBottom: 40 }}>Crea tu cuenta, configura tu barbería y empieza a recibir reservas hoy mismo.</p>
 
-        {["30 días gratis sin tarjeta", "Reservas online 24/7", "Domicilios con mapa", "Panel admin completo", "$10.000 COP por barbero/mes"].map(f => (
+        {["30 días gratis sin tarjeta", "Reservas online 24/7", "Domicilios con mapa", "Panel admin completo", "$10.000 CLP por barbero/mes"].map(f => (
           <div key={f} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
             <div style={{ width: 20, height: 20, borderRadius: "50%", background: "rgba(255,107,44,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <Check size={11} color={O} />
@@ -206,27 +206,18 @@ export default function RegisterPage() {
                 <input style={inp} value={shop.name} onChange={e => handleShopChange("name", e.target.value)}
                   placeholder="NobleCut Barber Shop"
                   onFocus={e => e.target.style.borderColor = O} onBlur={e => e.target.style.borderColor = "#2A2A2A"} />
-              </Field>
-
-              <Field label="URL de tu página (slug)">
-                <div style={{ position: "relative" }}>
-                  <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#555", fontSize: 13 }}>barberos.com/</span>
-                  <input style={{ ...inp, paddingLeft: 112 }} value={shop.slug} onChange={e => setShop({ ...shop, slug: slugify(e.target.value) })}
-                    placeholder="noblecut"
-                    onFocus={e => e.target.style.borderColor = O} onBlur={e => e.target.style.borderColor = "#2A2A2A"} />
-                </div>
-                {shop.slug && <p style={{ color: O, fontSize: 11, marginTop: 4 }}>✓ barberos.com/{shop.slug}</p>}
+                {shop.slug && <p style={{ color: "#444", fontSize: 11, marginTop: 4 }}>Tu URL: clippr.app/{shop.slug}</p>}
               </Field>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <Field label="Ciudad">
                   <input style={inp} value={shop.city} onChange={e => setShop({ ...shop, city: e.target.value })}
-                    placeholder="Bogotá"
+                    placeholder="Santiago"
                     onFocus={e => e.target.style.borderColor = O} onBlur={e => e.target.style.borderColor = "#2A2A2A"} />
                 </Field>
                 <Field label="WhatsApp">
                   <input style={inp} value={shop.phone} onChange={e => setShop({ ...shop, phone: e.target.value })}
-                    placeholder="3001234567"
+                    placeholder="+56912345678"
                     onFocus={e => e.target.style.borderColor = O} onBlur={e => e.target.style.borderColor = "#2A2A2A"} />
                 </Field>
               </div>
@@ -243,7 +234,7 @@ export default function RegisterPage() {
                 </button>
                 <button
                   onClick={handleRegister}
-                  disabled={loading || !shop.name.trim() || !shop.slug.trim()}
+                  disabled={loading || !shop.name.trim()}
                   style={{ flex: 2, padding: "14px", borderRadius: 12, background: O, color: "#fff", fontWeight: 700, fontSize: 15, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: loading ? 0.7 : 1 }}
                 >
                   {loading && <Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} />}
