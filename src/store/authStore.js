@@ -16,22 +16,36 @@ export const useAuthStore = create((set, get) => ({
     } catch (e) {
       console.error("Auth init error:", e);
     } finally {
-      // Siempre terminar el loading — nunca quedarse atascado
       set({ loading: false });
     }
 
-    // Escuchar cambios de sesión — NO poner loading:true aquí
-    // para evitar spinner infinito cuando el LoginPage navega
-    supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        try {
-          await get().loadProfile(session.user);
-        } catch (e) {
-          console.error("onAuthStateChange loadProfile error:", e);
-          set({ user: session.user, profile: null, loading: false });
-        }
-      } else {
+    // Escuchar cambios — cierre de sesión en otra pestaña, expiración, etc.
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_OUT" || !session) {
         set({ user: null, profile: null, loading: false });
+        resetTheme();
+        // Redirigir si está en una ruta protegida
+        const path = window.location.pathname;
+        if (path.startsWith("/admin") || path.startsWith("/barber") || path.startsWith("/superadmin")) {
+          window.location.href = "/login";
+        }
+        return;
+      }
+
+      if (event === "SIGNED_IN" && session?.user) {
+        // Solo cargar si no tenemos perfil aún (evitar doble carga)
+        if (!get().profile) {
+          try {
+            await get().loadProfile(session.user);
+          } catch (e) {
+            console.error("loadProfile error:", e);
+            set({ user: session.user, profile: null });
+          }
+        }
+      }
+
+      if (event === "TOKEN_REFRESHED" && session?.user) {
+        set({ user: session.user });
       }
     });
   },

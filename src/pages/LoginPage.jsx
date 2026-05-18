@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, Navigate } from "react-router-dom";
 import { Scissors, Loader2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore } from "../store/authStore";
@@ -7,46 +7,52 @@ import { supabase } from "../lib/supabase";
 
 const O = "#FF6B2C";
 
+function getRoleRoute(role) {
+  if (role === "barber")      return "/barber";
+  if (role === "super_admin") return "/superadmin";
+  return "/admin";
+}
+
 export default function LoginPage() {
-  const navigate  = useNavigate();
-  const signIn    = useAuthStore(s => s.signIn);
-  const [form, setForm]       = useState({ email: "", password: "" });
-  const [showPwd, setShowPwd] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState("");
+  const navigate               = useNavigate();
+  const { signIn, user, profile, loading } = useAuthStore();
+  const [form, setForm]        = useState({ email: "", password: "" });
+  const [showPwd, setShowPwd]  = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError]      = useState("");
+
+  // Si ya hay sesión activa, redirigir según rol
+  if (!loading && user && profile) {
+    return <Navigate to={getRoleRoute(profile.role)} replace />;
+  }
+
+  // Si hay usuario pero perfil aún cargando, esperar
+  if (!loading && user && !profile) {
+    return <Navigate to="/admin" replace />;
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
-    setLoading(true);
+    setSubmitting(true);
     try {
-      const { user } = await signIn(form.email, form.password);
+      const { user: loggedUser } = await signIn(form.email, form.password);
 
-      // Esperar a que el perfil cargue (onAuthStateChange lo dispara)
-      // Consultamos directamente con un pequeño delay para evitar race condition
-      await new Promise(r => setTimeout(r, 500));
-
+      // Consultar perfil directamente
       const { data: profile } = await supabase
         .from("profiles")
         .select("role")
-        .eq("id", user.id)
+        .eq("id", loggedUser.id)
         .maybeSingle();
 
       toast.success("¡Bienvenido!");
-      const role = profile?.role;
-      if (role === "barber") {
-        navigate("/barber", { replace: true });
-      } else if (role === "super_admin") {
-        navigate("/superadmin", { replace: true });
-      } else {
-        navigate("/admin", { replace: true });
-      }
+      navigate(getRoleRoute(profile?.role), { replace: true });
     } catch (err) {
       console.error("Login error:", err);
       setError("Email o contraseña incorrectos.");
       toast.error("Email o contraseña incorrectos.");
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   }
 
@@ -55,6 +61,15 @@ export default function LoginPage() {
     background: "#141414", border: "1px solid #2A2A2A", color: "#fff",
     outline: "none", boxSizing: "border-box",
   };
+
+  // Mostrar spinner mientras carga la sesión inicial
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#0A0A0A", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ width: 28, height: 28, border: "3px solid #2A2A2A", borderTopColor: O, borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: "#0A0A0A", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
@@ -65,27 +80,23 @@ export default function LoginPage() {
           <div style={{ width: 40, height: 40, background: O, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Scissors size={20} color="#fff" />
           </div>
-          <span style={{ fontWeight: 800, fontSize: 22, color: "#fff" }}>NobleCut</span>
+          <span style={{ fontWeight: 800, fontSize: 22, color: "#fff" }}>BarberOS</span>
         </div>
 
         {/* Card */}
         <div style={{ background: "#141414", border: "1px solid #2A2A2A", borderRadius: 20, padding: 32 }}>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 6 }}>Bienvenido</h1>
-          <p style={{ color: "#555", fontSize: 14, marginBottom: 28 }}>Ingresa a tu panel de administración</p>
+          <p style={{ color: "#555", fontSize: 14, marginBottom: 28 }}>Ingresa a tu panel</p>
 
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div>
               <label style={{ display: "block", fontSize: 12, color: "#A0A0A0", marginBottom: 6, fontWeight: 600 }}>Email</label>
               <input
-                style={inp}
-                type="email"
-                placeholder="admin@noblecut.com"
-                value={form.email}
-                onChange={e => setForm({ ...form, email: e.target.value })}
+                style={inp} type="email" placeholder="tu@email.com"
+                value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
                 onFocus={e => e.target.style.borderColor = O}
                 onBlur={e => e.target.style.borderColor = "#2A2A2A"}
-                required
-                autoComplete="email"
+                required autoComplete="email"
               />
             </div>
 
@@ -94,20 +105,14 @@ export default function LoginPage() {
               <div style={{ position: "relative" }}>
                 <input
                   style={{ ...inp, paddingRight: 44 }}
-                  type={showPwd ? "text" : "password"}
-                  placeholder="••••••••"
-                  value={form.password}
-                  onChange={e => setForm({ ...form, password: e.target.value })}
+                  type={showPwd ? "text" : "password"} placeholder="••••••••"
+                  value={form.password} onChange={e => setForm({ ...form, password: e.target.value })}
                   onFocus={e => e.target.style.borderColor = O}
                   onBlur={e => e.target.style.borderColor = "#2A2A2A"}
-                  required
-                  autoComplete="current-password"
+                  required autoComplete="current-password"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPwd(!showPwd)}
-                  style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#555" }}
-                >
+                <button type="button" onClick={() => setShowPwd(!showPwd)}
+                  style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#555" }}>
                   {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
@@ -119,26 +124,19 @@ export default function LoginPage() {
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
+            <button type="submit" disabled={submitting}
               style={{
                 width: "100%", padding: "14px", borderRadius: 12, fontSize: 15, fontWeight: 700,
-                background: O, color: "#fff", border: "none", cursor: loading ? "not-allowed" : "pointer",
+                background: O, color: "#fff", border: "none", cursor: submitting ? "not-allowed" : "pointer",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                opacity: loading ? 0.7 : 1, marginTop: 4,
+                opacity: submitting ? 0.7 : 1, marginTop: 4,
               }}
             >
-              {loading && <Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} />}
-              {loading ? "Ingresando..." : "Ingresar"}
+              {submitting && <Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} />}
+              {submitting ? "Ingresando..." : "Ingresar"}
             </button>
           </form>
         </div>
-
-        <p style={{ textAlign: "center", color: "#555", fontSize: 12, marginTop: 20 }}>
-          ¿Olvidaste tu contraseña?{" "}
-          <span style={{ color: O, cursor: "pointer" }}>Contacta al soporte</span>
-        </p>
       </div>
     </div>
   );
