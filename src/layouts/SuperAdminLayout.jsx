@@ -36,7 +36,7 @@ export default function SuperAdminLayout() {
             <Zap size={15} color="#fff" />
           </div>
           <div>
-            <p style={{ fontWeight: 800, fontSize: 15, color: "#fff" }}>BarberOS</p>
+            <p style={{ fontWeight: 800, fontSize: 15, color: "#fff" }}>Clippr</p>
             <p style={{ fontSize: 10, color: "#FF6B2C", fontWeight: 700 }}>Super Admin</p>
           </div>
         </div>

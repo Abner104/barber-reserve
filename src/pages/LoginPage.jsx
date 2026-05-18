@@ -80,7 +80,7 @@ export default function LoginPage() {
           <div style={{ width: 40, height: 40, background: O, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Scissors size={20} color="#fff" />
           </div>
-          <span style={{ fontWeight: 800, fontSize: 22, color: "#fff" }}>BarberOS</span>
+          <span style={{ fontWeight: 800, fontSize: 22, color: "#fff" }}>Clippr</span>
         </div>
 
         {/* Card */}

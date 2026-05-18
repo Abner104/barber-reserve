@@ -61,7 +61,7 @@ export default function SaasLandingPage() {
             <div style={{ width: 32, height: 32, background: O, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Scissors size={15} color="#fff" />
             </div>
-            <span style={{ fontWeight: 900, fontSize: 18, letterSpacing: -0.5 }}>BarberOS</span>
+            <span style={{ fontWeight: 900, fontSize: 18, letterSpacing: -0.5 }}>Clippr</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
             <a href="#features" style={{ color: "#666", fontSize: 14, textDecoration: "none" }}>Funciones</a>
@@ -142,7 +142,7 @@ export default function SaasLandingPage() {
               <div style={{ background: "#0F0F0F", borderRadius: 12, padding: 16 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
                   <div style={{ width: 24, height: 24, background: O, borderRadius: 6 }} />
-                  <span style={{ fontWeight: 700, fontSize: 13, color: "#fff" }}>BarberOS</span>
+                  <span style={{ fontWeight: 700, fontSize: 13, color: "#fff" }}>Clippr</span>
                 </div>
                 {["Dashboard","Reservas","Barberos","Servicios"].map((item, i) => (
                   <div key={item} style={{ padding: "7px 10px", borderRadius: 8, marginBottom: 4, background: i === 0 ? "rgba(255,107,44,0.12)" : "transparent", color: i === 0 ? O : "#555", fontSize: 12, fontWeight: i === 0 ? 600 : 400 }}>
@@ -253,9 +253,9 @@ export default function SaasLandingPage() {
           <div style={{ width: 24, height: 24, background: O, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Scissors size={11} color="#fff" />
           </div>
-          <span style={{ fontWeight: 800, fontSize: 14, color: "#fff" }}>BarberOS</span>
+          <span style={{ fontWeight: 800, fontSize: 14, color: "#fff" }}>Clippr</span>
         </div>
-        <p style={{ color: "#555", fontSize: 13 }}>© 2026 BarberOS · Todos los derechos reservados</p>
+        <p style={{ color: "#555", fontSize: 13 }}>© 2026 Clippr · Todos los derechos reservados</p>
       </footer>
 
     </div>

@@ -115,7 +115,7 @@ export default function RegisterPage() {
           <div style={{ width: 32, height: 32, background: O, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Scissors size={15} color="#fff" />
           </div>
-          <span style={{ fontWeight: 900, fontSize: 18, color: "#fff" }}>BarberOS</span>
+          <span style={{ fontWeight: 900, fontSize: 18, color: "#fff" }}>Clippr</span>
         </Link>
 
         <h2 style={{ fontSize: 26, fontWeight: 900, color: "#fff", marginBottom: 8 }}>Tu barbería digital en minutos.</h2>
@@ -145,7 +145,7 @@ export default function RegisterPage() {
             <div style={{ width: 32, height: 32, background: O, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Scissors size={15} color="#fff" />
             </div>
-            <span style={{ fontWeight: 900, fontSize: 18, color: "#fff" }}>BarberOS</span>
+            <span style={{ fontWeight: 900, fontSize: 18, color: "#fff" }}>Clippr</span>
           </Link>
 
           {/* Progress */}

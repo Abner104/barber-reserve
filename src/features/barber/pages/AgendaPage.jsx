@@ -10,6 +10,8 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { getMyAgenda, getMyBarberProfile, getMyUpcomingBookings } from "../services/barberService";
+import { getBarberWorkingHours } from "../../admin/services/adminService";
+import SlotPicker from "../../../components/shared/SlotPicker";
 import { updateBookingStatus } from "../../admin/services/adminService";
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_COLOR, PAYMENT_METHOD_LABEL } from "../../../lib/constants";
 import { formatCurrency } from "../../../lib/utils";
@@ -41,6 +43,8 @@ export default function AgendaPage() {
   const [payMethod, setPayMethod]       = useState("cash");
   const [priceFinal, setPriceFinal]     = useState("");
   const [proofUrl, setProofUrl]         = useState("");
+  const [showHorario, setShowHorario]   = useState(false);
+  const [horarioDia, setHorarioDia]     = useState(null);
 
   const dateStr = selectedDate;
 
@@ -133,6 +137,49 @@ export default function AgendaPage() {
   const O        = "var(--brand, #FF6B2C)";
   const title    = !dateStr ? "Todas mis reservas" : isToday ? "Mi agenda hoy" : format(new Date(dateStr + "T12:00:00"), "EEEE d 'de' MMMM", { locale: es });
 
+  // Horarios del barbero
+  const { data: workingHours = [], refetch: refetchHours } = useQuery({
+    queryKey: ["wh", profile?.id],
+    queryFn:  () => getBarberWorkingHours(profile?.id ? undefined : null),
+    enabled:  !!profile?.id,
+  });
+
+  const DAYS_ES = { monday:"Lunes", tuesday:"Martes", wednesday:"Miércoles", thursday:"Jueves", friday:"Viernes", saturday:"Sábado", sunday:"Domingo" };
+  const DAYS_ORDER = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];
+
+  async function toggleDay(day, currentHour) {
+    if (!profile) return;
+    const isActive = currentHour?.is_active ?? false;
+    const { error } = await supabase.from("working_hours").upsert({
+      shop_id:    profile.shop_id,
+      barber_id:  profile.id,
+      day,
+      start_time: currentHour?.start_time ?? "09:00",
+      end_time:   currentHour?.end_time   ?? "18:00",
+      is_active:  !isActive,
+      available_slots: currentHour?.available_slots ?? null,
+    }, { onConflict: "barber_id,day" });
+    if (error) toast.error("Error al guardar");
+    else { refetchHours(); toast.success(!isActive ? "Día activado" : "Día desactivado"); }
+  }
+
+  async function saveSlots(day, slots) {
+    if (!profile) return;
+    const sorted = [...slots].sort();
+    const end = sorted.length ? (() => {
+      const [h,m] = sorted[sorted.length-1].split(":").map(Number);
+      const t = h*60+m+30;
+      return `${String(Math.floor(t/60)).padStart(2,"0")}:${String(t%60).padStart(2,"0")}`;
+    })() : "18:00";
+    const { error } = await supabase.from("working_hours").upsert({
+      shop_id: profile.shop_id, barber_id: profile.id, day,
+      start_time: sorted[0] ?? "09:00", end_time: end,
+      is_active: true, available_slots: sorted.length ? sorted : null,
+    }, { onConflict: "barber_id,day" });
+    if (error) toast.error("Error: " + error.message);
+    else { refetchHours(); toast.success("Horario guardado ✅"); }
+  }
+
   // Eventos para FullCalendar
   const allBookings = [...bookings, ...upcoming];
   const calEvents   = allBookings.map(b => ({
@@ -183,6 +230,75 @@ export default function AgendaPage() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* ── HORARIO RÁPIDO ── */}
+      <div style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 14, marginBottom: 16, overflow: "hidden" }}>
+        <button
+          onClick={() => setShowHorario(!showHorario)}
+          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: "none", border: "none", cursor: "pointer" }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 14 }}>🗓️</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>Mi disponibilidad semanal</span>
+            {workingHours.filter(h => h.is_active).length === 0 && (
+              <span style={{ fontSize: 11, background: "rgba(239,68,68,0.1)", color: "#ef4444", padding: "2px 8px", borderRadius: 20, fontWeight: 600 }}>Sin configurar</span>
+            )}
+          </div>
+          <span style={{ color: "var(--text-faint)", fontSize: 18 }}>{showHorario ? "↑" : "↓"}</span>
+        </button>
+
+        {showHorario && (
+          <div style={{ borderTop: "1px solid var(--border)", padding: "14px 16px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {DAYS_ORDER.map(day => {
+                const h      = workingHours.find(wh => wh.day === day);
+                const active = h?.is_active ?? false;
+                const slots  = h?.available_slots ?? [];
+                const isEditingThis = horarioDia === day;
+
+                return (
+                  <div key={day} style={{ background: "var(--surface2)", borderRadius: 10, overflow: "hidden" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px" }}>
+                      {/* Toggle */}
+                      <button
+                        onClick={() => toggleDay(day, h)}
+                        style={{ width: 38, height: 21, borderRadius: 11, background: active ? O : "var(--border)", border: "none", cursor: "pointer", position: "relative", flexShrink: 0, transition: "background 0.2s" }}
+                      >
+                        <div style={{ position: "absolute", top: 2, width: 17, height: 17, borderRadius: "50%", background: "#fff", left: active ? 19 : 2, transition: "left 0.2s" }} />
+                      </button>
+                      <span style={{ flex: 1, fontSize: 13, fontWeight: active ? 600 : 400, color: active ? "var(--text)" : "var(--text-faint)" }}>
+                        {DAYS_ES[day]}
+                      </span>
+                      {active && (
+                        <span style={{ fontSize: 11, color: slots.length ? O : "var(--text-faint)" }}>
+                          {slots.length > 0 ? `${slots.length} slots` : "Sin horas"}
+                        </span>
+                      )}
+                      {active && (
+                        <button
+                          onClick={() => setHorarioDia(isEditingThis ? null : day)}
+                          style={{ fontSize: 11, color: O, background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}
+                        >
+                          {isEditingThis ? "Cerrar" : "Editar"}
+                        </button>
+                      )}
+                    </div>
+                    {active && isEditingThis && (
+                      <div style={{ padding: "0 12px 12px", borderTop: "1px solid var(--border)" }}>
+                        <p style={{ fontSize: 11, color: "var(--text-faint)", margin: "10px 0 8px" }}>Toca las horas disponibles:</p>
+                        <SlotPicker
+                          selected={slots}
+                          onChange={newSlots => saveSlots(day, newSlots)}
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Selector de fecha */}

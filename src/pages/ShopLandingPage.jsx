@@ -220,7 +220,7 @@ export default function ShopLandingPage() {
       <footer style={{ borderTop: "1px solid var(--shop-border)", padding: "20px 24px", textAlign: "center", background: "var(--shop-bg)" }}>
         <p style={{ color: "var(--shop-text-faint)", fontSize: 12 }}>
           {shop.name} · Powered by{" "}
-          <Link to="/" style={{ color: "var(--shop-brand)", textDecoration: "none", fontWeight: 600 }}>BarberOS</Link>
+          <Link to="/" style={{ color: "var(--shop-brand)", textDecoration: "none", fontWeight: 600 }}>Clippr</Link>
         </p>
       </footer>
     </ThemeProvider>
