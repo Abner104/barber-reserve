@@ -14,11 +14,12 @@ import BookingSummaryPanel from "./BookingSummaryPanel";
 const O = "var(--brand, #FF6B2C)";
 const STEPS = ["Tipo", "Servicio", "Barbero", "Fecha", "Dirección", "Confirmar"];
 
-export default function BookingWizard() {
+export default function BookingWizard({ slug }) {
   const { step, type } = useBookingStore();
+  const backUrl = slug ? `/${slug}` : "/";
   const [summaryOpen, setSummaryOpen] = useState(false);
 
-  if (step === 7) return <StepSuccess />;
+  if (step === 7) return <StepSuccess slug={slug} />;
 
   const visibleSteps = type === "delivery" ? STEPS : STEPS.filter((_, i) => i !== 4);
   const totalSteps   = visibleSteps.length;
@@ -63,7 +64,7 @@ export default function BookingWizard() {
 
         {/* ── SIDEBAR desktop ── */}
         <div className="wizard-sidebar">
-          <Link to="/" style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 40, textDecoration: "none" }}>
+          <Link to={backUrl} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 40, textDecoration: "none" }}>
             <div style={{ width: 34, height: 34, background: O, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Scissors size={16} color="#fff" />
             </div>
@@ -93,7 +94,7 @@ export default function BookingWizard() {
 
           <BookingSummaryPanel />
 
-          <Link to="/" style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--text-faint)", fontSize: 12, textDecoration: "none", marginTop: "auto" }}>
+          <Link to={backUrl} style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--text-faint)", fontSize: 12, textDecoration: "none", marginTop: "auto" }}>
             <ArrowLeft size={13} /> Volver al inicio
           </Link>
         </div>
@@ -103,7 +104,7 @@ export default function BookingWizard() {
 
           {/* Header móvil */}
           <div className="wizard-mobile-header">
-            <Link to="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
+            <Link to={backUrl} style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
               <div style={{ width: 28, height: 28, background: O, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <Scissors size={13} color="#fff" />
               </div>

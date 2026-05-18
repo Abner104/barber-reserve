@@ -6,8 +6,9 @@ import { useBookingStore } from "../../../../store/bookingStore";
 
 const O = "var(--brand, #FF6B2C)";
 
-export default function StepSuccess() {
+export default function StepSuccess({ slug }) {
   const { reset, type, service, barber, date, slot } = useBookingStore();
+  const backUrl = slug ? `/${slug}` : "/";
   const barberName = barber?.full_name ?? "tu barbero";
   const dateLabel  = date
     ? format(new Date(date + "T12:00:00"), "EEEE d 'de' MMMM", { locale: es })
@@ -92,7 +93,7 @@ export default function StepSuccess() {
             Hacer otra reserva
           </button>
           <Link
-            to="/"
+            to={backUrl}
             style={{ width: "100%", padding: "14px", borderRadius: 12, background: "transparent", color: "var(--text-muted)", fontWeight: 600, fontSize: 15, border: "1px solid var(--border)", display: "block", textDecoration: "none", textAlign: "center", boxSizing: "border-box" }}
           >
             Volver al inicio
