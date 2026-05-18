@@ -1,6 +1,17 @@
 import { Link } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { applyTheme } from "../lib/applyTheme";
+import { supabase } from "../lib/supabase";
+
+async function fetchPricing() {
+  const { data } = await supabase
+    .from("saas_config")
+    .select("base_price, price_per_barber, trial_days")
+    .eq("id", 1)
+    .maybeSingle();
+  return data ?? { base_price: 11990, price_per_barber: 2990, trial_days: 30 };
+}
 import { ArrowRight, Check, Scissors, MapPin, Calendar, BarChart3, Users, Zap, Star, ChevronDown } from "lucide-react";
 
 const O  = "#FF6B2C";
@@ -15,23 +26,29 @@ const FEATURES = [
   { icon: <Scissors size={22} />, title: "Tu página propia",        desc: "Cada barbería con su link, sus servicios y sus barberos." },
 ];
 
-const PLANS = [
-  {
-    name: "Trial", price: "Gratis", sub: "30 días · sin tarjeta",
-    features: ["Hasta 2 barberos", "Reservas ilimitadas", "Domicilios con mapa", "Panel admin completo"],
-    cta: "Empezar gratis", href: "/register", highlight: false,
-  },
-  {
-    name: "Pro", price: "$10.000", sub: "por barbero / mes",
-    features: ["Barberos ilimitados", "Reservas ilimitadas", "Domicilios con mapa", "Dashboard + métricas", "Soporte por WhatsApp"],
-    cta: "Empezar ahora", href: "/register", highlight: true,
-  },
-  {
-    name: "Cadenas", price: "A medida", sub: "para múltiples sedes",
-    features: ["Sedes ilimitadas", "Gestión centralizada", "Reportes por sede", "Soporte dedicado"],
-    cta: "Hablar con nosotros", href: "https://wa.me/56900000000", highlight: false,
-  },
-];
+function buildPlans(cfg) {
+  const base    = cfg?.base_price       ?? 11990;
+  const perBar  = cfg?.price_per_barber ?? 2990;
+  const days    = cfg?.trial_days       ?? 30;
+  const fmt     = n => `$${Number(n).toLocaleString("es-CL")}`;
+  return [
+    {
+      name: "Trial", price: "Gratis", sub: `${days} días · sin tarjeta`,
+      features: ["Hasta 2 barberos", "Reservas ilimitadas", "Domicilios con mapa", "Panel admin completo"],
+      cta: "Empezar gratis", href: "/register", highlight: false,
+    },
+    {
+      name: "Pro", price: fmt(base), sub: `+ ${fmt(perBar)} por barbero adicional / mes`,
+      features: ["Barberos ilimitados", "Reservas ilimitadas", "Domicilios con mapa", "Dashboard + métricas", "Soporte por WhatsApp"],
+      cta: "Empezar ahora", href: "/register", highlight: true,
+    },
+    {
+      name: "Cadenas", price: "A medida", sub: "para múltiples sedes",
+      features: ["Sedes ilimitadas", "Gestión centralizada", "Reportes por sede", "Soporte dedicado"],
+      cta: "Hablar con nosotros", href: "https://wa.me/56900000000", highlight: false,
+    },
+  ];
+}
 
 const WORDS = ["barbería.", "negocio.", "equipo.", "caja."];
 
@@ -151,6 +168,14 @@ function useParallax(f = 0.25) {
 // ── Main ──────────────────────────────────────────────────────
 export default function SaasLandingPage() {
   const py = useParallax(0.25);
+
+  const { data: pricingCfg } = useQuery({
+    queryKey: ["saas-config-public"],
+    queryFn:  fetchPricing,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const PLANS = buildPlans(pricingCfg);
 
   useEffect(() => {
     applyTheme({ theme_mode: "dark", theme_color: "#FF6B2C", theme_font: "Inter" });

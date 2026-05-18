@@ -1,10 +1,20 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Scissors, Loader2, Eye, EyeOff, Check } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Loader2, Eye, EyeOff, Check } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../lib/supabase";
 
 const O = "#FF6B2C";
+
+async function fetchPricing() {
+  const { data } = await supabase
+    .from("saas_config")
+    .select("base_price, price_per_barber, trial_days")
+    .eq("id", 1)
+    .maybeSingle();
+  return data ?? { base_price: 11990, price_per_barber: 2990, trial_days: 30 };
+}
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -14,7 +24,13 @@ export default function RegisterPage() {
   const [showPwd, setShowPwd] = useState(false);
 
   const [account, setAccount] = useState({ full_name: "", email: "", password: "" });
-  const [shop, setShop] = useState({ name: "", slug: "", city: "", phone: "" });
+  const [shop, setShop]       = useState({ name: "", slug: "", city: "", phone: "" });
+
+  const { data: pricing } = useQuery({ queryKey: ["saas-config-public"], queryFn: fetchPricing, staleTime: 5 * 60 * 1000 });
+  const basePrice    = pricing?.base_price       ?? 11990;
+  const perBarber    = pricing?.price_per_barber ?? 2990;
+  const trialDays    = pricing?.trial_days       ?? 30;
+  const fmtPrice     = n => `$${Number(n).toLocaleString("es-CL")}`;
 
   const inp = {
     width: "100%", padding: "13px 14px", borderRadius: 12, fontSize: 14,
@@ -119,7 +135,7 @@ export default function RegisterPage() {
         <h2 style={{ fontSize: 26, fontWeight: 900, color: "#fff", marginBottom: 8 }}>Tu barbería digital en minutos.</h2>
         <p style={{ color: "#555", fontSize: 15, lineHeight: 1.6, marginBottom: 40 }}>Crea tu cuenta, configura tu barbería y empieza a recibir reservas hoy mismo.</p>
 
-        {["30 días gratis sin tarjeta", "Reservas online 24/7", "Domicilios con mapa", "Panel admin completo", "$10.000 CLP por barbero/mes"].map(f => (
+        {[`${trialDays} días gratis sin tarjeta`, "Reservas online 24/7", "Domicilios con mapa", "Panel admin completo", `${fmtPrice(basePrice)} CLP / mes`].map(f => (
           <div key={f} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
             <div style={{ width: 20, height: 20, borderRadius: "50%", background: "rgba(255,107,44,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <Check size={11} color={O} />
@@ -130,7 +146,7 @@ export default function RegisterPage() {
 
         <div style={{ marginTop: "auto", padding: "16px", background: "#141414", borderRadius: 12, border: "1px solid #1E1E1E" }}>
           <p style={{ color: "#555", fontSize: 12, marginBottom: 4 }}>Precio después del trial</p>
-          <p style={{ color: "#fff", fontSize: 20, fontWeight: 900 }}>$10.000 <span style={{ fontSize: 13, fontWeight: 400, color: "#555" }}>por barbero / mes</span></p>
+          <p style={{ color: "#fff", fontSize: 20, fontWeight: 900 }}>{fmtPrice(basePrice)} <span style={{ fontSize: 13, fontWeight: 400, color: "#555" }}>/ mes · +{fmtPrice(perBarber)} por barbero adicional</span></p>
         </div>
       </div>
 
