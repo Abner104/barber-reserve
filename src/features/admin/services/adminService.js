@@ -109,12 +109,49 @@ export async function getAdminBarbers() {
 
 export async function createBarber(barber) {
   const sid = resolveShopId();
-  const { data, error } = await supabase
+  const { email, ...barberData } = barber;
+
+  // 1. Crear barbero en la tabla
+  const { data: newBarber, error } = await supabase
     .from("barbers")
-    .insert({ ...barber, shop_id: sid })
+    .insert({ ...barberData, shop_id: sid })
     .select().single();
   if (error) throw error;
-  return data;
+
+  // 2. Si tiene email, crear cuenta de usuario y mandar invitación
+  if (email?.trim()) {
+    const tempPassword = Math.random().toString(36).slice(-8) + "B1!";
+
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: email.trim(),
+      password: tempPassword,
+      options: {
+        emailRedirectTo: `${window.location.origin}/barber`,
+        data: { full_name: barberData.full_name },
+      },
+    });
+
+    if (!authError && authData.user) {
+      // 3. Crear perfil como barber
+      await supabase.from("profiles").insert({
+        id:        authData.user.id,
+        shop_id:   sid,
+        role:      "barber",
+        full_name: barberData.full_name,
+        phone:     barberData.phone ?? null,
+      });
+
+      // 4. Linkear el profile_id al barbero
+      await supabase.from("barbers")
+        .update({ profile_id: authData.user.id })
+        .eq("id", newBarber.id);
+
+      // 5. Retornar contraseña temporal para que el admin se la comparta
+      return { ...newBarber, tempPassword, email };
+    }
+  }
+
+  return newBarber;
 }
 
 export async function updateBarber(id, updates) {

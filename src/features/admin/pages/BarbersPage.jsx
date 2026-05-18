@@ -10,7 +10,7 @@ import TimeSelect from "../../../components/shared/TimeSelect";
 
 const O = "var(--brand, #FF6B2C)";
 
-const EMPTY_BARBER = { full_name: "", phone: "", specialty: "", bio: "", avatar_url: "", does_delivery: true, delivery_radius: 10, commission_pct: 0, callmebot_key: "" };
+const EMPTY_BARBER = { full_name: "", phone: "", specialty: "", bio: "", avatar_url: "", does_delivery: true, delivery_radius: 10, commission_pct: 0, callmebot_key: "", email: "" };
 
 export default function BarbersPage() {
   const qc = useQueryClient();
@@ -19,10 +19,20 @@ export default function BarbersPage() {
 
   const { data: barbers = [], isLoading } = useQuery({ queryKey: ["admin-barbers"], queryFn: getAdminBarbers });
 
+  const [credenciales, setCredenciales] = useState(null);
+
   const createMut = useMutation({
     mutationFn: createBarber,
-    onSuccess: () => { qc.invalidateQueries(["admin-barbers"]); setModal(null); toast.success("Barbero creado"); },
-    onError: () => toast.error("Error al crear el barbero"),
+    onSuccess: (data) => {
+      qc.invalidateQueries(["admin-barbers"]);
+      setModal(null);
+      if (data?.tempPassword) {
+        setCredenciales({ email: data.email, password: data.tempPassword, name: data.full_name });
+      } else {
+        toast.success("Barbero creado");
+      }
+    },
+    onError: (e) => toast.error("Error: " + (e?.message ?? "al crear el barbero")),
   });
   const updateMut = useMutation({
     mutationFn: ({ id, updates }) => updateBarber(id, updates),
@@ -83,6 +93,50 @@ export default function BarbersPage() {
           }}
           loading={createMut.isPending || updateMut.isPending}
         />
+      )}
+
+      {/* Modal credenciales — aparece cuando se crea barbero con email */}
+      {credenciales && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 20, padding: 28, width: "100%", maxWidth: 420 }}>
+            <div style={{ textAlign: "center", marginBottom: 20 }}>
+              <p style={{ fontSize: 32, marginBottom: 8 }}>✅</p>
+              <h2 style={{ fontSize: 20, fontWeight: 800, color: "var(--text)", marginBottom: 4 }}>Barbero creado</h2>
+              <p style={{ fontSize: 13, color: "var(--text-faint)" }}>
+                Comparte estas credenciales con <strong style={{ color: "var(--text)" }}>{credenciales.name}</strong> por WhatsApp
+              </p>
+            </div>
+
+            <div style={{ background: "var(--surface2)", borderRadius: 12, padding: 16, marginBottom: 20 }}>
+              <div style={{ marginBottom: 10 }}>
+                <p style={{ fontSize: 11, color: "var(--text-faint)", marginBottom: 4 }}>EMAIL</p>
+                <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 15 }}>{credenciales.email}</p>
+              </div>
+              <div>
+                <p style={{ fontSize: 11, color: "var(--text-faint)", marginBottom: 4 }}>CONTRASEÑA TEMPORAL</p>
+                <p style={{ fontWeight: 700, color: "var(--brand)", fontSize: 18, letterSpacing: 1 }}>{credenciales.password}</p>
+              </div>
+            </div>
+
+            <p style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 20, lineHeight: 1.5, textAlign: "center" }}>
+              El barbero entra a <strong style={{ color: "var(--text)" }}>{window.location.origin}/login</strong>, usa estas credenciales y podrá cambiar su contraseña después.
+            </p>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <a
+                href={`https://wa.me/${credenciales.email.includes("56") ? "" : ""}?text=${encodeURIComponent(`Hola ${credenciales.name}! 👋\n\nTus credenciales para el panel:\n\n📱 *URL:* ${window.location.origin}/login\n📧 *Email:* ${credenciales.email}\n🔑 *Contraseña:* ${credenciales.password}\n\nEntra desde tu celular y cambia la contraseña cuando quieras. ✂️`)}`}
+                target="_blank" rel="noopener noreferrer"
+                style={{ flex: 1, padding: "12px", borderRadius: 10, background: "rgba(37,211,102,0.1)", border: "1px solid rgba(37,211,102,0.3)", color: "#25d166", fontWeight: 700, fontSize: 13, textAlign: "center", textDecoration: "none" }}
+              >
+                📤 Enviar por WS
+              </a>
+              <button onClick={() => setCredenciales(null)}
+                style={{ flex: 1, padding: "12px", borderRadius: 10, background: "var(--brand)", border: "none", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
+                Listo
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -203,6 +257,15 @@ function BarberModal({ barber, onClose, onSave, loading }) {
           <Field label="Nombre completo *">
             <input style={inp} value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} placeholder="Carlos Rodríguez" />
           </Field>
+          {!barber && (
+            <Field label="Email del barbero (para su acceso al panel)">
+              <input style={inp} type="email" value={form.email ?? ""} onChange={e => setForm({ ...form, email: e.target.value })}
+                placeholder="jordan@noblecut.com" />
+              <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 4 }}>
+                Se enviará un email de activación. El admin recibirá la contraseña temporal para compartirla.
+              </p>
+            </Field>
+          )}
           <Field label="Teléfono / WhatsApp">
             <input style={inp} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="3001234567" />
           </Field>
