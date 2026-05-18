@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { getMyBarberProfile, updateMyAvailability } from "../services/barberService";
-import { getBarberWorkingHours, upsertWorkingSlots } from "../../admin/services/adminService";
+import { getBarberWorkingHours } from "../../admin/services/adminService";
+import { supabase } from "../../../lib/supabase";
 import ImageUpload from "../../../components/shared/ImageUpload";
 import { DAYS_OF_WEEK, DAY_LABEL } from "../../../lib/constants";
 import SlotPicker from "../../../components/shared/SlotPicker";
@@ -112,7 +113,7 @@ export default function PerfilPage() {
       </div>
 
       {/* Horario semanal */}
-      {barber?.id && <HorarioEditor barberId={barber.id} />}
+      {barber?.id && <HorarioEditor barberId={barber.id} shopId={barber.shop_id} />}
 
       {/* WhatsApp — el barbero conecta su propio WS */}
       {barber?.id && (
@@ -139,7 +140,7 @@ export default function PerfilPage() {
   );
 }
 
-function HorarioEditor({ barberId }) {
+function HorarioEditor({ barberId, shopId }) {
   const qc = useQueryClient();
   const [openDay, setOpenDay] = useState(null);
 
@@ -149,9 +150,35 @@ function HorarioEditor({ barberId }) {
   });
 
   const mut = useMutation({
-    mutationFn: ({ day, slots, is_active }) => upsertWorkingSlots(barberId, day, slots, is_active),
+    mutationFn: async ({ day, slots, is_active }) => {
+      const sorted = [...slots].sort();
+
+      function addThirty(time) {
+        const [h, m] = time.split(":").map(Number);
+        const total  = h * 60 + m + 30;
+        return `${String(Math.floor(total / 60)).padStart(2,"0")}:${String(total % 60).padStart(2,"0")}`;
+      }
+
+      const startTime = sorted[0]                 ?? "09:00";
+      const lastSlot  = sorted[sorted.length - 1] ?? "09:00";
+      const endTime   = addThirty(lastSlot);
+
+      const { error } = await supabase
+        .from("working_hours")
+        .upsert({
+          shop_id:         shopId,
+          barber_id:       barberId,
+          day,
+          start_time:      startTime,
+          end_time:        endTime,
+          is_active:       is_active && sorted.length > 0,
+          available_slots: sorted.length > 0 ? sorted : null,
+        }, { onConflict: "barber_id,day" });
+
+      if (error) throw error;
+    },
     onSuccess: () => { qc.invalidateQueries(["wh", barberId]); toast.success("Horario guardado ✅"); },
-    onError:   () => toast.error("Error al guardar"),
+    onError:   (e) => { console.error("wh error:", e); toast.error("Error al guardar: " + (e?.message ?? "")); },
   });
 
   const getDay = (day) => hours.find(h => h.day === day);
