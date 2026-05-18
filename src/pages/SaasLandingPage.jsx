@@ -39,7 +39,7 @@ function buildPlans(cfg) {
     },
     {
       name: "Pro", price: fmt(base), sub: `+ ${fmt(perBar)} por barbero adicional / mes`,
-      features: ["Barberos ilimitados", "Reservas ilimitadas", "Domicilios con mapa", "Dashboard + métricas", "Soporte por WhatsApp"],
+      features: ["Reservas online 24/7", "Portal del barbero", "Domicilios con mapa", "Caja y comisiones", "Soporte por WhatsApp"],
       cta: "Empezar ahora", href: "/register", highlight: true,
     },
     {
