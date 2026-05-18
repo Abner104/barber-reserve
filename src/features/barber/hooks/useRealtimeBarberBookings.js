@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../../lib/supabase";
 import { toast } from "sonner";
+import { playBookingSound } from "../../../lib/bookingSound";
 
 export function useRealtimeBarberBookings() {
   const qc = useQueryClient();
@@ -34,6 +35,7 @@ export function useRealtimeBarberBookings() {
             // Toast solo para nuevas reservas
             if (payload.eventType === "INSERT") {
               const b = payload.new;
+              playBookingSound();
               toast.success(
                 `🔔 Nueva reserva${b.type === "delivery" ? " a domicilio 📍" : ""}`,
                 {
