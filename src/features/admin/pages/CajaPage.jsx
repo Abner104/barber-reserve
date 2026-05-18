@@ -51,7 +51,8 @@ async function getTurnoData(turnoId) {
   const [{ data: bookings }, { data: egresos }] = await Promise.all([
     supabase.from("bookings")
       .select(`id, price, price_final, payment_method, delivery_fee, scheduled_at,
-        clients(full_name), services(name), barbers(full_name, commission_pct)`)
+        clients(full_name), services(name),
+        barbers(id, full_name, commission_pct, payment_model, chair_rent_amount, chair_rent_period, day_rate_amount)`)
       .eq("shop_id", resolveShopId())
       .eq("status", "completed")
       .gte("updated_at", turnoStart)
@@ -202,7 +203,7 @@ export default function CajaPage() {
     onError: () => toast.error("Error al cerrar turno"),
   });
 
-  // Cálculos
+  // Cálculos totales
   const totalIngresos  = bookings.reduce((s, b) => s + Number(b.price_final ?? b.price ?? 0), 0);
   const totalEgresos   = egresos.reduce((s, e) => s + Number(e.monto ?? 0), 0);
   const totalEfectivo  = bookings.filter(b => b.payment_method === "cash").reduce((s, b) => s + Number(b.price_final ?? b.price ?? 0), 0);
@@ -210,6 +211,40 @@ export default function CajaPage() {
   const totalTarjeta   = bookings.filter(b => b.payment_method === "card").reduce((s, b) => s + Number(b.price_final ?? b.price ?? 0), 0);
   const cajaChicaVal   = Number(turno?.caja_chica ?? 0);
   const totalEnCaja    = cajaChicaVal + totalEfectivo - totalEgresos;
+
+  // Compensación por barbero según su modelo de pago
+  const PERIOD_LABEL = { daily: "por día", weekly: "por semana", monthly: "por mes" };
+
+  const byBarber = bookings.reduce((acc, b) => {
+    const barber = b.barbers;
+    if (!barber) return acc;
+    const name  = barber.full_name ?? "Sin asignar";
+    const model = barber.payment_model ?? "percentage";
+    const amt   = Number(b.price_final ?? b.price ?? 0);
+
+    if (!acc[name]) {
+      acc[name] = { count: 0, totalServices: 0, compensation: 0, model, barber };
+    }
+    acc[name].count++;
+    acc[name].totalServices += amt;
+
+    if (model === "percentage") {
+      acc[name].compensation += amt * (Number(barber.commission_pct ?? 0) / 100);
+    }
+    // Para arriendo y día_rate se calcula al cierre, no por servicio
+    return acc;
+  }, {});
+
+  // Para arriendo de silla y día_rate: calcular lo que debe el barbero al local
+  Object.values(byBarber).forEach(b => {
+    if (b.model === "day_rate") {
+      // Cada barbero aparece = 1 día trabajado en este turno
+      b.debtToShop = Number(b.barber?.day_rate_amount ?? 0);
+    } else if (b.model === "chair_rent") {
+      b.debtToShop = Number(b.barber?.chair_rent_amount ?? 0);
+      b.rentPeriod = PERIOD_LABEL[b.barber?.chair_rent_period ?? "monthly"];
+    }
+  });
 
   const inp = { width: "100%", padding: "11px 13px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14, boxSizing: "border-box", outline: "none" };
 
@@ -388,6 +423,79 @@ export default function CajaPage() {
           </div>
         </div>
       </div>
+
+      {/* ── COMPENSACIÓN POR BARBERO ── */}
+      {Object.keys(byBarber).length > 0 && (
+        <div style={{ marginTop: 20 }}>
+          <p style={{ fontSize: 12, fontWeight: 700, color: "var(--text-faint)", letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 12 }}>
+            Compensación barberos
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {Object.entries(byBarber).map(([name, data]) => (
+              <div key={name} style={{ padding: "14px 16px", background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 12 }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                      <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 14 }}>{name}</p>
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20,
+                        background: data.model === "percentage" ? "rgba(59,130,246,0.1)" : data.model === "chair_rent" ? "rgba(168,85,247,0.1)" : "rgba(245,158,11,0.1)",
+                        color: data.model === "percentage" ? "#3b82f6" : data.model === "chair_rent" ? "#a855f7" : "#f59e0b" }}>
+                        {data.model === "percentage" ? "📊 Porcentaje" : data.model === "chair_rent" ? "🪑 Arriendo" : "📅 Día"}
+                      </span>
+                    </div>
+                    <p style={{ fontSize: 12, color: "var(--text-faint)" }}>
+                      {data.count} servicio{data.count > 1 ? "s" : ""} · {formatCurrency(data.totalServices)} facturado
+                    </p>
+                  </div>
+
+                  {/* Lo que gana o debe según modelo */}
+                  <div style={{ textAlign: "right" }}>
+                    {data.model === "percentage" && (
+                      <>
+                        <p style={{ fontSize: 11, color: "var(--text-faint)", marginBottom: 2 }}>
+                          Gana ({data.barber?.commission_pct ?? 0}%)
+                        </p>
+                        <p style={{ fontWeight: 800, fontSize: 16, color: "#22c55e" }}>
+                          +{formatCurrency(data.compensation)}
+                        </p>
+                        <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 2 }}>
+                          Local: {formatCurrency(data.totalServices - data.compensation)}
+                        </p>
+                      </>
+                    )}
+                    {data.model === "chair_rent" && (
+                      <>
+                        <p style={{ fontSize: 11, color: "var(--text-faint)", marginBottom: 2 }}>
+                          Debe pagar ({data.rentPeriod})
+                        </p>
+                        <p style={{ fontWeight: 800, fontSize: 16, color: "#a855f7" }}>
+                          {formatCurrency(data.debtToShop)}
+                        </p>
+                        <p style={{ fontSize: 11, color: "#22c55e", marginTop: 2 }}>
+                          Facturó: {formatCurrency(data.totalServices)}
+                        </p>
+                      </>
+                    )}
+                    {data.model === "day_rate" && (
+                      <>
+                        <p style={{ fontSize: 11, color: "var(--text-faint)", marginBottom: 2 }}>
+                          Debe pagar (hoy)
+                        </p>
+                        <p style={{ fontWeight: 800, fontSize: 16, color: "#f59e0b" }}>
+                          {formatCurrency(data.debtToShop)}
+                        </p>
+                        <p style={{ fontSize: 11, color: "#22c55e", marginTop: 2 }}>
+                          Facturó: {formatCurrency(data.totalServices)}
+                        </p>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Modal egreso */}
       {showEgresoModal && (

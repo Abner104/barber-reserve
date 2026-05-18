@@ -10,7 +10,7 @@ import TimeSelect from "../../../components/shared/TimeSelect";
 
 const O = "var(--brand, #FF6B2C)";
 
-const EMPTY_BARBER = { full_name: "", phone: "", specialty: "", bio: "", avatar_url: "", does_delivery: true, delivery_radius: 10, commission_pct: 0, callmebot_key: "", email: "", slot_duration_min: 30 };
+const EMPTY_BARBER = { full_name: "", phone: "", specialty: "", bio: "", avatar_url: "", does_delivery: true, delivery_radius: 10, commission_pct: 40, callmebot_key: "", email: "", slot_duration_min: 30, payment_model: "percentage", chair_rent_amount: 0, chair_rent_period: "monthly", day_rate_amount: 0 };
 
 export default function BarbersPage() {
   const qc = useQueryClient();
@@ -240,7 +240,13 @@ function WorkingHoursEditor({ barberId }) {
 function BarberModal({ barber, onClose, onSave, loading }) {
   const [form, setForm] = useState(barber ? {
     full_name: barber.full_name, phone: barber.phone ?? "", specialty: barber.specialty ?? "",
-    bio: barber.bio ?? "", does_delivery: barber.does_delivery, delivery_radius: barber.delivery_radius, commission_pct: barber.commission_pct, callmebot_key: barber.callmebot_key ?? "", slot_duration_min: barber.slot_duration_min ?? 30,
+    bio: barber.bio ?? "", does_delivery: barber.does_delivery, delivery_radius: barber.delivery_radius,
+    commission_pct: barber.commission_pct, callmebot_key: barber.callmebot_key ?? "",
+    slot_duration_min: barber.slot_duration_min ?? 30,
+    payment_model: barber.payment_model ?? "percentage",
+    chair_rent_amount: barber.chair_rent_amount ?? 0,
+    chair_rent_period: barber.chair_rent_period ?? "monthly",
+    day_rate_amount: barber.day_rate_amount ?? 0,
   } : EMPTY_BARBER);
 
   const inp = { background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", color: "var(--text)", fontSize: 14, width: "100%", boxSizing: "border-box", outline: "none" };
@@ -286,10 +292,76 @@ function BarberModal({ barber, onClose, onSave, loading }) {
             <textarea style={{ ...inp, resize: "none" }} rows={2} value={form.bio} onChange={e => setForm({ ...form, bio: e.target.value })} placeholder="Breve descripción del barbero..." />
           </Field>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
-            <Field label="Comisión %">
-              <input style={inp} type="number" min={0} max={100} value={form.commission_pct} onChange={e => setForm({ ...form, commission_pct: Number(e.target.value) })} />
+          {/* Modelo de pago */}
+          <Field label="💰 Modelo de compensación">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+              {[
+                { value: "percentage", label: "Porcentaje", emoji: "📊", desc: "% de cada servicio" },
+                { value: "chair_rent", label: "Arriendo silla", emoji: "🪑", desc: "Monto fijo periódico" },
+                { value: "day_rate",   label: "Día trabajado", emoji: "📅", desc: "Monto por día" },
+              ].map(m => (
+                <button key={m.value} type="button"
+                  onClick={() => setForm({ ...form, payment_model: m.value })}
+                  style={{
+                    padding: "10px 8px", borderRadius: 10, cursor: "pointer", textAlign: "center",
+                    border: `1px solid ${(form.payment_model ?? "percentage") === m.value ? "var(--brand, #FF6B2C)" : "var(--border)"}`,
+                    background: (form.payment_model ?? "percentage") === m.value ? "var(--brand-alpha)" : "var(--surface2)",
+                  }}
+                >
+                  <p style={{ fontSize: 16 }}>{m.emoji}</p>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text)", marginTop: 2 }}>{m.label}</p>
+                  <p style={{ fontSize: 10, color: "var(--text-faint)", marginTop: 1 }}>{m.desc}</p>
+                </button>
+              ))}
+            </div>
+          </Field>
+
+          {/* Campos según el modelo */}
+          {(form.payment_model ?? "percentage") === "percentage" && (
+            <Field label="Comisión para el barbero (%)">
+              <input style={inp} type="number" min={0} max={100}
+                value={form.commission_pct}
+                onChange={e => setForm({ ...form, commission_pct: Number(e.target.value) })}
+                placeholder="40" />
+              <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 4 }}>
+                El barbero recibe este % de cada servicio. El resto es del local.
+              </p>
             </Field>
+          )}
+
+          {(form.payment_model ?? "percentage") === "chair_rent" && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <Field label="Monto arriendo">
+                <input style={inp} type="number" min={0}
+                  value={form.chair_rent_amount ?? 0}
+                  onChange={e => setForm({ ...form, chair_rent_amount: Number(e.target.value) })}
+                  placeholder="150000" />
+              </Field>
+              <Field label="Período">
+                <select style={{ ...inp, cursor: "pointer" }}
+                  value={form.chair_rent_period ?? "monthly"}
+                  onChange={e => setForm({ ...form, chair_rent_period: e.target.value })}>
+                  <option value="daily">Por día</option>
+                  <option value="weekly">Por semana</option>
+                  <option value="monthly">Por mes</option>
+                </select>
+              </Field>
+            </div>
+          )}
+
+          {(form.payment_model ?? "percentage") === "day_rate" && (
+            <Field label="Monto por día trabajado">
+              <input style={inp} type="number" min={0}
+                value={form.day_rate_amount ?? 0}
+                onChange={e => setForm({ ...form, day_rate_amount: Number(e.target.value) })}
+                placeholder="20000" />
+              <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 4 }}>
+                Se calcula automáticamente según los días que trabaje en el período.
+              </p>
+            </Field>
+          )}
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             <Field label="Radio domicilio (km)">
               <input style={inp} type="number" min={1} value={form.delivery_radius} onChange={e => setForm({ ...form, delivery_radius: Number(e.target.value) })} />
             </Field>
