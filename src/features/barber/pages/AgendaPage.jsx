@@ -16,22 +16,15 @@ import { updateBookingStatus } from "../../admin/services/adminService";
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_COLOR, PAYMENT_METHOD_LABEL } from "../../../lib/constants";
 import { formatCurrency } from "../../../lib/utils";
 import { supabase } from "../../../lib/supabase";
-import ImageUpload, { uploadImage } from "../../../components/shared/ImageUpload";
 
 const O = "var(--brand, #FF6B2C)";
 
-const PAYMENT_METHODS = [
-  { key: "cash",      label: "Efectivo",       emoji: "💵" },
-  { key: "card",      label: "Débito/Crédito", emoji: "💳" },
-  { key: "transfer",  label: "Transferencia",  emoji: "🏦" },
-  { key: "mixed",     label: "Mixto",          emoji: "🔀" },
-];
 
 const STATUS_ACTIONS = {
-  pending:     [{ to: "confirmed",   label: "Confirmar",    color: O           }],
-  confirmed:   [{ to: "in_progress", label: "Iniciar",      color: "#3b82f6"   },
-                { to: "no_show",     label: "No vino",      color: "#f59e0b"   }],
-  in_progress: [{ to: "completed",   label: "Completar ✓",  color: "#22c55e", requirePayment: true }],
+  pending:     [{ to: "confirmed",   label: "Confirmar",   color: O         }],
+  confirmed:   [{ to: "in_progress", label: "Iniciar",     color: "#3b82f6" },
+                { to: "no_show",     label: "No vino",     color: "#f59e0b" }],
+  in_progress: [{ to: "completed",   label: "Completar ✓", color: "#22c55e" }],
 };
 
 export default function AgendaPage() {
@@ -39,10 +32,6 @@ export default function AgendaPage() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [expanded, setExpanded]         = useState(null);
   const [view, setView]                 = useState("list");
-  const [paymentModal, setPaymentModal] = useState(null);
-  const [payMethod, setPayMethod]       = useState("cash");
-  const [priceFinal, setPriceFinal]     = useState("");
-  const [proofUrl, setProofUrl]         = useState("");
   const [showHorario, setShowHorario]   = useState(false);
   const [horarioDia, setHorarioDia]     = useState(null);
 
@@ -83,39 +72,8 @@ export default function AgendaPage() {
     onError: () => toast.error("Error al actualizar"),
   });
 
-  const completeMut = useMutation({
-    mutationFn: async ({ bookingId, paymentMethod, priceFinal, proofUrl }) => {
-      const { error } = await supabase
-        .from("bookings")
-        .update({
-          status:            "completed",
-          payment_status:    "paid",
-          payment_method:    paymentMethod,
-          price_final:       priceFinal ? Number(priceFinal) : null,
-          payment_proof_url: proofUrl || null,
-        })
-        .eq("id", bookingId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["my-agenda"],   exact: false, refetchType: "all" });
-      qc.invalidateQueries({ queryKey: ["my-upcoming"], exact: false, refetchType: "all" });
-      setPaymentModal(null);
-      setProofUrl("");
-      toast.success("Servicio completado 🎉");
-    },
-    onError: () => toast.error("Error al completar"),
-  });
-
   function handleActionClick(b, action) {
-    if (action.requirePayment) {
-      setPriceFinal(String(b.price ?? ""));
-      setPayMethod("cash");
-      setProofUrl("");
-      setPaymentModal(b);
-    } else {
-      statusMut.mutate({ id: b.id, status: action.to });
-    }
+    statusMut.mutate({ id: b.id, status: action.to });
   }
 
   // Sin barbero configurado
@@ -476,103 +434,6 @@ export default function AgendaPage() {
         })}
       </div>}
 
-      {/* ── MODAL PAGO ── */}
-      {paymentModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 200, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-          <div style={{ background: "var(--surface, #141414)", borderRadius: "20px 20px 0 0", padding: 24, width: "100%", maxWidth: 600 }}>
-            {/* Header */}
-            <div style={{ marginBottom: 20 }}>
-              <p style={{ fontSize: 18, fontWeight: 800, color: "var(--text)", marginBottom: 4 }}>
-                Registrar pago
-              </p>
-              <p style={{ fontSize: 13, color: "var(--text-faint)" }}>
-                {paymentModal.clients?.full_name} · {paymentModal.services?.name}
-              </p>
-            </div>
-
-            {/* Precio final */}
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ fontSize: 12, color: "var(--text-faint)", fontWeight: 600, display: "block", marginBottom: 8 }}>
-                Monto cobrado
-              </label>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 20, color: "var(--text-faint)" }}>$</span>
-                <input
-                  type="number"
-                  value={priceFinal}
-                  onChange={e => setPriceFinal(e.target.value)}
-                  style={{ flex: 1, padding: "12px 14px", borderRadius: 12, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 20, fontWeight: 700, outline: "none", boxSizing: "border-box" }}
-                />
-              </div>
-              {priceFinal !== String(paymentModal.price) && (
-                <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 4 }}>
-                  Precio original: {formatCurrency(paymentModal.price)}
-                </p>
-              )}
-            </div>
-
-            {/* Método de pago */}
-            <div style={{ marginBottom: 24 }}>
-              <label style={{ fontSize: 12, color: "var(--text-faint)", fontWeight: 600, display: "block", marginBottom: 10 }}>
-                Método de pago
-              </label>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                {PAYMENT_METHODS.map(m => (
-                  <button
-                    key={m.key}
-                    onClick={() => setPayMethod(m.key)}
-                    style={{
-                      padding: "12px 14px", borderRadius: 12, cursor: "pointer",
-                      border: `1px solid ${payMethod === m.key ? O : "var(--border)"}`,
-                      background: payMethod === m.key ? "var(--brand-alpha)" : "var(--surface2)",
-                      display: "flex", alignItems: "center", gap: 8,
-                    }}
-                  >
-                    <span style={{ fontSize: 18 }}>{m.emoji}</span>
-                    <span style={{ fontSize: 13, fontWeight: payMethod === m.key ? 700 : 400, color: payMethod === m.key ? O : "var(--text)" }}>
-                      {m.label}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Comprobante solo si es transferencia */}
-            {payMethod === "transfer" && (
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ fontSize: 12, color: "var(--text-faint)", fontWeight: 600, display: "block", marginBottom: 8 }}>
-                  📸 Foto del comprobante (requerido para transferencia)
-                </label>
-                <ImageUpload
-                  value={proofUrl}
-                  onChange={setProofUrl}
-                  folder="payment-proofs"
-                  label="Toca para fotografiar el comprobante"
-                  aspect="wide"
-                  capture="environment"
-                />
-              </div>
-            )}
-
-            {/* Botones */}
-            <div style={{ display: "flex", gap: 10 }}>
-              <button
-                onClick={() => setPaymentModal(null)}
-                style={{ flex: 1, padding: "13px", borderRadius: 12, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", fontWeight: 600, cursor: "pointer" }}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => completeMut.mutate({ bookingId: paymentModal.id, paymentMethod: payMethod, priceFinal, proofUrl })}
-                disabled={completeMut.isPending || !priceFinal || (payMethod === "transfer" && !proofUrl)}
-                style={{ flex: 2, padding: "13px", borderRadius: 12, background: "#22c55e", color: "#fff", fontWeight: 700, fontSize: 15, border: "none", cursor: "pointer", opacity: completeMut.isPending ? 0.7 : 1 }}
-              >
-                {completeMut.isPending ? "Guardando..." : "✓ Servicio completado"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );
