@@ -1,8 +1,12 @@
-import { CheckCircle, Calendar, Clock, MapPin, Scissors } from "lucide-react";
+import { Calendar, Clock, MapPin, Scissors } from "lucide-react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useBookingStore } from "../../../../store/bookingStore";
+import { Player } from "@lottiefiles/react-lottie-player";
+
+// Animación de checkmark — busca "success check" en lottiefiles.com y reemplaza
+const SUCCESS_LOTTIE = "https://assets9.lottiefiles.com/packages/lf20_jbrw3hcz.json";
 
 const O = "var(--brand, #FF6B2C)";
 
@@ -18,11 +22,14 @@ export default function StepSuccess({ slug }) {
     <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 20px" }}>
       <div style={{ width: "100%", maxWidth: 440, textAlign: "center" }}>
 
-        {/* Icono animado */}
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 28 }}>
-          <div style={{ width: 80, height: 80, borderRadius: "50%", background: "rgba(255,107,44,0.12)", border: `2px solid ${O}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <CheckCircle size={40} color={O} />
-          </div>
+        {/* Checkmark animado con Lottie */}
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+          <Player
+            src={SUCCESS_LOTTIE}
+            autoplay
+            loop={false}
+            style={{ width: 120, height: 120 }}
+          />
         </div>
 
         <p style={{ color: O, fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", marginBottom: 10 }}>
