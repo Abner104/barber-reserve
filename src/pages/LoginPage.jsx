@@ -21,7 +21,11 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const { user } = await signIn(form.email, form.password);
-      // Cargar perfil para saber el rol
+
+      // Esperar a que el perfil cargue (onAuthStateChange lo dispara)
+      // Consultamos directamente con un pequeño delay para evitar race condition
+      await new Promise(r => setTimeout(r, 500));
+
       const { data: profile } = await supabase
         .from("profiles")
         .select("role")
@@ -29,14 +33,16 @@ export default function LoginPage() {
         .maybeSingle();
 
       toast.success("¡Bienvenido!");
-      if (profile?.role === "barber") {
-        navigate("/barber");
-      } else if (profile?.role === "super_admin") {
-        navigate("/superadmin");
+      const role = profile?.role;
+      if (role === "barber") {
+        navigate("/barber", { replace: true });
+      } else if (role === "super_admin") {
+        navigate("/superadmin", { replace: true });
       } else {
-        navigate("/admin");
+        navigate("/admin", { replace: true });
       }
     } catch (err) {
+      console.error("Login error:", err);
       setError("Email o contraseña incorrectos.");
       toast.error("Email o contraseña incorrectos.");
     } finally {

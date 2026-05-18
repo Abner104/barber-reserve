@@ -20,14 +20,15 @@ export const useAuthStore = create((set, get) => ({
       set({ loading: false });
     }
 
-    // Escuchar cambios de sesión
+    // Escuchar cambios de sesión — NO poner loading:true aquí
+    // para evitar spinner infinito cuando el LoginPage navega
     supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
-        set({ loading: true });
         try {
           await get().loadProfile(session.user);
-        } finally {
-          set({ loading: false });
+        } catch (e) {
+          console.error("onAuthStateChange loadProfile error:", e);
+          set({ user: session.user, profile: null, loading: false });
         }
       } else {
         set({ user: null, profile: null, loading: false });
