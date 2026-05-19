@@ -8,6 +8,7 @@ const O   = "#FF6B2C";
 
 export default function SubscriptionPage() {
   const profile = useAuthStore(s => s.profile);
+  const authLoading = useAuthStore(s => s.loading);
   const shopId  = profile?.shop_id;
 
   const [status,   setStatus]   = useState(null);
@@ -19,13 +20,14 @@ export default function SubscriptionPage() {
   const paymentResult = params.get("payment");
 
   useEffect(() => {
+    if (authLoading) return; // esperar que el auth cargue
     if (!shopId) { setLoading(false); return; }
     fetch(`${VPS}/subscription-status/${shopId}`)
       .then(r => r.json())
       .then(setStatus)
       .catch(() => setError("No se pudo verificar el estado del plan"))
       .finally(() => setLoading(false));
-  }, [shopId]);
+  }, [shopId, authLoading]);
 
   async function handlePay() {
     setPaying(true);
