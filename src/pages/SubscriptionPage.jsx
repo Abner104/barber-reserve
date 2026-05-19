@@ -59,6 +59,17 @@ export default function SubscriptionPage() {
     </div>
   );
 
+  if (!shopId) return (
+    <div style={{ minHeight: "100vh", background: "#080808", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ textAlign: "center" }}>
+        <img src="/LogoC.png" alt="Clippr" style={{ width: 64, height: 64, objectFit: "contain", marginBottom: 16 }} />
+        <p style={{ color: "#fff", fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Inicia sesión primero</p>
+        <p style={{ color: "#555", fontSize: 14, marginBottom: 24 }}>Necesitas estar logueado como owner para gestionar tu suscripción.</p>
+        <a href="/login" style={{ padding: "12px 28px", background: O, color: "#fff", borderRadius: 10, fontWeight: 700, textDecoration: "none" }}>Iniciar sesión</a>
+      </div>
+    </div>
+  );
+
   return (
     <div style={{ minHeight: "100vh", background: "#080808", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ maxWidth: 480, width: "100%" }}>
