@@ -7,8 +7,9 @@ import SaasLandingPage   from "../pages/SaasLandingPage";
 import NotFoundPage      from "../pages/NotFoundPage";
 import ShopLandingPage  from "../pages/ShopLandingPage";
 import ShopBookingPage  from "../pages/ShopBookingPage";
-import LoginPage        from "../pages/LoginPage";
-import RegisterPage     from "../pages/RegisterPage";
+import LoginPage          from "../pages/LoginPage";
+import RegisterPage       from "../pages/RegisterPage";
+import SubscriptionPage   from "../pages/SubscriptionPage";
 
 import DashboardPage from "../features/admin/pages/DashboardPage";
 import BarbersPage   from "../features/admin/pages/BarbersPage";
@@ -31,8 +32,9 @@ export const router = createBrowserRouter([
   { path: "/", element: <SaasLandingPage /> },
 
   // ── AUTH ── (rutas fijas ANTES de /:slug)
-  { path: "/login",    element: <LoginPage />    },
-  { path: "/register", element: <RegisterPage /> },
+  { path: "/login",        element: <LoginPage />        },
+  { path: "/register",     element: <RegisterPage />     },
+  { path: "/subscription", element: <SubscriptionPage /> },
 
   // ── ADMIN ── (ruta fija ANTES de /:slug)
   {

@@ -11,6 +11,8 @@ import { useShopTheme } from "../hooks/useShopTheme";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../lib/supabase";
 
+const VPS = import.meta.env.VITE_VPS_URL || "http://31.97.218.107:3001";
+
 const NAV = [
   { to: "/admin",          icon: LayoutDashboard, label: "Dashboard", exact: true },
   { to: "/admin/bookings", icon: Calendar,      label: "Reservas"  },
@@ -29,18 +31,25 @@ export default function AdminLayout() {
 
   useRealtimeBookings();
 
-  // Detectar si el owner también es barbero (tiene profile_id en barbers)
+  // Detectar si el owner también es barbero
   const { data: isAlsoBarber } = useQuery({
     queryKey: ["owner-is-barber", user?.id],
     queryFn: async () => {
       const { data } = await supabase
-        .from("barbers")
-        .select("id")
-        .eq("profile_id", user.id)
-        .maybeSingle();
+        .from("barbers").select("id").eq("profile_id", user.id).maybeSingle();
       return !!data;
     },
     enabled: !!user?.id,
+  });
+
+  // Verificar estado del plan (solo para owners, no super_admin)
+  const shopId = profile?.shop_id;
+  const { data: subStatus } = useQuery({
+    queryKey: ["sub-status", shopId],
+    queryFn:  () => fetch(`${VPS}/subscription-status/${shopId}`).then(r => r.json()),
+    enabled:  !!shopId && profile?.role === "owner",
+    refetchInterval: 5 * 60 * 1000, // cada 5 min
+    retry: false,
   });
 
   if (loading) return (
@@ -50,6 +59,11 @@ export default function AdminLayout() {
   );
 
   if (!user) return <Navigate to="/login" replace />;
+
+  // Plan vencido → pantalla de suscripción (solo owners, no super_admin)
+  if (profile?.role === "owner" && subStatus && !subStatus.is_active && pathname !== "/admin/subscription") {
+    return <Navigate to="/subscription" replace />;
+  }
 
   function isActive(nav) {
     return nav.exact ? pathname === nav.to : pathname.startsWith(nav.to);
@@ -216,6 +230,18 @@ export default function AdminLayout() {
               </button>
             </div>
           </div>
+
+          {/* Banner trial por vencer */}
+          {subStatus?.trial_active && subStatus.days_left <= 7 && (
+            <div style={{ background: "rgba(251,191,36,0.08)", borderBottom: "1px solid rgba(251,191,36,0.2)", padding: "10px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+              <p style={{ fontSize: 13, color: "#fbbf24", fontWeight: 600 }}>
+                ⏰ Tu trial vence en {subStatus.days_left} día{subStatus.days_left !== 1 ? "s" : ""}
+              </p>
+              <a href="/subscription" style={{ fontSize: 12, fontWeight: 700, color: "#fff", background: "#f59e0b", padding: "5px 14px", borderRadius: 8, textDecoration: "none" }}>
+                Activar plan Pro
+              </a>
+            </div>
+          )}
 
           {/* Contenido */}
           <main className="admin-main">
