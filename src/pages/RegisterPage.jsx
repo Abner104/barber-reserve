@@ -125,8 +125,17 @@ export default function RegisterPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#0A0A0A", display: "flex" }}>
+      <style>{`
+        .reg-sidebar { display: none; }
+        .reg-logo-mobile { display: flex; }
+        @media (min-width: 768px) {
+          .reg-sidebar { display: flex; }
+          .reg-logo-mobile { display: none; }
+        }
+      `}</style>
+
       {/* Panel izquierdo — solo desktop */}
-      <div style={{ width: 420, background: "#0F0F0F", borderRight: "1px solid #1E1E1E", padding: "48px 40px", flexShrink: 0, display: "flex", flexDirection: "column" }} className="hidden lg:flex">
+      <div className="reg-sidebar" style={{ width: 420, background: "#0F0F0F", borderRight: "1px solid #1E1E1E", padding: "48px 40px", flexShrink: 0, flexDirection: "column" }}>
         <Link to="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", marginBottom: 48 }}>
           <img src="/LogoC.png" alt="Clippr" style={{ width: 36, height: 36, objectFit: "contain", filter: "drop-shadow(0 0 8px rgba(255,107,44,.45))" }} />
           <span style={{ fontWeight: 900, fontSize: 18, color: "#fff" }}>Clippr</span>
@@ -151,11 +160,11 @@ export default function RegisterPage() {
       </div>
 
       {/* Panel derecho — formulario */}
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 24px" }}>
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 24px", minWidth: 0 }}>
         <div style={{ width: "100%", maxWidth: 440 }}>
 
           {/* Logo móvil */}
-          <Link to="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", marginBottom: 36, justifyContent: "center" }} className="lg:hidden">
+          <Link to="/" className="reg-logo-mobile" style={{ alignItems: "center", gap: 10, textDecoration: "none", marginBottom: 36, justifyContent: "center" }}>
             <img src="/LogoC.png" alt="Clippr" style={{ width: 34, height: 34, objectFit: "contain", filter: "drop-shadow(0 0 8px rgba(255,107,44,.45))" }} />
             <span style={{ fontWeight: 900, fontSize: 18, color: "#fff" }}>Clippr</span>
           </Link>
