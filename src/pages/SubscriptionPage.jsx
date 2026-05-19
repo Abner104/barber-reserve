@@ -19,7 +19,7 @@ export default function SubscriptionPage() {
   const paymentResult = params.get("payment");
 
   useEffect(() => {
-    if (!shopId) return;
+    if (!shopId) { setLoading(false); return; }
     fetch(`${VPS}/subscription-status/${shopId}`)
       .then(r => r.json())
       .then(setStatus)
