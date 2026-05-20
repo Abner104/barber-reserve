@@ -98,26 +98,52 @@ app.get("/status/:barberId", (req, res) => {
 // Notificar barbero cuando llega reserva
 app.post("/notify", async (req, res) => {
   try {
-    const { barberId, message } = req.body;
+    // Soporta { barberId, message } y { record: bookingRecord }
+    let { barberId, message, record } = req.body;
+
+    // Si viene record (desde el booking wizard), extraer barberId y construir mensaje
+    if (record && !barberId) {
+      barberId = record.barber_id;
+      const fecha = record.scheduled_at
+        ? new Date(record.scheduled_at).toLocaleString("es-CL", {
+            weekday: "short", day: "numeric", month: "short",
+            hour: "2-digit", minute: "2-digit", timeZone: "America/Santiago",
+          })
+        : "";
+      message = [
+        `🔔 *Nueva reserva* ✂️`,
+        ``,
+        `👤 Cliente: ${record.clients?.full_name ?? "Cliente"}`,
+        `📱 Teléfono: ${record.clients?.phone ?? "—"}`,
+        `✂️ Servicio: ${record.services?.name ?? "—"}`,
+        `📅 Fecha: ${fecha}`,
+        record.type === "delivery" ? `📍 Domicilio: ${record.address_line ?? ""}` : `📍 En el local`,
+        record.client_notes ? `📝 Nota: ${record.client_notes}` : "",
+      ].filter(Boolean).join("\n");
+    }
+
+    if (!barberId || !message) {
+      return res.status(400).json({ error: "barberId y message requeridos" });
+    }
+
     const s = sessions[barberId];
     if (!s || s.status !== "connected") {
-      return res.status(400).json({ error: "Barbero no conectado" });
+      return res.status(400).json({ error: "Barbero no conectado a WhatsApp" });
     }
-    // Obtener teléfono del barbero desde Supabase
-    const { data: barber } = await supabase
-      .from("barbers")
-      .select("phone")
-      .eq("id", barberId)
-      .single();
 
-    if (!barber?.phone) return res.status(400).json({ error: "Sin teléfono" });
+    const { data: barber } = await supabase
+      .from("barbers").select("phone").eq("id", barberId).single();
+
+    if (!barber?.phone) return res.status(400).json({ error: "Barbero sin teléfono" });
 
     const phone = barber.phone.replace(/\D/g, "");
     const jid   = phone.startsWith("56") ? `${phone}@s.whatsapp.net` : `56${phone}@s.whatsapp.net`;
 
     await s.sock.sendMessage(jid, { text: message });
+    console.log(`✅ Notificación enviada al barbero ${barberId}`);
     res.json({ ok: true });
   } catch (err) {
+    console.error("notify error:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
