@@ -14,7 +14,7 @@ import BookingSummaryPanel from "./BookingSummaryPanel";
 const O = "var(--brand, #FF6B2C)";
 const STEPS = ["Tipo", "Servicio", "Barbero", "Fecha", "Dirección", "Confirmar"];
 
-export default function BookingWizard({ slug }) {
+export default function BookingWizard({ slug, shopName, shopLogo }) {
   const { step, type } = useBookingStore();
   const backUrl = slug ? `/${slug}` : "/";
   const [summaryOpen, setSummaryOpen] = useState(false);
@@ -65,10 +65,11 @@ export default function BookingWizard({ slug }) {
         {/* ── SIDEBAR desktop ── */}
         <div className="wizard-sidebar">
           <Link to={backUrl} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 40, textDecoration: "none" }}>
-            <div style={{ width: 34, height: 34, background: O, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Scissors size={16} color="#fff" />
-            </div>
-            <span style={{ fontWeight: 800, fontSize: 18, color: "var(--text)", letterSpacing: -0.5 }}>NobleCut</span>
+            {shopLogo
+              ? <img src={shopLogo} alt={shopName} style={{ width: 34, height: 34, borderRadius: 10, objectFit: "cover" }} />
+              : <div style={{ width: 34, height: 34, background: O, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center" }}><Scissors size={16} color="#fff" /></div>
+            }
+            <span style={{ fontWeight: 800, fontSize: 18, color: "var(--text)", letterSpacing: -0.5 }}>{shopName ?? "Reservar"}</span>
           </Link>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 28 }}>
@@ -105,10 +106,11 @@ export default function BookingWizard({ slug }) {
           {/* Header móvil */}
           <div className="wizard-mobile-header">
             <Link to={backUrl} style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
-              <div style={{ width: 28, height: 28, background: O, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Scissors size={13} color="#fff" />
-              </div>
-              <span style={{ fontWeight: 800, color: "var(--text)", fontSize: 15 }}>NobleCut</span>
+              {shopLogo
+                ? <img src={shopLogo} alt={shopName} style={{ width: 28, height: 28, borderRadius: 8, objectFit: "cover" }} />
+                : <div style={{ width: 28, height: 28, background: O, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}><Scissors size={13} color="#fff" /></div>
+              }
+              <span style={{ fontWeight: 800, color: "var(--text)", fontSize: 15 }}>{shopName ?? "Reservar"}</span>
             </Link>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <span style={{ color: "var(--text-faint)", fontSize: 12 }}>

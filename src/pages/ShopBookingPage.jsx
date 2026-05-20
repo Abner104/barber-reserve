@@ -83,5 +83,5 @@ export default function ShopBookingPage() {
     );
   }
 
-  return <BookingWizard shopName={activeShop.name} slug={slug} />;
+  return <BookingWizard shopName={activeShop.name} shopLogo={activeShop.logo_url} slug={slug} />;
 }
