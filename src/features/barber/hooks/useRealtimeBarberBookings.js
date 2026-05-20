@@ -28,9 +28,11 @@ export function useRealtimeBarberBookings() {
         .channel(`barber-bookings-${barberId}-${Date.now()}`)
         .on(
           "postgres_changes",
-          { event: "INSERT", schema: "public", table: "bookings", filter: `barber_id=eq.${barberId}` },
+          { event: "INSERT", schema: "public", table: "bookings" },
           (payload) => {
             if (!active) return;
+            if (payload.new?.barber_id !== barberId) return;
+
             qc.invalidateQueries({ queryKey: ["my-upcoming"], exact: false, refetchType: "all" });
             qc.invalidateQueries({ queryKey: ["my-agenda"],   exact: false, refetchType: "all" });
 
