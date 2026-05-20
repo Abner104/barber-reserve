@@ -1,16 +1,20 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import { format, addDays, startOfDay, isToday, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth } from "date-fns";
 import { es } from "date-fns/locale";
 import { useBookingStore } from "../../../../store/bookingStore";
 import { getAvailableSlots } from "../../services/bookingService";
 
-const O = "var(--brand, #FF6B2C)";
 const DAY_LABELS = ["Lu","Ma","Mi","Ju","Vi","Sá","Do"];
+const CSS = `
+  @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+  .slot-btn { transition: all .12s ease; }
+  .slot-btn:hover:not(:disabled) { transform: scale(1.05); }
+`;
 
 export default function StepDateTime() {
-  const { barber, service, date, slot, setDate, setSlot, nextStep, prevStep, type } = useBookingStore();
+  const { barber, service, date, slot, setDate, setSlot, nextStep, prevStep } = useBookingStore();
   const [viewMonth, setViewMonth] = useState(startOfMonth(new Date()));
 
   const today   = startOfDay(new Date());
@@ -33,60 +37,57 @@ export default function StepDateTime() {
   const canContinue = !!date && !!slot;
 
   return (
-    <div>
-      <button onClick={prevStep} style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", fontSize: 13, marginBottom: 24, padding: 0 }}>
-        <ChevronLeft size={14} /> Atrás
+    <div style={{ animation: "fadeUp .4s ease" }}>
+      <style>{CSS}</style>
+
+      <button onClick={prevStep} style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontSize: 13, marginBottom: 28, padding: 0 }}>
+        <ChevronLeft size={15} /> Atrás
       </button>
 
-      <p style={{ color: O, fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", marginBottom: 8 }}>Paso 4</p>
-      <h2 style={{ fontSize: 28, fontWeight: 800, color: "var(--text)", marginBottom: 8 }}>¿Cuándo?</h2>
-      <p style={{ color: "var(--text-muted)", marginBottom: 28, fontSize: 14 }}>Selecciona fecha y horario disponible.</p>
+      <p style={{ color: "var(--brand)", fontSize: 11, fontWeight: 700, letterSpacing: 2.5, textTransform: "uppercase", marginBottom: 10 }}>Elige tu momento</p>
+      <h2 style={{ fontSize: 30, fontWeight: 900, color: "var(--text)", lineHeight: 1.1, marginBottom: 32 }}>¿Cuándo?</h2>
 
-      {/* CALENDARIO */}
-      <div style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 16, padding: 20, marginBottom: 20 }}>
-        {/* nav mes */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-          <button
-            onClick={() => setViewMonth(addMonths(viewMonth, -1))}
-            disabled={isSameMonth(viewMonth, today)}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: 4, opacity: isSameMonth(viewMonth, today) ? 0.3 : 1 }}
-          >
-            <ChevronLeft size={18} />
+      {/* Calendario */}
+      <div style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 20, padding: "20px 16px", marginBottom: 20 }}>
+        {/* Nav mes */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+          <button onClick={() => setViewMonth(addMonths(viewMonth, -1))} disabled={isSameMonth(viewMonth, today)}
+            style={{ width: 32, height: 32, borderRadius: 10, background: "var(--surface2)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", opacity: isSameMonth(viewMonth, today) ? 0.3 : 1 }}>
+            <ChevronLeft size={16} />
           </button>
-          <span style={{ fontWeight: 700, fontSize: 14, color: "var(--text)", textTransform: "capitalize" }}>
+          <span style={{ fontWeight: 800, fontSize: 15, color: "var(--text)", textTransform: "capitalize" }}>
             {format(viewMonth, "MMMM yyyy", { locale: es })}
           </span>
-          <button onClick={() => setViewMonth(addMonths(viewMonth, 1))} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: 4 }}>
-            <ChevronRight size={18} />
+          <button onClick={() => setViewMonth(addMonths(viewMonth, 1))}
+            style={{ width: 32, height: 32, borderRadius: 10, background: "var(--surface2)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)" }}>
+            <ChevronRight size={16} />
           </button>
         </div>
 
-        {/* cabecera */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 8 }}>
+        {/* Cabecera días */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 6 }}>
           {DAY_LABELS.map(l => (
-            <div key={l} style={{ textAlign: "center", fontSize: 11, color: "var(--text-faint)", padding: "4px 0", fontWeight: 600 }}>{l}</div>
+            <div key={l} style={{ textAlign: "center", fontSize: 11, color: "var(--text-faint)", padding: "4px 0", fontWeight: 700 }}>{l}</div>
           ))}
         </div>
 
-        {/* días */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
+        {/* Días */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
           {Array.from({ length: padStart }).map((_, i) => <div key={`p${i}`} />)}
           {days.map((d) => {
-            const disabled = d < today || d > maxDate;
+            const disabled   = d < today || d > maxDate;
             const isSelected = date === format(d, "yyyy-MM-dd");
-            const todayDay = isToday(d);
+            const todayDay   = isToday(d);
             return (
-              <button
-                key={d.toISOString()}
-                onClick={() => pickDate(d)}
-                disabled={disabled}
+              <button key={d.toISOString()} onClick={() => pickDate(d)} disabled={disabled}
                 style={{
-                  aspectRatio: "1", borderRadius: 10, fontSize: 13, fontWeight: 500, border: "none",
+                  aspectRatio: "1", borderRadius: 12, fontSize: 13, fontWeight: isSelected ? 800 : 500,
+                  border: todayDay && !isSelected ? "2px solid var(--brand-alpha)" : "2px solid transparent",
                   cursor: disabled ? "not-allowed" : "pointer",
-                  background: isSelected ? O : "transparent",
-                  color: isSelected ? "#fff" : disabled ? "var(--text-faint)" : todayDay ? O : "var(--text)",
-                  opacity: disabled ? 0.35 : 1,
-                  outline: todayDay && !isSelected ? `1px solid ${O}44` : "none",
+                  background: isSelected ? "var(--brand)" : "transparent",
+                  color: isSelected ? "#fff" : disabled ? "var(--text-faint)" : todayDay ? "var(--brand)" : "var(--text)",
+                  opacity: disabled ? 0.3 : 1,
+                  transition: "all .12s ease",
                 }}
               >
                 {format(d, "d")}
@@ -96,45 +97,41 @@ export default function StepDateTime() {
         </div>
       </div>
 
-      {/* SLOTS */}
+      {/* Slots de hora */}
       {date && (
         <div style={{ marginBottom: 28 }}>
-          <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12 }}>
-            Horarios —{" "}
-            <span style={{ color: "var(--text)", textTransform: "capitalize" }}>
-              {format(new Date(date + "T12:00:00"), "EEEE d 'de' MMMM", { locale: es })}
-            </span>
-          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+            <Clock size={14} color="var(--brand)" />
+            <p style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 600 }}>
+              <span style={{ color: "var(--text)", textTransform: "capitalize" }}>
+                {format(new Date(date + "T12:00:00"), "EEEE d 'de' MMMM", { locale: es })}
+              </span>
+            </p>
+          </div>
 
           {loadingSlots && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-              {[1,2,3,4,5,6,7,8].map(i => <div key={i} style={{ height: 40, borderRadius: 10, background: "var(--surface2)" }} />)}
+              {[1,2,3,4,5,6,7,8].map(i => <div key={i} style={{ height: 44, borderRadius: 12, background: "var(--surface2)" }} />)}
             </div>
           )}
 
           {!loadingSlots && slots.length === 0 && (
-            <div style={{ padding: "20px 16px", background: "var(--card-bg)", borderRadius: 12, border: "1px solid var(--border)", textAlign: "center" }}>
-              <p style={{ fontSize: 20, marginBottom: 6 }}>📅</p>
-              <p style={{ color: "var(--text)", fontWeight: 600, fontSize: 14, marginBottom: 4 }}>
-                Sin horarios disponibles
-              </p>
-              <p style={{ color: "var(--text-faint)", fontSize: 12 }}>
-                El barbero no trabaja este día o ya está completo. Elige otra fecha.
-              </p>
+            <div style={{ padding: "24px 16px", background: "var(--surface2)", borderRadius: 16, textAlign: "center" }}>
+              <p style={{ fontSize: 28, marginBottom: 8 }}>📅</p>
+              <p style={{ color: "var(--text)", fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Sin disponibilidad</p>
+              <p style={{ color: "var(--text-faint)", fontSize: 12 }}>El barbero no trabaja este día. Elige otra fecha.</p>
             </div>
           )}
 
           {!loadingSlots && slots.length > 0 && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
               {slots.map(s => (
-                <button
-                  key={s}
-                  onClick={() => setSlot(s)}
+                <button key={s} className="slot-btn" onClick={() => setSlot(s)}
                   style={{
-                    padding: "10px 0", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer",
-                    border: `1px solid ${slot === s ? O : "var(--border)"}`,
-                    background: slot === s ? O : "var(--card-bg)",
-                    color: slot === s ? "#fff" : "var(--text-muted)",
+                    padding: "12px 0", borderRadius: 12, fontSize: 13, fontWeight: 700, cursor: "pointer",
+                    border: `2px solid ${slot === s ? "var(--brand)" : "var(--border)"}`,
+                    background: slot === s ? "var(--brand)" : "var(--card-bg)",
+                    color: slot === s ? "#fff" : "var(--text)",
                   }}
                 >
                   {s}
@@ -145,15 +142,17 @@ export default function StepDateTime() {
         </div>
       )}
 
-      <button
-        onClick={nextStep}
-        disabled={!canContinue}
+      <button onClick={nextStep} disabled={!canContinue}
         style={{
-          width: "100%", padding: "16px", borderRadius: 14, fontSize: 15, fontWeight: 700, cursor: canContinue ? "pointer" : "not-allowed",
-          background: canContinue ? O : "var(--surface2)", color: canContinue ? "#fff" : "var(--text-faint)", border: "none",
+          width: "100%", padding: "16px", borderRadius: 14, fontSize: 15, fontWeight: 800,
+          cursor: canContinue ? "pointer" : "not-allowed",
+          background: canContinue ? "var(--brand)" : "var(--surface2)",
+          color: canContinue ? "#fff" : "var(--text-faint)",
+          border: "none", transition: "all .2s ease",
+          boxShadow: canContinue ? "0 4px 20px rgba(0,0,0,0.2)" : "none",
         }}
       >
-        Continuar
+        {canContinue ? `Continuar — ${slot}` : "Selecciona fecha y hora"}
       </button>
     </div>
   );

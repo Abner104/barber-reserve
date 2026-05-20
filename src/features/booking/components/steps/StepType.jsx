@@ -1,75 +1,59 @@
-import { MapPin, Scissors, ChevronRight } from "lucide-react";
+import { MapPin, Scissors, Store, ArrowRight } from "lucide-react";
 import { useBookingStore } from "../../../../store/bookingStore";
+
+const CSS = `
+  @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+  .type-card { transition: all .18s ease; border: 2px solid var(--border) !important; }
+  .type-card:hover { border-color: var(--brand, #FF6B2C) !important; transform: translateY(-2px); box-shadow: 0 12px 32px rgba(0,0,0,0.15); }
+`;
 
 export default function StepType() {
   const { setType, step, setStep } = useBookingStore();
 
-  function choose(type) {
-    setType(type);
-    setStep(step + 1);
-  }
-
-  const options = [
-    {
-      type: "in_store",
-      icon: <Scissors size={24} color="var(--brand, #FF6B2C)" />,
-      title: "En el local",
-      desc: "Ven a la barbería y disfruta el ambiente premium",
-      badge: null,
-    },
-    {
-      type: "delivery",
-      icon: <MapPin size={24} color="var(--brand, #FF6B2C)" />,
-      title: "A domicilio",
-      desc: "El barbero va donde estés — casa, oficina o donde quieras",
-      badge: "Popular",
-    },
-  ];
+  function choose(type) { setType(type); setStep(step + 1); }
 
   return (
-    <div>
-      <p style={{ color: "var(--brand)", fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", marginBottom: 8 }}>
-        Paso 1 de 5
-      </p>
-      <h2 style={{ fontSize: 28, fontWeight: 800, color: "var(--text)", lineHeight: 1.2, marginBottom: 8 }}>
-        ¿Dónde quieres el corte?
+    <div style={{ animation: "fadeUp .4s ease" }}>
+      <style>{CSS}</style>
+
+      <p style={{ color: "var(--brand)", fontSize: 11, fontWeight: 700, letterSpacing: 2.5, textTransform: "uppercase", marginBottom: 10 }}>¿Cómo prefieres?</p>
+      <h2 style={{ fontSize: 30, fontWeight: 900, color: "var(--text)", lineHeight: 1.1, marginBottom: 6 }}>
+        Elige tu experiencia
       </h2>
-      <p style={{ color: "var(--text-muted)", marginBottom: 32, fontSize: 15 }}>
-        Elige cómo prefieres recibir el servicio.
+      <p style={{ color: "var(--text-muted)", marginBottom: 36, fontSize: 14, lineHeight: 1.6 }}>
+        Puedes venir al local o hacemos el corte donde estés.
       </p>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {options.map((opt) => (
-          <button
-            key={opt.type}
-            onClick={() => choose(opt.type)}
-            style={{
-              display: "flex", alignItems: "center", gap: 16,
-              padding: "20px", borderRadius: 16,
-              border: "1px solid var(--border)", background: "var(--card-bg)",
-              cursor: "pointer", textAlign: "left", width: "100%",
-              transition: "border-color 0.15s",
-            }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--brand, #FF6B2C)"; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border, #2A2A2A)"; }}
-          >
-            <div style={{ width: 52, height: 52, borderRadius: 14, background: "var(--brand-alpha)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              {opt.icon}
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                <span style={{ fontWeight: 700, fontSize: 16, color: "var(--text)" }}>{opt.title}</span>
-                {opt.badge && (
-                  <span style={{ fontSize: 10, fontWeight: 700, background: "var(--brand-alpha)", color: "var(--brand)", padding: "2px 8px", borderRadius: 20, letterSpacing: 0.5 }}>
-                    {opt.badge}
-                  </span>
-                )}
-              </div>
-              <p style={{ color: "var(--text-muted)", fontSize: 13, lineHeight: 1.4 }}>{opt.desc}</p>
-            </div>
-            <ChevronRight size={18} color="var(--text-faint, #555)" />
-          </button>
-        ))}
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+        {/* En el local */}
+        <button className="type-card" onClick={() => choose("in_store")}
+          style={{ display: "flex", alignItems: "center", gap: 20, padding: "22px 22px", borderRadius: 18, background: "var(--card-bg)", cursor: "pointer", textAlign: "left", width: "100%" }}>
+          <div style={{ width: 56, height: 56, borderRadius: 16, background: "var(--brand-alpha)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Store size={26} color="var(--brand, #FF6B2C)" />
+          </div>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontWeight: 800, fontSize: 17, color: "var(--text)", marginBottom: 4 }}>En el local</p>
+            <p style={{ color: "var(--text-muted)", fontSize: 13, lineHeight: 1.5 }}>Ven a la barbería y disfruta la experiencia completa</p>
+          </div>
+          <ArrowRight size={18} color="var(--text-faint)" />
+        </button>
+
+        {/* A domicilio */}
+        <button className="type-card" onClick={() => choose("delivery")}
+          style={{ display: "flex", alignItems: "center", gap: 20, padding: "22px 22px", borderRadius: 18, background: "var(--card-bg)", cursor: "pointer", textAlign: "left", width: "100%", position: "relative" }}>
+          <div style={{ position: "absolute", top: -10, right: 16, background: "var(--brand)", color: "#fff", fontSize: 10, fontWeight: 800, padding: "3px 12px", borderRadius: 20, letterSpacing: 1 }}>
+            POPULAR
+          </div>
+          <div style={{ width: 56, height: 56, borderRadius: 16, background: "var(--brand-alpha)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <MapPin size={26} color="var(--brand, #FF6B2C)" />
+          </div>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontWeight: 800, fontSize: 17, color: "var(--text)", marginBottom: 4 }}>A domicilio</p>
+            <p style={{ color: "var(--text-muted)", fontSize: 13, lineHeight: 1.5 }}>El barbero va donde estés — casa, oficina o donde quieras</p>
+          </div>
+          <ArrowRight size={18} color="var(--text-faint)" />
+        </button>
       </div>
     </div>
   );
