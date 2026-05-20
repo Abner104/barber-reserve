@@ -39,8 +39,11 @@ export default function RegisterPage() {
   };
 
   function slugify(text) {
-    return text.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+    const base = text.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
       .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    // Agregar sufijo aleatorio para evitar conflictos
+    const suffix = Math.random().toString(36).slice(2, 6);
+    return `${base}-${suffix}`;
   }
 
   async function handleRegister() {
