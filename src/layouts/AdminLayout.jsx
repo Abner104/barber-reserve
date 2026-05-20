@@ -10,6 +10,7 @@ import BarberLoader from "../components/shared/BarberLoader";
 import { useShopTheme } from "../hooks/useShopTheme";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../lib/supabase";
+import OnboardingTour, { useTour } from "../components/shared/OnboardingTour";
 
 const VPS = import.meta.env.VITE_VPS_URL || "http://31.97.218.107:3001";
 
@@ -28,6 +29,7 @@ export default function AdminLayout() {
   const { signOut, profile, loading, user, shopName } = useAuthStore();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const isSuperAdmin = profile?.role === "super_admin";
+  const { show: showTour, close: closeTour } = useTour();
 
   useRealtimeBookings();
 
@@ -261,6 +263,11 @@ export default function AdminLayout() {
             <div style={{ height: "100%" }}><SidebarContent /></div>
           </div>
         </>
+      )}
+
+      {/* Tour onboarding — solo para owners nuevos */}
+      {showTour && profile?.role === "owner" && (
+        <OnboardingTour onClose={closeTour} />
       )}
     </>
   );
