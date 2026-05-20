@@ -5,9 +5,6 @@ import { toast } from "sonner";
 import { useBookingStore } from "../../../../store/bookingStore";
 import { getDistanceKm, calcDeliveryFee } from "../../../../lib/mapbox";
 
-const SHOP_LOCATION = { lat: -33.4489, lng: -70.6693 };
-const BASE_FEE      = 5000;
-const FEE_PER_KM    = 1500;
 
 // Autocompletado con Nominatim (OSM) — sin API key
 async function searchAddress(query) {
@@ -25,7 +22,7 @@ async function searchAddress(query) {
 }
 
 export default function StepAddress() {
-  const { address, setAddress, step, setStep, prevStep } = useBookingStore();
+  const { address, setAddress, step, setStep, prevStep, shopConfig, barber } = useBookingStore();
 
   const [input, setInput]           = useState(address.line || "");
   const [suggestions, setSuggestions] = useState([]);
@@ -33,8 +30,16 @@ export default function StepAddress() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const debounceRef = useRef(null);
 
-  const distanceKm  = address.lat ? getDistanceKm(SHOP_LOCATION, { lat: address.lat, lng: address.lng }) : null;
-  const deliveryFee = distanceKm != null ? calcDeliveryFee(distanceKm, BASE_FEE, FEE_PER_KM) : null;
+  // Origen: ubicación del barbero → shop → Santiago centro
+  const origin = barber?.lat && barber?.lng
+    ? { lat: barber.lat, lng: barber.lng }
+    : shopConfig?.lat && shopConfig?.lng
+    ? { lat: shopConfig.lat, lng: shopConfig.lng }
+    : { lat: -33.4489, lng: -70.6693 };
+
+  const feePerKm    = shopConfig?.delivery_fee_per_km ?? 650;
+  const distanceKm  = address.lat ? getDistanceKm(origin, { lat: address.lat, lng: address.lng }) : null;
+  const deliveryFee = distanceKm != null ? calcDeliveryFee(distanceKm, 0, feePerKm) : null;
   const isConfirmed = !!address.lat;
 
   // Debounce la búsqueda mientras escribe
