@@ -104,21 +104,31 @@ app.post("/notify", async (req, res) => {
     // Si viene record (desde el booking wizard), extraer barberId y construir mensaje
     if (record && !barberId) {
       barberId = record.barber_id;
-      const fecha = record.scheduled_at
-        ? new Date(record.scheduled_at).toLocaleString("es-CL", {
+
+      // Buscar datos completos desde Supabase
+      const { data: full } = await supabase
+        .from("bookings")
+        .select("scheduled_at, type, address_line, client_notes, clients(full_name, phone), services(name)")
+        .eq("id", record.id)
+        .maybeSingle();
+
+      const src   = full ?? record;
+      const fecha = src.scheduled_at
+        ? new Date(src.scheduled_at).toLocaleString("es-CL", {
             weekday: "short", day: "numeric", month: "short",
             hour: "2-digit", minute: "2-digit", timeZone: "America/Santiago",
           })
         : "";
+
       message = [
         `🔔 *Nueva reserva* ✂️`,
         ``,
-        `👤 Cliente: ${record.clients?.full_name ?? "Cliente"}`,
-        `📱 Teléfono: ${record.clients?.phone ?? "—"}`,
-        `✂️ Servicio: ${record.services?.name ?? "—"}`,
+        `👤 Cliente: ${src.clients?.full_name ?? record.clients?.full_name ?? "Cliente"}`,
+        `📱 Teléfono: ${src.clients?.phone ?? record.clients?.phone ?? "—"}`,
+        `✂️ Servicio: ${src.services?.name ?? record.services?.name ?? "—"}`,
         `📅 Fecha: ${fecha}`,
-        record.type === "delivery" ? `📍 Domicilio: ${record.address_line ?? ""}` : `📍 En el local`,
-        record.client_notes ? `📝 Nota: ${record.client_notes}` : "",
+        src.type === "delivery" ? `📍 Domicilio: ${src.address_line ?? ""}` : `📍 En el local`,
+        src.client_notes ? `📝 Nota: ${src.client_notes}` : "",
       ].filter(Boolean).join("\n");
     }
 
