@@ -8,16 +8,15 @@ export function useRealtimeBarberBookings() {
   const qc = useQueryClient();
 
   useEffect(() => {
-    let barberId = null;
-    let channel  = null;
+    let channel   = null;
+    let cancelled = false;
 
     async function setup() {
-      // Importar dinámicamente para evitar circular deps
       const { getMyBarberProfile } = await import("../services/barberService");
       const barber = await getMyBarberProfile();
-      if (!barber?.id) return;
+      if (!barber?.id || cancelled) return;
 
-      barberId = barber.id;
+      const barberId = barber.id;
 
       channel = supabase
         .channel(`barber-bookings-${barberId}`)
@@ -28,19 +27,16 @@ export function useRealtimeBarberBookings() {
             const record = payload.new ?? payload.old;
             if (record?.barber_id !== barberId) return;
 
-            // Refrescar agenda
-            qc.invalidateQueries({ queryKey: ["my-upcoming"],  exact: false, refetchType: "all" });
-            qc.invalidateQueries({ queryKey: ["my-agenda"],    exact: false, refetchType: "all" });
+            qc.invalidateQueries({ queryKey: ["my-upcoming"], exact: false, refetchType: "all" });
+            qc.invalidateQueries({ queryKey: ["my-agenda"],   exact: false, refetchType: "all" });
 
-            // Toast solo para nuevas reservas
             if (payload.eventType === "INSERT") {
-              const b = payload.new;
               playBookingSound();
               toast.success(
-                `🔔 Nueva reserva${b.type === "delivery" ? " a domicilio 📍" : ""}`,
+                `🔔 Nueva reserva${payload.new?.type === "delivery" ? " a domicilio 📍" : ""}`,
                 {
-                  description: b.scheduled_at
-                    ? new Date(b.scheduled_at).toLocaleDateString("es-CL", {
+                  description: payload.new?.scheduled_at
+                    ? new Date(payload.new.scheduled_at).toLocaleDateString("es-CL", {
                         weekday: "short", day: "numeric", month: "short",
                         hour: "2-digit", minute: "2-digit",
                         timeZone: "America/Santiago",
@@ -52,14 +48,13 @@ export function useRealtimeBarberBookings() {
             }
           }
         )
-        .subscribe((status) => {
-          console.log("Barber realtime:", status);
-        });
+        .subscribe();
     }
 
     setup();
 
     return () => {
+      cancelled = true;
       if (channel) supabase.removeChannel(channel);
     };
   }, [qc]);
