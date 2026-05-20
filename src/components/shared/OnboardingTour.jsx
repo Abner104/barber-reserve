@@ -135,18 +135,33 @@ export default function OnboardingTour({ onClose }) {
   );
 }
 
-// Hook para controlar si mostrar el tour
+// Estado global del tour (fuera de React para persistir entre navegaciones)
+let _tourVisible = false;
+let _tourListeners = [];
+
+function setTourVisible(val) {
+  _tourVisible = val;
+  _tourListeners.forEach(fn => fn(val));
+}
+
 export function useTour() {
-  const [show, setShow] = useState(false);
+  const [show, setShow] = useState(_tourVisible);
+
+  useEffect(() => {
+    _tourListeners.push(setShow);
+    return () => { _tourListeners = _tourListeners.filter(fn => fn !== setShow); };
+  }, []);
 
   useEffect(() => {
     const done = localStorage.getItem("clippr_tour_done");
-    if (!done) {
-      // Pequeño delay para que el panel cargue primero
-      const t = setTimeout(() => setShow(true), 1200);
+    if (!done && !_tourVisible) {
+      const t = setTimeout(() => setTourVisible(true), 1200);
       return () => clearTimeout(t);
     }
   }, []);
 
-  return { show, close: () => setShow(false) };
+  return {
+    show,
+    close: () => setTourVisible(false),
+  };
 }

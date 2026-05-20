@@ -6,7 +6,7 @@ import { Plus, Pencil, Power, X, Loader2, Clock, Trash2 } from "lucide-react";
 import { getAdminServices, getAdminCategories, createService, updateService, toggleServiceAvailable, deleteService } from "../services/adminService";
 
 const B = "var(--brand, #FF6B2C)";
-const EMPTY_SVC = { name: "", description: "", duration_min: 30, price: 0, price_delivery: "", allows_delivery: true, is_available: true, category_id: "", sort_order: 0 };
+const EMPTY_SVC = { name: "", description: "", duration_min: 30, price: 0, allows_delivery: true, is_available: true, category_id: "", sort_order: 0 };
 
 export default function ServicesPage() {
   const qc = useQueryClient();
@@ -78,7 +78,7 @@ export default function ServicesPage() {
                       <Clock size={11} /> {s.duration_min}min
                     </span>
                     <span style={{ fontSize: 12, color: B, fontWeight: 600 }}>{formatCurrency(s.price)}</span>
-                    {s.price_delivery && <span style={{ fontSize: 12, color: "var(--text-faint)" }}>Dom: {formatCurrency(s.price_delivery)}</span>}
+                    {s.allows_delivery && <span style={{ fontSize: 11, color: "var(--text-faint)" }}>📍 Domicilio</span>}
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
@@ -129,7 +129,7 @@ export default function ServicesPage() {
 function ServiceModal({ service, categories, onClose, onSave, loading }) {
   const [form, setForm] = useState(service ? {
     name: service.name, description: service.description ?? "", duration_min: service.duration_min,
-    price: service.price, price_delivery: service.price_delivery ?? "", allows_delivery: service.allows_delivery,
+    price: service.price, allows_delivery: service.allows_delivery,
     is_available: service.is_available, category_id: service.category_id ?? "", sort_order: service.sort_order,
   } : EMPTY_SVC);
 
@@ -140,7 +140,7 @@ function ServiceModal({ service, categories, onClose, onSave, loading }) {
 
   function handleSave() {
     if (!form.name.trim() || !form.price) return;
-    onSave({ ...form, price: Number(form.price), price_delivery: form.price_delivery ? Number(form.price_delivery) : null, category_id: form.category_id || null });
+    onSave({ ...form, price: Number(form.price), category_id: form.category_id || null });
   }
 
   return (
@@ -160,11 +160,13 @@ function ServiceModal({ service, categories, onClose, onSave, loading }) {
               {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </Field>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <Field label="Duración (min)"><input style={inp} type="number" min={5} value={form.duration_min} onChange={e => setForm({ ...form, duration_min: Number(e.target.value) })} /></Field>
             <Field label="Precio"><input style={inp} type="number" min={0} value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} placeholder="25000" /></Field>
-            <Field label="Precio domicilio"><input style={inp} type="number" min={0} value={form.price_delivery} onChange={e => setForm({ ...form, price_delivery: e.target.value })} placeholder="35000" /></Field>
           </div>
+          <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: -8 }}>
+            💡 El costo de domicilio se calcula automáticamente por distancia (configurado en Ajustes)
+          </p>
           <button
             type="button"
             onClick={() => setForm({ ...form, allows_delivery: !form.allows_delivery })}
