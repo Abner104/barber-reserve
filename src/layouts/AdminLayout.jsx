@@ -82,7 +82,7 @@ export default function AdminLayout() {
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {/* Logo */}
       <div style={{ padding: "20px 16px", borderBottom: "1px solid var(--sidebar-border, #1E1E1E)", flexShrink: 0 }}>
-        <Link to="/" onClick={closeDrawer} style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
+        <Link to="/admin" onClick={closeDrawer} style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
           <div style={{ width: 32, height: 32, background: brand, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <Scissors size={15} color="#fff" />
           </div>
@@ -215,7 +215,7 @@ export default function AdminLayout() {
         <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
           {/* Topbar móvil */}
           <div className="admin-topbar">
-            <Link to="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
+            <Link to="/admin" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
               <div style={{ width: 28, height: 28, background: brand, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <Scissors size={13} color="#fff" />
               </div>
