@@ -52,7 +52,12 @@ export default function PerfilPage() {
         }
         setLocating(false);
       },
-      () => { toast.error("No se pudo obtener tu ubicación"); setLocating(false); },
+      (err) => {
+        if (err.code === 1) toast.error("Permiso de ubicación denegado. Ve a Configuración → Permisos → Ubicación y actívalo para este sitio.");
+        else if (err.code === 2) toast.error("No se pudo obtener tu ubicación. Cierra burbujas flotantes de otras apps e intenta de nuevo.");
+        else toast.error("Error al obtener ubicación. Intenta de nuevo.");
+        setLocating(false);
+      },
       { enableHighAccuracy: true, timeout: 10000 }
     );
   }
