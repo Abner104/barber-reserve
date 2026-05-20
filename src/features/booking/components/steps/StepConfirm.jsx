@@ -10,8 +10,6 @@ import { createBooking } from "../../services/bookingService";
 import { getDistanceKm, calcDeliveryFee } from "../../../../lib/mapbox";
 
 const O = "var(--brand, #FF6B2C)";
-const SHOP_LOCATION = { lat: -33.4489, lng: -70.6693 };
-const BASE_FEE = 5000; const FEE_PER_KM = 1500;
 const WA_URL    = import.meta.env.VITE_WA_SERVICE_URL ?? "http://localhost:3001";
 const WA_SECRET = "barberos2026secret";
 
@@ -50,12 +48,22 @@ async function notifyBarber(bookingRecord, clientInfo, serviceInfo, barberInfo) 
 
 
 export default function StepConfirm() {
-  const { type, service, barber, date, slot, address, clientInfo, setClientInfo, setStep, prevStep } = useBookingStore();
+  const { type, service, barber, date, slot, address, clientInfo, setClientInfo, setStep, prevStep, shopConfig } = useBookingStore();
   const [form, setForm] = useState(clientInfo);
   const [errors, setErrors] = useState({});
 
-  const distanceKm   = type === "delivery" && address.lat ? getDistanceKm(SHOP_LOCATION, { lat: address.lat, lng: address.lng }) : null;
-  const deliveryFee  = distanceKm != null ? calcDeliveryFee(distanceKm, BASE_FEE, FEE_PER_KM) : 0;
+  // Origen del domicilio: ubicación del barbero si tiene, sino del shop, sino Santiago centro
+  const origin = barber?.lat && barber?.lng
+    ? { lat: barber.lat, lng: barber.lng }
+    : shopConfig?.lat && shopConfig?.lng
+    ? { lat: shopConfig.lat, lng: shopConfig.lng }
+    : { lat: -33.4489, lng: -70.6693 };
+
+  const baseFee    = shopConfig?.delivery_fee_base   ?? 3000;
+  const feePerKm   = shopConfig?.delivery_fee_per_km ?? 650;
+
+  const distanceKm   = type === "delivery" && address.lat ? getDistanceKm(origin, { lat: address.lat, lng: address.lng }) : null;
+  const deliveryFee  = distanceKm != null ? calcDeliveryFee(distanceKm, baseFee, feePerKm) : 0;
   const servicePrice = type === "delivery" && service?.price_delivery != null ? service.price_delivery : service?.price ?? 0;
   const total        = servicePrice + deliveryFee;
   const barberName   = barber?.full_name ?? "Barbero";

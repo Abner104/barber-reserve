@@ -10,7 +10,7 @@ import { applyTheme } from "../lib/applyTheme";
 async function getShopBySlug(slug) {
   const { data, error } = await supabase
     .from("barbershops")
-    .select("id, name, slug, theme_mode, theme_color, theme_font, logo_url, is_active")
+    .select("id, name, slug, theme_mode, theme_color, theme_font, logo_url, is_active, lat, lng, delivery_fee_base, delivery_fee_per_km")
     .eq("slug", slug)
     .maybeSingle();
   if (error) throw error;
@@ -21,7 +21,8 @@ async function getShopBySlug(slug) {
 export default function ShopBookingPage() {
   const { slug }    = useParams();
   const qc          = useQueryClient();
-  const setShopId   = useBookingStore(s => s.setShopId);
+  const setShopId     = useBookingStore(s => s.setShopId);
+  const setShopConfig = useBookingStore(s => s.setShopConfig);
   const [ready, setReady] = useState(false);
 
   // Leer del cache de ShopLandingPage (misma query key)
@@ -39,6 +40,12 @@ export default function ShopBookingPage() {
   useEffect(() => {
     if (activeShop?.id) {
       setShopId(activeShop.id);
+      setShopConfig({
+        lat:                activeShop.lat                ?? -33.4489,
+        lng:                activeShop.lng                ?? -70.6693,
+        delivery_fee_base:  activeShop.delivery_fee_base  ?? 3000,
+        delivery_fee_per_km: activeShop.delivery_fee_per_km ?? 650,
+      });
       applyTheme(activeShop);
       document.title = `${activeShop.name} — Reservar`;
     }
