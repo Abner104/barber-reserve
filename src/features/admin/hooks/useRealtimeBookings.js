@@ -55,6 +55,10 @@ export function useRealtimeBookings() {
       )
       .subscribe((status) => {
         console.log("Realtime bookings:", status);
+        if (status === "CLOSED" || status === "CHANNEL_ERROR") {
+          // Reconectar tras 3 segundos
+          setTimeout(() => supabase.removeChannel(channel), 3000);
+        }
       });
 
     return () => { supabase.removeChannel(channel); };

@@ -15,22 +15,36 @@ const BASE_FEE = 5000; const FEE_PER_KM = 1500;
 const WA_URL    = import.meta.env.VITE_WA_SERVICE_URL ?? "http://localhost:3001";
 const WA_SECRET = "barberos2026secret";
 
-async function notifyBarber(bookingRecord) {
-  if (!bookingRecord) { console.log("❌ notifyBarber: no booking record"); return; }
-  console.log("📤 Llamando a WS service:", WA_URL, bookingRecord?.id);
+async function notifyBarber(bookingRecord, clientInfo, serviceInfo, barberInfo) {
+  if (!bookingRecord?.barber_id) return;
   try {
-    const res = await fetch(`${WA_URL}/notify`, {
+    const fecha = bookingRecord.scheduled_at
+      ? new Date(bookingRecord.scheduled_at).toLocaleString("es-CL", {
+          weekday: "short", day: "numeric", month: "short",
+          hour: "2-digit", minute: "2-digit", timeZone: "America/Santiago",
+        })
+      : "";
+
+    const message = [
+      `🔔 *Nueva reserva* ✂️`,
+      ``,
+      `👤 Cliente: ${clientInfo?.full_name ?? "—"}`,
+      `📱 Teléfono: ${clientInfo?.phone ?? "—"}`,
+      `✂️ Servicio: ${serviceInfo?.name ?? "—"}`,
+      `📅 Fecha: ${fecha}`,
+      bookingRecord.type === "delivery"
+        ? `📍 Domicilio: ${bookingRecord.address_line ?? ""}`
+        : `📍 En el local`,
+      clientInfo?.notes ? `📝 Nota: ${clientInfo.notes}` : "",
+    ].filter(Boolean).join("\n");
+
+    await fetch(`${WA_URL}/notify`, {
       method:  "POST",
-      headers: {
-        "Content-Type":  "application/json",
-        "Authorization": `Bearer ${WA_SECRET}`,
-      },
-      body: JSON.stringify({ record: bookingRecord }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ barberId: bookingRecord.barber_id, message }),
     });
-    const data = await res.json();
-    console.log("✅ WS service response:", data);
   } catch (err) {
-    console.error("❌ WS service error:", err);
+    console.error("❌ WS notify error:", err);
   }
 }
 
@@ -64,8 +78,7 @@ export default function StepConfirm() {
       setClientInfo(form);
       setStep(7);
       toast.success("¡Reserva creada con éxito!");
-      // Notificar al barbero via WS (el frontend tiene acceso a localhost:3001)
-      notifyBarber(booking);
+      notifyBarber(booking, form, service, barber);
     },
     onError: (err) => { console.error("createBooking error:", err); toast.error(err?.message || "Error al crear la reserva. Intenta de nuevo."); },
   });
