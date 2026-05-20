@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, MapPin, Navigation } from "lucide-react";
 import { getMyBarberProfile, updateMyAvailability } from "../services/barberService";
 import { getBarberWorkingHours } from "../../admin/services/adminService";
 import { supabase } from "../../../lib/supabase";
@@ -19,18 +19,43 @@ export default function PerfilPage() {
 
   const [form, setForm] = useState(null);
 
+  const [locating, setLocating] = useState(false);
+
   useEffect(() => {
     if (barber && !form) {
       setForm({
-        is_active:      barber.is_active,
-        does_delivery:  barber.does_delivery,
+        is_active:       barber.is_active,
+        does_delivery:   barber.does_delivery,
         delivery_radius: barber.delivery_radius,
-        phone:          barber.phone ?? "",
-        specialty:      barber.specialty ?? "",
-        avatar_url:     barber.avatar_url ?? "",
+        phone:           barber.phone ?? "",
+        specialty:       barber.specialty ?? "",
+        avatar_url:      barber.avatar_url ?? "",
+        lat:             barber.lat ?? null,
+        lng:             barber.lng ?? null,
       });
     }
   }, [barber, form]);
+
+  async function useMyLocation() {
+    if (!navigator.geolocation) { toast.error("Tu dispositivo no soporta geolocalización"); return; }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        const { latitude: lat, longitude: lng } = coords;
+        setForm(f => ({ ...f, lat, lng }));
+        // Guardar inmediatamente en Supabase
+        const { error } = await supabase.from("barbers").update({ lat, lng }).eq("id", barber.id);
+        if (error) toast.error("Error al guardar ubicación");
+        else {
+          qc.invalidateQueries(["my-barber-profile"]);
+          toast.success("Ubicación guardada ✅");
+        }
+        setLocating(false);
+      },
+      () => { toast.error("No se pudo obtener tu ubicación"); setLocating(false); },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
 
   const mut = useMutation({
     mutationFn: () => updateMyAvailability(form),
@@ -71,16 +96,45 @@ export default function PerfilPage() {
         />
 
         {form.does_delivery && (
-          <div style={{ marginTop: 12 }}>
-            <label style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 6, display: "block", fontWeight: 600 }}>
-              Radio máximo (km)
-            </label>
-            <input
-              type="number" min={1} max={50}
-              style={{ ...inp, width: 120 }}
-              value={form.delivery_radius}
-              onChange={e => setForm({ ...form, delivery_radius: Number(e.target.value) })}
-            />
+          <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+            <div>
+              <label style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 6, display: "block", fontWeight: 600 }}>
+                Radio máximo (km)
+              </label>
+              <input
+                type="number" min={1} max={50}
+                style={{ ...inp, width: 120 }}
+                value={form.delivery_radius}
+                onChange={e => setForm({ ...form, delivery_radius: Number(e.target.value) })}
+              />
+            </div>
+
+            {/* Ubicación del barbero */}
+            <div style={{ background: "var(--surface2)", borderRadius: 10, padding: 14 }}>
+              <p style={{ fontSize: 12, fontWeight: 700, color: "var(--text-faint)", marginBottom: 4 }}>MI UBICACIÓN BASE</p>
+              <p style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 10, lineHeight: 1.5 }}>
+                Los clientes solo podrán reservar domicilio dentro de tu radio desde esta ubicación.
+              </p>
+              {form.lat && form.lng ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                  <MapPin size={14} color="var(--brand)" />
+                  <span style={{ fontSize: 12, color: "var(--text)" }}>
+                    {form.lat.toFixed(5)}, {form.lng.toFixed(5)}
+                  </span>
+                  <span style={{ fontSize: 11, color: "#22c55e", fontWeight: 600 }}>✓ Configurada</span>
+                </div>
+              ) : (
+                <p style={{ fontSize: 12, color: "#f59e0b", marginBottom: 10 }}>⚠️ Sin ubicación — los domicilios usan la ubicación del local</p>
+              )}
+              <button
+                onClick={useMyLocation}
+                disabled={locating}
+                style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 9, background: "var(--brand)", border: "none", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", opacity: locating ? 0.7 : 1 }}
+              >
+                {locating ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Navigation size={14} />}
+                {locating ? "Obteniendo ubicación..." : "Usar mi ubicación actual"}
+              </button>
+            </div>
           </div>
         )}
       </div>
