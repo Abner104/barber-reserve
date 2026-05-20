@@ -73,7 +73,7 @@ export default function StepService() {
                     display: "flex", alignItems: "center", gap: 16,
                     padding: "18px 20px", borderRadius: 16, cursor: "pointer",
                     textAlign: "left", width: "100%",
-                    border: `2px solid ${isSelected ? "var(--brand, #FF6B2C)" : "var(--border)"}`,
+                    border: `2px solid ${isSelected ? "var(--brand)" : "var(--border)"}`,
                     background: isSelected ? "var(--brand-alpha)" : "var(--card-bg)",
                   }}
                 >

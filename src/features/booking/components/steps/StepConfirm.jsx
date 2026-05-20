@@ -9,12 +9,12 @@ import { useBookingStore } from "../../../../store/bookingStore";
 import { createBooking } from "../../services/bookingService";
 import { getDistanceKm, calcDeliveryFee } from "../../../../lib/mapbox";
 
-const O = "var(--brand, #FF6B2C)";
+const O = "var(--brand)";
 const WA_URL = import.meta.env.VITE_WA_SERVICE_URL ?? "http://localhost:3001";
 
 const CSS = `
   @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
-  .confirm-input:focus { border-color: var(--brand, #FF6B2C) !important; }
+  .confirm-input:focus { border-color: var(--brand) !important; }
 `;
 
 async function notifyBarber(bookingRecord, clientInfo, serviceInfo) {

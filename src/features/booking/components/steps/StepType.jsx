@@ -4,7 +4,7 @@ import { useBookingStore } from "../../../../store/bookingStore";
 const CSS = `
   @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
   .type-card { transition: all .18s ease; border: 2px solid var(--border) !important; }
-  .type-card:hover { border-color: var(--brand, #FF6B2C) !important; transform: translateY(-2px); box-shadow: 0 12px 32px rgba(0,0,0,0.15); }
+  .type-card:hover { border-color: var(--brand) !important; transform: translateY(-2px); box-shadow: 0 12px 32px rgba(0,0,0,0.15); }
 `;
 
 export default function StepType() {
@@ -30,7 +30,7 @@ export default function StepType() {
         <button className="type-card" onClick={() => choose("in_store")}
           style={{ display: "flex", alignItems: "center", gap: 20, padding: "22px 22px", borderRadius: 18, background: "var(--card-bg)", cursor: "pointer", textAlign: "left", width: "100%" }}>
           <div style={{ width: 56, height: 56, borderRadius: 16, background: "var(--brand-alpha)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <Store size={26} color="var(--brand, #FF6B2C)" />
+            <Store size={26} color="var(--brand)" />
           </div>
           <div style={{ flex: 1 }}>
             <p style={{ fontWeight: 800, fontSize: 17, color: "var(--text)", marginBottom: 4 }}>En el local</p>
@@ -46,7 +46,7 @@ export default function StepType() {
             POPULAR
           </div>
           <div style={{ width: 56, height: 56, borderRadius: 16, background: "var(--brand-alpha)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <MapPin size={26} color="var(--brand, #FF6B2C)" />
+            <MapPin size={26} color="var(--brand)" />
           </div>
           <div style={{ flex: 1 }}>
             <p style={{ fontWeight: 800, fontSize: 17, color: "var(--text)", marginBottom: 4 }}>A domicilio</p>

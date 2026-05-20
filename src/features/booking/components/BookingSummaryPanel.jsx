@@ -58,7 +58,7 @@ function Row({ icon, value, sub, orange }) {
     <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
       <span style={{ color: "var(--text-faint)", marginTop: 1, flexShrink: 0 }}>{icon}</span>
       <div>
-        <p style={{ fontSize: 12, lineHeight: 1.3, color: orange ? "var(--brand, #FF6B2C)" : "#D0D0D0", fontWeight: orange ? 600 : 400 }}>{value}</p>
+        <p style={{ fontSize: 12, lineHeight: 1.3, color: orange ? "var(--brand)" : "#D0D0D0", fontWeight: orange ? 600 : 400 }}>{value}</p>
         {sub && <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 2 }}>{sub}</p>}
       </div>
     </div>

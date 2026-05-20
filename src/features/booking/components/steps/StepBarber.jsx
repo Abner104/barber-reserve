@@ -5,7 +5,7 @@ import { useBookingStore } from "../../../../store/bookingStore";
 import { getBarbers } from "../../services/bookingService";
 import { supabase } from "../../../../lib/supabase";
 
-const O = "var(--brand, #FF6B2C)";
+const O = "var(--brand)";
 
 async function getBarberPortfolio(barberId) {
   const { data } = await supabase

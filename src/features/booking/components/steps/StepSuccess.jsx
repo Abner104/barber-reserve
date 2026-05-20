@@ -8,7 +8,7 @@ import { Player } from "@lottiefiles/react-lottie-player";
 // Animación de checkmark — busca "success check" en lottiefiles.com y reemplaza
 const SUCCESS_LOTTIE = "/animations/Success Green.json";
 
-const O = "var(--brand, #FF6B2C)";
+const O = "var(--brand)";
 
 export default function StepSuccess({ slug }) {
   const { reset, type, service, barber, date, slot } = useBookingStore();

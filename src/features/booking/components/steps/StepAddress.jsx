@@ -77,7 +77,7 @@ export default function StepAddress() {
     setSuggestions([]);
   }
 
-  const brand = "var(--brand, #FF6B2C)";
+  const brand = "var(--brand)";
 
   return (
     <div>
@@ -95,7 +95,7 @@ export default function StepAddress() {
       <div style={{ position: "relative", marginBottom: 16 }}>
         <div style={{
           display: "flex", alignItems: "center",
-          background: "var(--card-bg)", border: `1px solid ${isConfirmed ? "var(--brand, #FF6B2C)" : "var(--border)"}`,
+          background: "var(--card-bg)", border: `1px solid ${isConfirmed ? "var(--brand)" : "var(--border)"}`,
           borderRadius: 14, overflow: "hidden", transition: "border-color 0.2s",
         }}>
           <div style={{ padding: "0 14px", color: isConfirmed ? brand : "var(--text-faint)" }}>
@@ -154,8 +154,8 @@ export default function StepAddress() {
       {isConfirmed && (
         <div style={{ marginBottom: 20 }}>
           {/* Dirección confirmada */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "var(--brand-alpha)", border: "1px solid var(--brand, #FF6B2C)", borderRadius: 12, marginBottom: 12 }}>
-            <Check size={16} color="var(--brand, #FF6B2C)" style={{ flexShrink: 0 }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "var(--brand-alpha)", border: "1px solid var(--brand)", borderRadius: 12, marginBottom: 12 }}>
+            <Check size={16} color="var(--brand)" style={{ flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ fontSize: 13, color: "var(--text)", fontWeight: 600, marginBottom: 2 }}>Dirección confirmada</p>
               <p style={{ fontSize: 12, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{address.line}</p>
