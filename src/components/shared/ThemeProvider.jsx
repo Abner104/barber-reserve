@@ -3,9 +3,14 @@ import { useEffect } from "react";
 const FONTS = {
   "Inter":            "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap",
   "Poppins":          "https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap",
-  "Playfair Display": "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800;900&display=swap",
   "Montserrat":       "https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap",
-  "DM Sans":          "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap",
+  "DM Sans":          "https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700;9..40,800&display=swap",
+  "Raleway":          "https://fonts.googleapis.com/css2?family=Raleway:wght@400;500;600;700;800;900&display=swap",
+  "Nunito":           "https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap",
+  "Oswald":           "https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&display=swap",
+  "Playfair Display": "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800;900&display=swap",
+  "Space Grotesk":    "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap",
+  "Barlow":           "https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800;900&display=swap",
 };
 
 // Genera una versión más clara/oscura de un color hex

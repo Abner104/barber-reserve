@@ -72,8 +72,11 @@ export default function RegisterPage() {
           currency: "CLP",
           timezone: "America/Santiago",
           allows_delivery: true,
-          delivery_fee_base: 5000,
-          delivery_fee_per_km: 1500,
+          delivery_fee_base: 3000,
+          delivery_fee_per_km: 650,
+          theme_mode:  "dark",
+          theme_color: "#FF6B2C",
+          theme_font:  "Inter",
           trial_ends_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
         })
         .select("id").single();
