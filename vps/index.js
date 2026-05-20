@@ -162,4 +162,6 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`🚀 Clippr server corriendo en puerto ${PORT}`);
   initExistingSessions();
+  // Iniciar cron de recordatorios
+  require("./reminders")(sessions, supabase);
 });
