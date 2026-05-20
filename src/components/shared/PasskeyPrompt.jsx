@@ -1,17 +1,23 @@
 /**
  * Modal que aparece después del primer login preguntando si quiere activar passkey
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Fingerprint, X, Loader2 } from "lucide-react";
-import { registerPasskey, isSupported } from "../../lib/passkey";
+import { registerPasskey, isPlatformAuthAvailable } from "../../lib/passkey";
 import { toast } from "sonner";
 
 const O = "#FF6B2C";
 
 export default function PasskeyPrompt({ userId, userEmail, onClose }) {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading]   = useState(false);
+  const [avail, setAvail]       = useState(null); // null=checking, true/false
 
-  if (!isSupported()) return null;
+  useEffect(() => {
+    isPlatformAuthAvailable().then(setAvail);
+  }, []);
+
+  // Mientras verifica o si no está disponible, no mostrar
+  if (avail === null || avail === false) return null;
 
   async function handleRegister() {
     setLoading(true);

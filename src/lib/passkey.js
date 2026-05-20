@@ -19,7 +19,17 @@ function fromB64url(str) {
 }
 
 function isSupported() {
-  return !!(window.PublicKeyCredential && navigator.credentials?.create);
+  return !!(window.PublicKeyCredential && navigator.credentials?.create && window.isSecureContext);
+}
+
+// Verifica si el dispositivo tiene sensor biométrico/PIN disponible
+export async function isPlatformAuthAvailable() {
+  if (!isSupported()) return false;
+  try {
+    return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+  } catch {
+    return false;
+  }
 }
 
 // ── REGISTRAR passkey para el usuario actual ──────────────────

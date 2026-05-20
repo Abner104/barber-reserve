@@ -4,7 +4,7 @@ import { Loader2, Eye, EyeOff, Fingerprint } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore } from "../store/authStore";
 import { supabase } from "../lib/supabase";
-import { isSupported, hasPasskeys, authenticatePasskey, registerPasskey } from "../lib/passkey";
+import { isPlatformAuthAvailable, hasPasskeys, authenticatePasskey, registerPasskey } from "../lib/passkey";
 import PasskeyPrompt from "../components/shared/PasskeyPrompt";
 
 const O = "#FF6B2C";
@@ -31,14 +31,15 @@ export default function LoginPage() {
   const [showPrompt, setShowPrompt]             = useState(false);
   const [loggedUser, setLoggedUser]             = useState(null);
 
-  // Verificar si hay passkey guardada para este email
+  // Verificar si hay passkey guardada y el dispositivo la soporta
   useEffect(() => {
-    if (!form.email || !isSupported()) return;
-    // Verificar si hay sesión guardada con passkey
     const registered = localStorage.getItem("clippr_passkey_registered");
     const userId     = localStorage.getItem("clippr_passkey_user");
-    setPasskeyAvailable(!!(registered && userId));
-  }, [form.email]);
+    if (!registered || !userId) return;
+    isPlatformAuthAvailable().then(avail => {
+      setPasskeyAvailable(avail);
+    });
+  }, []);
 
   if (!loading && user && profile) {
     return <Navigate to={getRoleRoute(profile.role)} replace />;
@@ -103,11 +104,14 @@ export default function LoginPage() {
       // Mostrar prompt de passkey si no lo ha visto y el dispositivo lo soporta
       const skipped    = localStorage.getItem("clippr_passkey_skipped");
       const registered = localStorage.getItem("clippr_passkey_registered");
-      if (isSupported() && !skipped && !registered) {
-        setLoggedUser({ id: lu.id, email: form.email, role: prof?.role });
-        setShowPrompt(true);
-        setSubmitting(false);
-        return;
+      if (!skipped && !registered) {
+        const avail = await isPlatformAuthAvailable();
+        if (avail) {
+          setLoggedUser({ id: lu.id, email: form.email, role: prof?.role });
+          setShowPrompt(true);
+          setSubmitting(false);
+          return;
+        }
       }
 
       toast.success("¡Bienvenido!");
