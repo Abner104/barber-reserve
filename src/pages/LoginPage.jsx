@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
-import { Scissors, Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff, Fingerprint } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore } from "../store/authStore";
 import { supabase } from "../lib/supabase";
+import { isSupported, hasPasskeys, authenticatePasskey, registerPasskey } from "../lib/passkey";
+import PasskeyPrompt from "../components/shared/PasskeyPrompt";
 
 const O = "#FF6B2C";
 
@@ -13,22 +15,68 @@ function getRoleRoute(role) {
   return "/admin";
 }
 
+// Guardar email para autocompletar passkey
+function getSavedEmail() { return localStorage.getItem("clippr_email") ?? ""; }
+function setSavedEmail(e) { localStorage.setItem("clippr_email", e); }
+
 export default function LoginPage() {
   const navigate               = useNavigate();
   const { signIn, user, profile, loading } = useAuthStore();
-  const [form, setForm]        = useState({ email: "", password: "" });
+  const [form, setForm]        = useState({ email: getSavedEmail(), password: "" });
   const [showPwd, setShowPwd]  = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError]      = useState("");
+  const [passkeyAvailable, setPasskeyAvailable] = useState(false);
+  const [passkeyLoading, setPasskeyLoading]     = useState(false);
+  const [showPrompt, setShowPrompt]             = useState(false);
+  const [loggedUser, setLoggedUser]             = useState(null);
 
-  // Si ya hay sesión activa, redirigir según rol
+  // Verificar si hay passkey guardada para este email
+  useEffect(() => {
+    if (!form.email || !isSupported()) return;
+    // Verificar si hay sesión guardada con passkey
+    const registered = localStorage.getItem("clippr_passkey_registered");
+    const userId     = localStorage.getItem("clippr_passkey_user");
+    setPasskeyAvailable(!!(registered && userId));
+  }, [form.email]);
+
   if (!loading && user && profile) {
     return <Navigate to={getRoleRoute(profile.role)} replace />;
   }
-
-  // Si hay usuario pero perfil aún cargando, esperar
   if (!loading && user && !profile) {
     return <Navigate to="/admin" replace />;
+  }
+
+  async function handlePasskeyLogin() {
+    const userId = localStorage.getItem("clippr_passkey_user");
+    if (!userId) return;
+    setPasskeyLoading(true);
+    setError("");
+    try {
+      await authenticatePasskey(userId);
+      // Autenticación biométrica ok — iniciar sesión con magic link o token guardado
+      // Como Supabase no tiene passkey nativo, usamos el email guardado + pedimos OTP silencioso
+      // En su lugar, guardamos la sesión en localStorage y la restauramos
+      const savedSession = localStorage.getItem("clippr_session");
+      if (savedSession) {
+        const session = JSON.parse(savedSession);
+        const { error } = await supabase.auth.setSession({
+          access_token:  session.access_token,
+          refresh_token: session.refresh_token,
+        });
+        if (error) throw new Error("Sesión expirada, ingresa con contraseña");
+        const { data: prof } = await supabase.from("profiles").select("role").eq("id", session.user.id).maybeSingle();
+        toast.success("¡Bienvenido! 🔐");
+        navigate(getRoleRoute(prof?.role), { replace: true });
+      } else {
+        throw new Error("Sesión expirada, ingresa con contraseña");
+      }
+    } catch (e) {
+      setError(e.message || "No se pudo autenticar con huella");
+      toast.error(e.message || "Error de autenticación");
+    } finally {
+      setPasskeyLoading(false);
+    }
   }
 
   async function handleSubmit(e) {
@@ -36,24 +84,45 @@ export default function LoginPage() {
     setError("");
     setSubmitting(true);
     try {
-      const { user: loggedUser } = await signIn(form.email, form.password);
+      const { user: lu, session } = await signIn(form.email, form.password);
+      setSavedEmail(form.email);
 
-      // Consultar perfil directamente
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", loggedUser.id)
-        .maybeSingle();
+      // Guardar sesión para passkey
+      if (session) {
+        localStorage.setItem("clippr_session", JSON.stringify({
+          access_token:  session.access_token,
+          refresh_token: session.refresh_token,
+          user: { id: lu.id },
+        }));
+        localStorage.setItem("clippr_passkey_user", lu.id);
+      }
+
+      const { data: prof } = await supabase
+        .from("profiles").select("role").eq("id", lu.id).maybeSingle();
+
+      // Mostrar prompt de passkey si no lo ha visto y el dispositivo lo soporta
+      const skipped    = localStorage.getItem("clippr_passkey_skipped");
+      const registered = localStorage.getItem("clippr_passkey_registered");
+      if (isSupported() && !skipped && !registered) {
+        setLoggedUser({ id: lu.id, email: form.email, role: prof?.role });
+        setShowPrompt(true);
+        setSubmitting(false);
+        return;
+      }
 
       toast.success("¡Bienvenido!");
-      navigate(getRoleRoute(profile?.role), { replace: true });
+      navigate(getRoleRoute(prof?.role), { replace: true });
     } catch (err) {
-      console.error("Login error:", err);
       setError("Email o contraseña incorrectos.");
       toast.error("Email o contraseña incorrectos.");
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function handlePromptClose() {
+    setShowPrompt(false);
+    if (loggedUser) navigate(getRoleRoute(loggedUser.role), { replace: true });
   }
 
   const inp = {
@@ -62,17 +131,15 @@ export default function LoginPage() {
     outline: "none", boxSizing: "border-box",
   };
 
-  // Mostrar spinner mientras carga la sesión inicial
-  if (loading) {
-    return (
-      <div style={{ minHeight: "100vh", background: "#0A0A0A", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ width: 28, height: 28, border: "3px solid #2A2A2A", borderTopColor: O, borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-      </div>
-    );
-  }
+  if (loading) return (
+    <div style={{ minHeight: "100vh", background: "#0A0A0A", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ width: 28, height: 28, border: "3px solid #2A2A2A", borderTopColor: O, borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+    </div>
+  );
 
   return (
     <div style={{ minHeight: "100vh", background: "#0A0A0A", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       <div style={{ width: "100%", maxWidth: 400 }}>
 
         {/* Logo */}
@@ -81,10 +148,32 @@ export default function LoginPage() {
           <span style={{ fontWeight: 900, fontSize: 22, color: "#fff" }}>Clippr</span>
         </div>
 
-        {/* Card */}
         <div style={{ background: "#141414", border: "1px solid #2A2A2A", borderRadius: 20, padding: 32 }}>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 6 }}>Bienvenido</h1>
           <p style={{ color: "#555", fontSize: 14, marginBottom: 28 }}>Ingresa a tu panel</p>
+
+          {/* Botón passkey — si tiene huella registrada */}
+          {passkeyAvailable && (
+            <button
+              onClick={handlePasskeyLogin}
+              disabled={passkeyLoading}
+              style={{ width: "100%", padding: "14px", borderRadius: 12, background: "rgba(255,107,44,0.08)", border: "1px solid rgba(255,107,44,0.3)", color: O, fontWeight: 700, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 20 }}
+            >
+              {passkeyLoading
+                ? <Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} />
+                : <Fingerprint size={18} />
+              }
+              {passkeyLoading ? "Verificando..." : "Entrar con huella / Face ID"}
+            </button>
+          )}
+
+          {passkeyAvailable && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+              <div style={{ flex: 1, height: 1, background: "#222" }} />
+              <span style={{ fontSize: 12, color: "#444" }}>o con contraseña</span>
+              <div style={{ flex: 1, height: 1, background: "#222" }} />
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div>
@@ -123,12 +212,7 @@ export default function LoginPage() {
             )}
 
             <button type="submit" disabled={submitting}
-              style={{
-                width: "100%", padding: "14px", borderRadius: 12, fontSize: 15, fontWeight: 700,
-                background: O, color: "#fff", border: "none", cursor: submitting ? "not-allowed" : "pointer",
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                opacity: submitting ? 0.7 : 1, marginTop: 4,
-              }}
+              style={{ width: "100%", padding: "14px", borderRadius: 12, fontSize: 15, fontWeight: 700, background: O, color: "#fff", border: "none", cursor: submitting ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: submitting ? 0.7 : 1, marginTop: 4 }}
             >
               {submitting && <Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} />}
               {submitting ? "Ingresando..." : "Ingresar"}
@@ -136,6 +220,15 @@ export default function LoginPage() {
           </form>
         </div>
       </div>
+
+      {/* Prompt post-login para registrar passkey */}
+      {showPrompt && loggedUser && (
+        <PasskeyPrompt
+          userId={loggedUser.id}
+          userEmail={loggedUser.email}
+          onClose={handlePromptClose}
+        />
+      )}
     </div>
   );
 }
