@@ -107,12 +107,14 @@ export async function getMyCaja(date) {
   let myEarnings = 0;
   let modelInfo  = {};
 
-  if (model === "percentage") {
-    const pct   = Number(barber.commission_pct ?? 0);
-    myEarnings  = total * (pct / 100);
-    modelInfo   = { pct };
+  if (model === "independent") {
+    myEarnings = total + deliveries;
+    modelInfo  = {};
+  } else if (model === "percentage") {
+    const pct  = Number(barber.commission_pct ?? 0);
+    myEarnings = total * (pct / 100);
+    modelInfo  = { pct };
   } else if (model === "chair_rent") {
-    // Barbero se queda con todo lo que factura, pero debe el arriendo
     myEarnings = total;
     modelInfo  = { rentAmount: Number(barber.chair_rent_amount ?? 0), rentPeriod: barber.chair_rent_period ?? "monthly" };
   } else if (model === "day_rate") {

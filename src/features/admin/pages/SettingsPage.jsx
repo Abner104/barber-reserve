@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { applyTheme } from "../../../lib/applyTheme";
+import { applyTheme, AVAILABLE_FONTS } from "../../../lib/applyTheme";
 import { Loader2, ExternalLink, Palette, Type, Sun, Moon } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { SHOP_ID } from "../../../lib/constants";
@@ -10,7 +10,7 @@ import ImageUpload from "../../../components/shared/ImageUpload";
 
 const O = "var(--brand, #FF6B2C)";
 
-const FONTS = ["Inter", "Poppins", "Playfair Display", "Montserrat", "DM Sans"];
+const FONTS = AVAILABLE_FONTS;
 const COLORS = [
   { label: "Naranja",  value: "#FF6B2C" },
   { label: "Rojo",     value: "#E53E3E" },

@@ -10,7 +10,7 @@ import TimeSelect from "../../../components/shared/TimeSelect";
 
 const O = "var(--brand, #FF6B2C)";
 
-const EMPTY_BARBER = { full_name: "", phone: "", specialty: "", bio: "", avatar_url: "", does_delivery: true, delivery_radius: 10, commission_pct: 40, callmebot_key: "", email: "", slot_duration_min: 30, payment_model: "percentage", chair_rent_amount: 0, chair_rent_period: "monthly", day_rate_amount: 0 };
+const EMPTY_BARBER = { full_name: "", phone: "", specialty: "", bio: "", avatar_url: "", does_delivery: true, delivery_radius: 10, commission_pct: 40, callmebot_key: "", email: "", slot_duration_min: 30, payment_model: "independent", chair_rent_amount: 0, chair_rent_period: "monthly", day_rate_amount: 0 };
 
 export default function BarbersPage() {
   const qc = useQueryClient();
@@ -294,11 +294,12 @@ function BarberModal({ barber, onClose, onSave, loading }) {
 
           {/* Modelo de pago */}
           <Field label="💰 Modelo de compensación">
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               {[
-                { value: "percentage", label: "Porcentaje", emoji: "📊", desc: "% de cada servicio" },
-                { value: "chair_rent", label: "Arriendo silla", emoji: "🪑", desc: "Monto fijo periódico" },
-                { value: "day_rate",   label: "Día trabajado", emoji: "📅", desc: "Monto por día" },
+                { value: "independent", label: "Independiente", emoji: "💯", desc: "Se queda con todo" },
+                { value: "percentage",  label: "Porcentaje",    emoji: "📊", desc: "% de cada servicio" },
+                { value: "chair_rent",  label: "Arriendo silla",emoji: "🪑", desc: "Monto fijo periódico" },
+                { value: "day_rate",    label: "Día trabajado",  emoji: "📅", desc: "Monto por día" },
               ].map(m => (
                 <button key={m.value} type="button"
                   onClick={() => setForm({ ...form, payment_model: m.value })}
@@ -317,7 +318,7 @@ function BarberModal({ barber, onClose, onSave, loading }) {
           </Field>
 
           {/* Campos según el modelo */}
-          {(form.payment_model ?? "percentage") === "percentage" && (
+          {(form.payment_model ?? "independent") === "percentage" && (
             <Field label="Comisión para el barbero (%)">
               <input style={inp} type="number" min={0} max={100}
                 value={form.commission_pct}
@@ -329,7 +330,7 @@ function BarberModal({ barber, onClose, onSave, loading }) {
             </Field>
           )}
 
-          {(form.payment_model ?? "percentage") === "chair_rent" && (
+          {(form.payment_model ?? "independent") === "chair_rent" && (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <Field label="Monto arriendo">
                 <input style={inp} type="number" min={0}
@@ -349,7 +350,7 @@ function BarberModal({ barber, onClose, onSave, loading }) {
             </div>
           )}
 
-          {(form.payment_model ?? "percentage") === "day_rate" && (
+          {(form.payment_model ?? "independent") === "day_rate" && (
             <Field label="Monto por día trabajado">
               <input style={inp} type="number" min={0}
                 value={form.day_rate_amount ?? 0}
