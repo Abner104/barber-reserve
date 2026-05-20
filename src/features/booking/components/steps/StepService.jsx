@@ -66,7 +66,7 @@ export default function StepService() {
           <p style={{ fontSize: 10, letterSpacing: 2, textTransform: "uppercase", color: "var(--text-faint)", fontWeight: 700, marginBottom: 10 }}>{cat}</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {items.map((s) => {
-              const price      = type === "delivery" && s.price_delivery != null ? s.price_delivery : s.price;
+              const price      = s.price; // domicilio se suma por km en StepConfirm
               const isSelected = selected?.id === s.id;
               return (
                 <button
@@ -89,8 +89,8 @@ export default function StepService() {
                   </div>
                   <div style={{ textAlign: "right", flexShrink: 0 }}>
                     <p style={{ fontWeight: 700, fontSize: 15, color: brand }}>{formatCurrency(price)}</p>
-                    {type === "delivery" && s.price_delivery != null && (
-                      <p style={{ fontSize: 11, color: "var(--text-faint)", textDecoration: "line-through" }}>{formatCurrency(s.price)}</p>
+                    {type === "delivery" && (
+                      <p style={{ fontSize: 10, color: "var(--text-faint)" }}>+ tarifa domicilio</p>
                     )}
                   </div>
                   {isSelected
