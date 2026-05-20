@@ -6,6 +6,7 @@ export const useAuthStore = create((set, get) => ({
   user:     null,
   profile:  null,
   shopName: null,
+  shopLogo: null,
   loading:  true,
 
   init: async () => {
@@ -64,12 +65,12 @@ export const useAuthStore = create((set, get) => ({
       if (profile?.shop_id) {
         const { data: shop } = await supabase
           .from("barbershops")
-          .select("name, theme_mode, theme_color, theme_font")
+          .select("name, logo_url, theme_mode, theme_color, theme_font")
           .eq("id", profile.shop_id)
           .maybeSingle();
         if (shop) {
           applyTheme(shop);
-          set({ shopName: shop.name ?? null });
+          set({ shopName: shop.name ?? null, shopLogo: shop.logo_url ?? null });
         }
       }
     } catch (e) {

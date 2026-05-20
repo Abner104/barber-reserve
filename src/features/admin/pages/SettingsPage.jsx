@@ -124,8 +124,11 @@ export default function SettingsPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries(["shop-settings"]);
-      // Aplicar tema inmediatamente sin recargar
       applyTheme({ theme_mode: form.theme_mode, theme_color: form.theme_color, theme_font: form.theme_font });
+      // Actualizar nombre y logo en el store sin recargar
+      import("../../../store/authStore").then(({ useAuthStore }) => {
+        useAuthStore.setState({ shopName: form.name, shopLogo: form.logo_url || null });
+      });
       toast.success("Configuración guardada ✅");
     },
     onError: (e) => { console.error("❌ Settings error:", e); toast.error(e?.message ?? "Error al guardar. Revisa la consola (F12)."); },
