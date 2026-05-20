@@ -3,6 +3,128 @@ import { ArrowRight, X, CheckCircle } from "lucide-react";
 
 const O = "var(--brand, #FF6B2C)";
 
+// ── TOUR DEL BARBERO ─────────────────────────────────────────
+const BARBER_STEPS = [
+  {
+    title: "¡Bienvenido a tu panel! ✂️",
+    desc:  "En 3 pasos tienes tu agenda lista para recibir reservas.",
+    icon:  "💈",
+    target: null,
+    action: null,
+  },
+  {
+    title: "1. Configura tu horario",
+    desc:  "Activa los días que trabajas y selecciona las horas disponibles. Los clientes solo pueden reservar en esos horarios.",
+    icon:  "🗓️",
+    target: "/barber",
+    action: "Ir a Mi Agenda",
+  },
+  {
+    title: "2. Conecta WhatsApp",
+    desc:  "Ve a Mi Perfil → Conectar WhatsApp → escanea el QR con tu celular. Así recibirás alertas de cada reserva al instante.",
+    icon:  "📱",
+    target: "/barber/perfil",
+    action: "Ir a Mi Perfil",
+  },
+  {
+    title: "3. Sube tu portafolio",
+    desc:  "Ve a Mis Trabajos y sube fotos de tus mejores cortes. Los clientes las verán antes de reservar contigo.",
+    icon:  "📸",
+    target: "/barber/portfolio",
+    action: "Ir a Mis Trabajos",
+  },
+  {
+    title: "¡Todo listo! 🚀",
+    desc:  "Ya puedes recibir reservas. Cuando llegue una te va a llegar por WhatsApp y suena una notificación aquí.",
+    icon:  "🎉",
+    target: null,
+    action: null,
+  },
+];
+
+let _barberTourVisible = false;
+let _barberTourListeners = [];
+
+function setBarberTourVisible(val) {
+  _barberTourVisible = val;
+  _barberTourListeners.forEach(fn => fn(val));
+}
+
+export function useBarberTour() {
+  const [show, setShow] = useState(_barberTourVisible);
+
+  useEffect(() => {
+    _barberTourListeners.push(setShow);
+    return () => { _barberTourListeners = _barberTourListeners.filter(fn => fn !== setShow); };
+  }, []);
+
+  useEffect(() => {
+    const done = localStorage.getItem("clippr_barber_tour_done");
+    if (!done && !_barberTourVisible) {
+      const t = setTimeout(() => setBarberTourVisible(true), 1200);
+      return () => clearTimeout(t);
+    }
+  }, []);
+
+  return { show, close: () => setBarberTourVisible(false) };
+}
+
+export function BarberOnboardingTour({ onClose }) {
+  const [step, setStep] = useState(0);
+  const current = BARBER_STEPS[step];
+  const isLast  = step === BARBER_STEPS.length - 1;
+
+  function next() {
+    if (isLast) { localStorage.setItem("clippr_barber_tour_done", "1"); onClose(); }
+    else setStep(s => s + 1);
+  }
+
+  function goTo(url) {
+    localStorage.setItem("clippr_barber_tour_done", "1");
+    onClose();
+    window.location.href = url;
+  }
+
+  function skip() { localStorage.setItem("clippr_barber_tour_done", "1"); onClose(); }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div style={{ background: "var(--card-bg, #141414)", border: "1px solid var(--border, #2A2A2A)", borderRadius: 24, padding: 32, width: "100%", maxWidth: 400, position: "relative" }}>
+
+        <button onClick={skip} style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", cursor: "pointer", color: "var(--text-faint, #555)" }}>
+          <X size={18} />
+        </button>
+
+        {/* Progress */}
+        <div style={{ display: "flex", gap: 6, marginBottom: 28 }}>
+          {BARBER_STEPS.map((_, i) => (
+            <div key={i} style={{ flex: i === step ? 2 : 1, height: 4, borderRadius: 2, background: i <= step ? O : "var(--border, #2A2A2A)", transition: "all 0.3s" }} />
+          ))}
+        </div>
+
+        <div style={{ fontSize: 44, marginBottom: 14, textAlign: "center" }}>{current.icon}</div>
+        <h2 style={{ fontSize: 19, fontWeight: 800, color: "var(--text, #fff)", marginBottom: 10, textAlign: "center" }}>{current.title}</h2>
+        <p style={{ fontSize: 14, color: "var(--text-faint, #666)", lineHeight: 1.7, textAlign: "center", marginBottom: 24 }}>{current.desc}</p>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {current.action && current.target && (
+            <button onClick={() => goTo(current.target)}
+              style={{ width: "100%", padding: "13px", borderRadius: 12, background: O, color: "#fff", fontWeight: 700, fontSize: 15, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              {current.action} <ArrowRight size={16} />
+            </button>
+          )}
+          <button onClick={next}
+            style={{ width: "100%", padding: "12px", borderRadius: 12, background: "var(--surface2, #1E1E1E)", border: "1px solid var(--border, #2A2A2A)", color: "var(--text-muted, #A0A0A0)", fontWeight: 600, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+            {isLast ? <><CheckCircle size={15} color="#22c55e" /> ¡Entendido!</> : current.action ? "Saltar →" : <>Siguiente <ArrowRight size={15} /></>}
+          </button>
+        </div>
+
+        <p style={{ textAlign: "center", fontSize: 12, color: "var(--text-faint, #444)", marginTop: 14 }}>{step + 1} de {BARBER_STEPS.length}</p>
+      </div>
+    </div>
+  );
+}
+
 const STEPS = [
   {
     title: "¡Bienvenido a Clippr! 🎉",

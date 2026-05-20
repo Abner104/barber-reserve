@@ -3,6 +3,7 @@ import { Outlet, Link, useLocation, useNavigate, Navigate } from "react-router-d
 import { Calendar, User, LogOut, Menu, X, Scissors, ChevronRight, Images } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 import { useRealtimeBarberBookings } from "../features/barber/hooks/useRealtimeBarberBookings";
+import { BarberOnboardingTour, useBarberTour } from "../components/shared/OnboardingTour";
 
 const NAV = [
   { to: "/barber",           icon: Calendar,  label: "Mi agenda"    , exact: true },
@@ -18,6 +19,7 @@ export default function BarberLayout() {
 
   // Hooks siempre antes de cualquier return condicional
   useRealtimeBarberBookings();
+  const { show: showTour, close: closeTour } = useBarberTour();
 
   if (loading) return (
     <div style={{ minHeight: "100vh", background: "var(--bg, #0A0A0A)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -171,6 +173,9 @@ export default function BarberLayout() {
           </div>
         </>
       )}
+
+      {/* Tour onboarding barbero */}
+      {showTour && <BarberOnboardingTour onClose={closeTour} />}
     </>
   );
 }
