@@ -3,9 +3,10 @@ import { supabase } from "../lib/supabase";
 import { applyTheme, resetTheme } from "../lib/applyTheme";
 
 export const useAuthStore = create((set, get) => ({
-  user:    null,
-  profile: null,
-  loading: true,
+  user:     null,
+  profile:  null,
+  shopName: null,
+  loading:  true,
 
   init: async () => {
     try {
@@ -63,10 +64,13 @@ export const useAuthStore = create((set, get) => ({
       if (profile?.shop_id) {
         const { data: shop } = await supabase
           .from("barbershops")
-          .select("theme_mode, theme_color, theme_font")
+          .select("name, theme_mode, theme_color, theme_font")
           .eq("id", profile.shop_id)
           .maybeSingle();
-        if (shop) applyTheme(shop);
+        if (shop) {
+          applyTheme(shop);
+          set({ shopName: shop.name ?? null });
+        }
       }
     } catch (e) {
       console.error("loadProfile error:", e);

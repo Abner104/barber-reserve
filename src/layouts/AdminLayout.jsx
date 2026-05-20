@@ -25,7 +25,7 @@ const NAV = [
 export default function AdminLayout() {
   const { pathname }                = useLocation();
   const navigate                    = useNavigate();
-  const { signOut, profile, loading, user } = useAuthStore();
+  const { signOut, profile, loading, user, shopName } = useAuthStore();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const isSuperAdmin = profile?.role === "super_admin";
 
@@ -87,7 +87,7 @@ export default function AdminLayout() {
             <Scissors size={15} color="#fff" />
           </div>
           <div>
-            <p style={{ fontWeight: 800, fontSize: 15, color: "var(--text, #fff)", lineHeight: 1 }}>NobleCut</p>
+            <p style={{ fontWeight: 800, fontSize: 15, color: "var(--text, #fff)", lineHeight: 1 }}>{shopName ?? "Mi Barbería"}</p>
             <p style={{ fontSize: 10, color: "var(--text-faint, #555)", marginTop: 2 }}>Panel Admin</p>
           </div>
         </Link>
@@ -219,7 +219,7 @@ export default function AdminLayout() {
               <div style={{ width: 28, height: 28, background: brand, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <Scissors size={13} color="#fff" />
               </div>
-              <span style={{ fontWeight: 800, color: "var(--text, #fff)", fontSize: 14 }}>NobleCut</span>
+              <span style={{ fontWeight: 800, color: "var(--text, #fff)", fontSize: 14 }}>{shopName ?? "Mi Barbería"}</span>
             </Link>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontSize: 13, color: "var(--text-faint, #555)", textTransform: "capitalize" }}>
