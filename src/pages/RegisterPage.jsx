@@ -76,16 +76,16 @@ export default function RegisterPage() {
         .select("id").single();
       if (shopError) throw shopError;
 
-      // 3. Crear perfil del owner
+      // 3. Crear perfil del owner (upsert para sobrescribir trigger automático)
       const { error: profileError } = await supabase
         .from("profiles")
-        .insert({
+        .upsert({
           id:        userId,
           shop_id:   shopData.id,
           role:      "owner",
           full_name: account.full_name,
           phone:     shop.phone,
-        });
+        }, { onConflict: "id" });
       if (profileError) throw profileError;
 
       // 4. Crear categorías por defecto
@@ -97,6 +97,8 @@ export default function RegisterPage() {
       ]);
 
       toast.success(`¡Bienvenido! Tu barbería ${shop.name} está lista 🎉`);
+      // Pequeña pausa para que Supabase procese el perfil antes de redirigir
+      await new Promise(r => setTimeout(r, 800));
       navigate("/admin");
     } catch (err) {
       const msg = err.message || "Error al crear la cuenta. Intenta de nuevo.";
