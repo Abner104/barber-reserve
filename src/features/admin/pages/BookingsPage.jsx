@@ -51,10 +51,12 @@ function buildWaLink(booking) {
 export default function BookingsPage() {
   const qc = useQueryClient();
   const [view, setView]           = useState("list");
-  const [selectedDate, setSelectedDate] = useState(null); // null = sin filtro de fecha
+  const [selectedDate, setSelectedDate] = useState(null);
   const [filterBarber, setFilterBarber] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [detailId, setDetailId]   = useState(null);
+  const [cancelModal, setCancelModal] = useState(null); // booking a cancelar
+  const [cancelReason, setCancelReason] = useState("");
 
   // Rango de fechas — null significa "todas las próximas"
   const { from, to } = useMemo(() => {
@@ -82,7 +84,7 @@ export default function BookingsPage() {
   const { data: barbers = [] } = useQuery({ queryKey: ["admin-barbers"], queryFn: getAdminBarbers });
 
   const statusMut = useMutation({
-    mutationFn: ({ id, status }) => updateBookingStatus(id, status),
+    mutationFn: ({ id, status, reason }) => updateBookingStatus(id, status, reason),
     onSuccess: (_, { status }) => {
       qc.invalidateQueries({ queryKey: ["admin-bookings"], exact: false });
       qc.invalidateQueries({ queryKey: ["today-bookings"],  exact: false });
@@ -283,13 +285,16 @@ export default function BookingsPage() {
                       {actions.map(a => (
                         <button
                           key={a.to}
-                          onClick={() => statusMut.mutate({ id: b.id, status: a.to })}
+                          onClick={() => a.to === "cancelled"
+                            ? (setCancelModal(b), setCancelReason(""))
+                            : statusMut.mutate({ id: b.id, status: a.to })
+                          }
                           disabled={statusMut.isPending}
                           style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 9, background: `${a.color}18`, border: `1px solid ${a.color}44`, color: a.color, fontSize: 13, fontWeight: 700, cursor: "pointer" }}
                         >
-                          {a.to === "completed" && <Check size={13} />}
-                          {a.to === "cancelled" && <X size={13} />}
-                          {a.to === "confirmed" && <Check size={13} />}
+                          {a.to === "completed"   && <Check size={13} />}
+                          {a.to === "cancelled"   && <X size={13} />}
+                          {a.to === "confirmed"   && <Check size={13} />}
                           {a.to === "in_progress" && <Clock size={13} />}
                           {a.label}
                         </button>
@@ -386,6 +391,51 @@ export default function BookingsPage() {
                   {a.label}
                 </button>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ── MODAL CANCELACIÓN ── */}
+      {cancelModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+          onClick={() => setCancelModal(null)}>
+          <div style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 20, padding: 28, width: "100%", maxWidth: 420 }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <p style={{ fontSize: 17, fontWeight: 800, color: "var(--text)" }}>Cancelar reserva</p>
+              <button onClick={() => setCancelModal(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-faint)" }}><X size={18} /></button>
+            </div>
+
+            <p style={{ fontSize: 13, color: "var(--text-faint)", marginBottom: 16 }}>
+              ¿Cancelar la reserva de <strong style={{ color: "var(--text)" }}>{cancelModal.clients?.full_name}</strong>?
+              El cliente recibirá un mensaje por WhatsApp con el motivo.
+            </p>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 8 }}>MOTIVO (opcional)</label>
+              <textarea
+                value={cancelReason}
+                onChange={e => setCancelReason(e.target.value)}
+                placeholder="Ej: El barbero tuvo un imprevisto, disponibilidad no disponible..."
+                rows={3}
+                style={{ width: "100%", padding: "10px 12px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 13, outline: "none", resize: "none", boxSizing: "border-box" }}
+              />
+            </div>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setCancelModal(null)}
+                style={{ flex: 1, padding: "12px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-faint)", fontWeight: 600, cursor: "pointer" }}>
+                Volver
+              </button>
+              <button
+                onClick={() => {
+                  statusMut.mutate({ id: cancelModal.id, status: "cancelled", reason: cancelReason });
+                  setCancelModal(null);
+                }}
+                disabled={statusMut.isPending}
+                style={{ flex: 1, padding: "12px", borderRadius: 10, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "#ef4444", fontWeight: 700, cursor: "pointer" }}>
+                Confirmar cancelación
+              </button>
             </div>
           </div>
         </div>

@@ -267,7 +267,7 @@ export async function deleteService(id) {
 }
 
 // ── RESERVAS ─────────────────────────────────────────────────
-export async function updateBookingStatus(id, status) {
+export async function updateBookingStatus(id, status, reason = "") {
   const sid = resolveShopId();
   const { data, error } = await supabase
     .from("bookings").update({ status }).eq("id", id).eq("shop_id", sid).select(`
@@ -279,15 +279,14 @@ export async function updateBookingStatus(id, status) {
     `).single();
   if (error) throw error;
 
-  // Notificar al cliente si la reserva fue confirmada o cancelada
   if (data && (status === "confirmed" || status === "cancelled")) {
-    notifyClient(data, status);
+    notifyClient(data, status, reason);
   }
 
   return data;
 }
 
-async function notifyClient(booking, status) {
+async function notifyClient(booking, status, reason = "") {
   const clientPhone = booking.clients?.phone;
   if (!clientPhone) return;
 
@@ -320,9 +319,11 @@ async function notifyClient(booking, status) {
       `❌ *Reserva cancelada* - ${shopName}`,
       ``,
       `Hola ${booking.clients.full_name},`,
-      `Lamentablemente tu reserva con ${barberName} fue cancelada.`,
-      `Puedes reagendar cuando quieras en nuestro sitio web.`,
-    ].join("\n");
+      `Lamentablemente tu reserva de *${service}* con ${barberName} fue cancelada.`,
+      reason ? `\n📝 Motivo: ${reason}` : "",
+      ``,
+      `Puedes reagendar cuando quieras. 💈`,
+    ].filter(Boolean).join("\n");
   }
 
   // El barbero que tiene la sesión activa manda el mensaje al cliente
