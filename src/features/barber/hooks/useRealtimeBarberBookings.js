@@ -29,8 +29,8 @@ export function useRealtimeBarberBookings() {
             const record = payload.new ?? payload.old;
             if (record?.barber_id !== barberId) return;
 
-            qc.invalidateQueries({ queryKey: ["my-upcoming"], exact: false, refetchType: "all" });
-            qc.invalidateQueries({ queryKey: ["my-agenda"],   exact: false, refetchType: "all" });
+            qc.refetchQueries({ queryKey: ["my-upcoming"], exact: false });
+            qc.refetchQueries({ queryKey: ["my-agenda"],   exact: false });
 
             if (payload.eventType === "INSERT") {
               playBookingSound();
