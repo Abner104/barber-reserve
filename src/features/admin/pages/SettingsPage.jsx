@@ -103,8 +103,8 @@ export default function SettingsPage() {
         cover_url:   shop.cover_url   ?? "",
         booking_lead_time_min: shop.booking_lead_time_min ?? 60,
         booking_window_days:   shop.booking_window_days   ?? 30,
-        delivery_fee_base:    shop.delivery_fee_base    ?? 5000,
-        delivery_fee_per_km:  shop.delivery_fee_per_km  ?? 1500,
+        delivery_fee_base:    0,
+        delivery_fee_per_km:  shop.delivery_fee_per_km  ?? 650,
         allows_delivery:      shop.allows_delivery      ?? true,
       });
     }
@@ -252,17 +252,15 @@ export default function SettingsPage() {
               <span style={{ color: "var(--text-muted)", fontSize: 14 }}>Ofrecer servicio a domicilio</span>
             </label>
             {form.allows_delivery && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <Field label="Tarifa base domicilio ($)">
-                  <input style={inp} type="number" min={0} value={form.delivery_fee_base}
-                    onChange={e => setForm({ ...form, delivery_fee_base: Number(e.target.value) })}
-                    onFocus={f => f.target.style.borderColor = O} onBlur={f => f.target.style.borderColor = "#2A2A2A"} />
-                </Field>
-                <Field label="Tarifa por km ($)">
+              <div>
+                <Field label="💰 Precio por km de domicilio ($)">
                   <input style={inp} type="number" min={0} value={form.delivery_fee_per_km}
                     onChange={e => setForm({ ...form, delivery_fee_per_km: Number(e.target.value) })}
                     onFocus={f => f.target.style.borderColor = O} onBlur={f => f.target.style.borderColor = "#2A2A2A"} />
                 </Field>
+                <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 6 }}>
+                  Ej: a 5 km → {form.delivery_fee_per_km * 5 > 0 ? `$${(form.delivery_fee_per_km * 5).toLocaleString("es-CL")}` : "$0"} de tarifa
+                </p>
               </div>
             )}
           </Section>

@@ -59,7 +59,7 @@ export default function StepConfirm() {
     ? { lat: shopConfig.lat, lng: shopConfig.lng }
     : { lat: -33.4489, lng: -70.6693 };
 
-  const baseFee    = shopConfig?.delivery_fee_base   ?? 3000;
+  const baseFee    = shopConfig?.delivery_fee_base   ?? 0;
   const feePerKm   = shopConfig?.delivery_fee_per_km ?? 650;
 
   const distanceKm   = type === "delivery" && address.lat ? getDistanceKm(origin, { lat: address.lat, lng: address.lng }) : null;

@@ -43,7 +43,7 @@ export default function ShopBookingPage() {
       setShopConfig({
         lat:                activeShop.lat                ?? -33.4489,
         lng:                activeShop.lng                ?? -70.6693,
-        delivery_fee_base:  activeShop.delivery_fee_base  ?? 3000,
+        delivery_fee_base:  activeShop.delivery_fee_base  ?? 0,
         delivery_fee_per_km: activeShop.delivery_fee_per_km ?? 650,
       });
       applyTheme(activeShop);
