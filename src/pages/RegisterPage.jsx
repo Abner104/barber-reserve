@@ -97,8 +97,9 @@ export default function RegisterPage() {
       ]);
 
       toast.success(`¡Bienvenido! Tu barbería ${shop.name} está lista 🎉`);
-      // Pequeña pausa para que Supabase procese el perfil antes de redirigir
-      await new Promise(r => setTimeout(r, 800));
+      // Forzar recarga del perfil en el authStore antes de redirigir
+      const { loadProfile } = await import("../store/authStore").then(m => m.useAuthStore.getState());
+      await loadProfile({ id: userId, email: account.email });
       navigate("/admin");
     } catch (err) {
       const msg = err.message || "Error al crear la cuenta. Intenta de nuevo.";
