@@ -10,7 +10,7 @@ import TimeSelect from "../../../components/shared/TimeSelect";
 
 const O = "var(--brand, #FF6B2C)";
 
-const EMPTY_BARBER = { full_name: "", phone: "", specialty: "", bio: "", avatar_url: "", does_delivery: true, delivery_radius: 10, commission_pct: 40, callmebot_key: "", email: "", slot_duration_min: 30, payment_model: "independent", chair_rent_amount: 0, chair_rent_period: "monthly", day_rate_amount: 0 };
+const EMPTY_BARBER = { full_name: "", phone: "", specialty: "", bio: "", avatar_url: "", does_delivery: true, delivery_radius: 10, commission_pct: 40, email: "", slot_duration_min: 30, payment_model: "independent", chair_rent_amount: 0, chair_rent_period: "monthly", day_rate_amount: 0 };
 
 export default function BarbersPage() {
   const qc = useQueryClient();
@@ -241,9 +241,9 @@ function BarberModal({ barber, onClose, onSave, loading }) {
   const [form, setForm] = useState(barber ? {
     full_name: barber.full_name, phone: barber.phone ?? "", specialty: barber.specialty ?? "",
     bio: barber.bio ?? "", does_delivery: barber.does_delivery, delivery_radius: barber.delivery_radius,
-    commission_pct: barber.commission_pct, callmebot_key: barber.callmebot_key ?? "",
+    commission_pct: barber.commission_pct,
     slot_duration_min: barber.slot_duration_min ?? 30,
-    payment_model: barber.payment_model ?? "percentage",
+    payment_model: barber.payment_model ?? "independent",
     chair_rent_amount: barber.chair_rent_amount ?? 0,
     chair_rent_period: barber.chair_rent_period ?? "monthly",
     day_rate_amount: barber.day_rate_amount ?? 0,
@@ -380,15 +380,9 @@ function BarberModal({ barber, onClose, onSave, loading }) {
             <span style={{ color: "var(--text-muted)", fontSize: 14 }}>Hace domicilios</span>
           </label>
 
-          <Field label="🔔 CallMeBot API Key (WhatsApp automático)">
-            <input style={inp} value={form.callmebot_key} onChange={e => setForm({ ...form, callmebot_key: e.target.value })}
-              placeholder="ej: 1234567" />
-            <div style={{ marginTop: 6, padding: "8px 10px", background: "var(--surface2)", borderRadius: 8, fontSize: 11, color: "var(--text-muted)", lineHeight: 1.5 }}>
-              El barbero envía <strong style={{ color: "var(--text)" }}>«I allow callmebot to send me messages»</strong> al{" "}
-              <strong style={{ color: "var(--text)" }}>+34 644 33 79 97</strong> por WhatsApp →
-              le responden su API Key → pégala aquí.
-            </div>
-          </Field>
+          <div style={{ padding: "10px 12px", background: "var(--surface2)", borderRadius: 10, fontSize: 12, color: "var(--text-faint)", lineHeight: 1.5 }}>
+            📱 El barbero conecta su WhatsApp desde su panel → Mi Perfil → Conectar WhatsApp
+          </div>
         </div>
 
         <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
