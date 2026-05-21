@@ -116,15 +116,13 @@ export default function StepDateTime() {
           )}
 
           {!loadingSlots && slots.length === 0 && (
-            <div style={{ padding: "24px 16px", background: "var(--surface2)", borderRadius: 16, textAlign: "center" }}>
-              <p style={{ fontSize: 28, marginBottom: 8 }}>📅</p>
-              <p style={{ color: "var(--text)", fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Sin disponibilidad</p>
-              <p style={{ color: "var(--text-faint)", fontSize: 12 }}>El barbero no trabaja este día. Elige otra fecha.</p>
+            <div style={{ padding: "16px", background: "var(--surface2)", borderRadius: 14, marginBottom: 12, textAlign: "center" }}>
+              <p style={{ color: "var(--text-faint)", fontSize: 13 }}>No hay horarios predefinidos para este día.</p>
             </div>
           )}
 
           {!loadingSlots && slots.length > 0 && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 16 }}>
               {slots.map(s => (
                 <button key={s} className="slot-btn" onClick={() => setSlot(s)}
                   style={{
@@ -137,6 +135,32 @@ export default function StepDateTime() {
                   {s}
                 </button>
               ))}
+            </div>
+          )}
+
+          {/* Hora manual */}
+          {!loadingSlots && (
+            <div>
+              <p style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 8, fontWeight: 600 }}>
+                {slots.length > 0 ? "O escribe una hora diferente:" : "Escribe la hora que prefieres:"}
+              </p>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <input
+                  type="time"
+                  value={slot && !slots.includes(slot) ? slot : ""}
+                  onChange={e => setSlot(e.target.value || null)}
+                  style={{
+                    flex: 1, padding: "12px 16px", borderRadius: 12, fontSize: 16, fontWeight: 700,
+                    background: "var(--card-bg)", border: `2px solid ${slot && !slots.includes(slot) ? "var(--brand)" : "var(--border)"}`,
+                    color: "var(--text)", outline: "none", fontFamily: "inherit", cursor: "pointer",
+                  }}
+                />
+                {slot && !slots.includes(slot) && (
+                  <div style={{ padding: "12px 16px", borderRadius: 12, background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 14 }}>
+                    {slot}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
