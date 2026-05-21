@@ -1,22 +1,48 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import { format, addDays, startOfDay, isToday, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth } from "date-fns";
 import { es } from "date-fns/locale";
 import { useBookingStore } from "../../../../store/bookingStore";
+import { supabase } from "../../../../lib/supabase";
 
 const DAY_LABELS = ["Lu","Ma","Mi","Ju","Vi","Sá","Do"];
 const CSS = `
   @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+  .slot-btn { transition: all .12s ease; }
+  .slot-btn:hover:not(:disabled) { transform: scale(1.05); }
 `;
 
+// Obtener los slots disponibles del barbero para un día específico
+async function getBarberSlots(barberId, date) {
+  const dayMap = { 0: "sunday", 1: "monday", 2: "tuesday", 3: "wednesday", 4: "thursday", 5: "friday", 6: "saturday" };
+  const dayOfWeek = dayMap[new Date(date + "T12:00:00").getDay()];
+
+  const { data } = await supabase
+    .from("working_hours")
+    .select("available_slots, is_active")
+    .eq("barber_id", barberId)
+    .eq("day", dayOfWeek)
+    .maybeSingle();
+
+  if (!data?.is_active) return [];
+  return data?.available_slots ?? [];
+}
+
 export default function StepDateTime() {
-  const { date, slot, setDate, setSlot, nextStep, prevStep } = useBookingStore();
+  const { barber, date, slot, setDate, setSlot, nextStep, prevStep } = useBookingStore();
   const [viewMonth, setViewMonth] = useState(startOfMonth(new Date()));
 
   const today   = startOfDay(new Date());
   const maxDate = addDays(today, 30);
   const days    = eachDayOfInterval({ start: startOfMonth(viewMonth), end: endOfMonth(viewMonth) });
   const padStart = (getDay(startOfMonth(viewMonth)) + 6) % 7;
+
+  const { data: slots = [], isLoading: loadingSlots } = useQuery({
+    queryKey: ["barber-slots", barber?.id, date],
+    queryFn:  () => getBarberSlots(barber.id, date),
+    enabled:  !!barber?.id && !!date,
+  });
 
   function pickDate(d) {
     if (d < today || d > maxDate) return;
@@ -84,7 +110,7 @@ export default function StepDateTime() {
         </div>
       </div>
 
-      {/* Hora libre */}
+      {/* Horas del barbero */}
       {date && (
         <div style={{ marginBottom: 28 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
@@ -96,25 +122,35 @@ export default function StepDateTime() {
             </p>
           </div>
 
-          <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 700, letterSpacing: 0.5, marginBottom: 10 }}>
-            ¿A qué hora?
-          </label>
-          <input
-            type="time"
-            value={slot ?? ""}
-            onChange={e => setSlot(e.target.value || null)}
-            style={{
-              width: "100%", padding: "16px", borderRadius: 14, fontSize: 22, fontWeight: 800,
-              background: "var(--card-bg)", border: `2px solid ${slot ? "var(--brand)" : "var(--border)"}`,
-              color: slot ? "var(--brand)" : "var(--text-muted)", outline: "none",
-              fontFamily: "inherit", cursor: "pointer", boxSizing: "border-box",
-              transition: "border-color .15s",
-            }}
-          />
-          {slot && (
-            <p style={{ fontSize: 12, color: "var(--text-faint)", marginTop: 8, textAlign: "center" }}>
-              Reserva para las <strong style={{ color: "var(--brand)" }}>{slot}</strong>
-            </p>
+          {loadingSlots && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+              {[1,2,3,4].map(i => <div key={i} style={{ height: 44, borderRadius: 12, background: "var(--surface2)" }} />)}
+            </div>
+          )}
+
+          {!loadingSlots && slots.length === 0 && (
+            <div style={{ padding: "24px 16px", background: "var(--surface2)", borderRadius: 16, textAlign: "center" }}>
+              <p style={{ fontSize: 28, marginBottom: 8 }}>📅</p>
+              <p style={{ color: "var(--text)", fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Sin horarios disponibles</p>
+              <p style={{ color: "var(--text-faint)", fontSize: 12 }}>El barbero no tiene horas disponibles este día. Elige otra fecha.</p>
+            </div>
+          )}
+
+          {!loadingSlots && slots.length > 0 && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+              {slots.map(s => (
+                <button key={s} className="slot-btn" onClick={() => setSlot(s)}
+                  style={{
+                    padding: "12px 0", borderRadius: 12, fontSize: 13, fontWeight: 700, cursor: "pointer",
+                    border: `2px solid ${slot === s ? "var(--brand)" : "var(--border)"}`,
+                    background: slot === s ? "var(--brand)" : "var(--card-bg)",
+                    color: slot === s ? "#fff" : "var(--text)",
+                  }}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
           )}
         </div>
       )}

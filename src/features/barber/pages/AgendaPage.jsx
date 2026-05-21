@@ -224,42 +224,24 @@ export default function AgendaPage() {
         {showHorario && (
           <div style={{ borderTop: "1px solid var(--border)", padding: "14px 16px" }}>
             <p style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 12 }}>
-              Activa el día y pon tu horario de trabajo.
+              Activa el día y agrega las horas en que puedes atender. El cliente solo puede elegir entre esas horas.
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {DAYS_ORDER.map(day => {
                 const h      = workingHours.find(wh => wh.day === day);
                 const active = h?.is_active ?? false;
+                const slots  = h?.available_slots ?? [];
                 return (
-                  <div key={day} style={{ background: "var(--surface2)", borderRadius: 12, overflow: "hidden", border: `1px solid ${active ? "var(--brand-alpha)" : "transparent"}` }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px" }}>
-                      <button
-                        onClick={() => toggleDay(day, h)}
-                        style={{ width: 42, height: 24, borderRadius: 12, background: active ? O : "var(--border)", border: "none", cursor: "pointer", position: "relative", flexShrink: 0, transition: "background 0.2s" }}
-                      >
-                        <div style={{ position: "absolute", top: 3, width: 18, height: 18, borderRadius: "50%", background: "#fff", left: active ? 21 : 3, transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
-                      </button>
-                      <span style={{ flex: 1, fontSize: 14, fontWeight: active ? 700 : 400, color: active ? "var(--text)" : "var(--text-faint)" }}>
-                        {DAYS_ES[day]}
-                      </span>
-                      {active && h?.start_time && h?.end_time && (
-                        <span style={{ fontSize: 12, color: O, fontWeight: 600 }}>
-                          {h.start_time.slice(0,5)} – {h.end_time.slice(0,5)}
-                        </span>
-                      )}
-                    </div>
-                    {active && (
-                      <div style={{ padding: "0 14px 12px", display: "flex", alignItems: "center", gap: 10 }}>
-                        <input type="time" defaultValue={h?.start_time ?? "09:00"}
-                          onBlur={e => toggleDay(day, { ...h, start_time: e.target.value, end_time: h?.end_time ?? "18:00" })}
-                          style={{ flex: 1, padding: "8px 10px", borderRadius: 8, background: "var(--card-bg)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14, fontFamily: "inherit" }} />
-                        <span style={{ color: "var(--text-faint)", fontSize: 13 }}>–</span>
-                        <input type="time" defaultValue={h?.end_time ?? "18:00"}
-                          onBlur={e => toggleDay(day, { ...h, start_time: h?.start_time ?? "09:00", end_time: e.target.value })}
-                          style={{ flex: 1, padding: "8px 10px", borderRadius: 8, background: "var(--card-bg)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14, fontFamily: "inherit" }} />
-                      </div>
-                    )}
-                  </div>
+                  <DayScheduleEditor
+                    key={day}
+                    day={day}
+                    label={DAYS_ES[day]}
+                    active={active}
+                    slots={slots}
+                    onToggle={() => toggleDay(day, h)}
+                    onSave={newSlots => saveSlots(day, newSlots)}
+                    O={O}
+                  />
                 );
               })}
             </div>
@@ -436,6 +418,85 @@ export default function AgendaPage() {
       </div>}
 
 
+    </div>
+  );
+}
+
+// ── Editor de horario por día ─────────────────────────────────
+function DayScheduleEditor({ day, label, active, slots, onToggle, onSave, O }) {
+  const [newTime, setNewTime] = useState("");
+  const [open, setOpen]       = useState(false);
+
+  function addSlot() {
+    if (!newTime || slots.includes(newTime)) return;
+    const sorted = [...slots, newTime].sort();
+    onSave(sorted);
+    setNewTime("");
+  }
+
+  function removeSlot(s) {
+    onSave(slots.filter(x => x !== s));
+  }
+
+  return (
+    <div style={{ background: "var(--surface2)", borderRadius: 12, overflow: "hidden", border: `1px solid ${active ? "var(--brand-alpha)" : "transparent"}` }}>
+      {/* Fila principal */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px" }}>
+        <button onClick={onToggle}
+          style={{ width: 42, height: 24, borderRadius: 12, background: active ? O : "var(--border)", border: "none", cursor: "pointer", position: "relative", flexShrink: 0, transition: "background 0.2s" }}>
+          <div style={{ position: "absolute", top: 3, width: 18, height: 18, borderRadius: "50%", background: "#fff", left: active ? 21 : 3, transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+        </button>
+        <span style={{ flex: 1, fontSize: 14, fontWeight: active ? 700 : 400, color: active ? "var(--text)" : "var(--text-faint)" }}>
+          {label}
+        </span>
+        {active && (
+          <>
+            <span style={{ fontSize: 12, color: slots.length ? O : "var(--text-faint)", fontWeight: 600 }}>
+              {slots.length > 0 ? `${slots.length} hora${slots.length > 1 ? "s" : ""}` : "Sin horas"}
+            </span>
+            <button onClick={() => setOpen(!open)}
+              style={{ fontSize: 11, color: O, background: "none", border: "none", cursor: "pointer", fontWeight: 700, padding: "2px 8px" }}>
+              {open ? "Cerrar" : "Editar"}
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* Panel de horas */}
+      {active && open && (
+        <div style={{ padding: "0 14px 14px", borderTop: "1px solid var(--border)" }}>
+          {/* Horas agregadas */}
+          {slots.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12, marginBottom: 12 }}>
+              {slots.map(s => (
+                <div key={s} style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 10px", borderRadius: 10, background: "var(--card-bg)", border: `1px solid ${O}44` }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: O }}>{s}</span>
+                  <button onClick={() => removeSlot(s)}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-faint)", padding: 0, display: "flex", alignItems: "center", lineHeight: 1 }}>
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {slots.length === 0 && (
+            <p style={{ fontSize: 12, color: "var(--text-faint)", marginTop: 10, marginBottom: 10 }}>
+              Agrega las horas en que puedes atender este día.
+            </p>
+          )}
+
+          {/* Input para agregar hora */}
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input type="time" value={newTime} onChange={e => setNewTime(e.target.value)}
+              style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: "var(--card-bg)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 15, fontFamily: "inherit" }} />
+            <button onClick={addSlot} disabled={!newTime || slots.includes(newTime)}
+              style={{ padding: "10px 16px", borderRadius: 10, background: newTime && !slots.includes(newTime) ? O : "var(--border)", color: newTime && !slots.includes(newTime) ? "#fff" : "var(--text-faint)", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13, flexShrink: 0 }}>
+              + Agregar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
