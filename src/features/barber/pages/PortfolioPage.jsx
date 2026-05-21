@@ -100,9 +100,8 @@ export default function PortfolioPage() {
               value={imgUrl}
               onChange={setImgUrl}
               folder="portfolio"
-              label="Toca para subir una foto de tu trabajo"
+              label="Subir foto de tu trabajo"
               aspect="wide"
-              capture="environment"
             />
 
             {imgUrl && (

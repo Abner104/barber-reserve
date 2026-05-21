@@ -149,67 +149,80 @@ export default function StepBarber() {
         </div>
       )}
 
-      {/* Modal portfolio */}
+      {/* Modal portfolio — sheet elegante */}
       {portfolioBarber && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 200, display: "flex", flexDirection: "column" }}>
-          {/* Header */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", background: "var(--surface, #141414)", borderBottom: "1px solid var(--border)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: "var(--surface2)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}
+          onClick={() => setPortfolioBarber(null)}>
+
+          {/* Overlay */}
+          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }} />
+
+          {/* Sheet */}
+          <div onClick={e => e.stopPropagation()}
+            style={{ position: "relative", background: "var(--bg, #0A0A0A)", borderRadius: "24px 24px 0 0", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
+
+            {/* Handle */}
+            <div style={{ display: "flex", justifyContent: "center", padding: "12px 0 0" }}>
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: "var(--border)" }} />
+            </div>
+
+            {/* Perfil del barbero */}
+            <div style={{ padding: "16px 20px 12px", display: "flex", alignItems: "center", gap: 14, borderBottom: "1px solid var(--border)" }}>
+              <div style={{ width: 52, height: 52, borderRadius: 16, background: "var(--surface2)", overflow: "hidden", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {portfolioBarber.avatar_url
                   ? <img src={portfolioBarber.avatar_url} alt={portfolioBarber.full_name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  : <span style={{ fontWeight: 800, color: O }}>{portfolioBarber.full_name[0]}</span>
+                  : <span style={{ fontWeight: 900, fontSize: 20, color: O }}>{portfolioBarber.full_name[0]}</span>
                 }
               </div>
-              <div>
-                <p style={{ fontWeight: 700, fontSize: 14, color: "var(--text)", lineHeight: 1 }}>{portfolioBarber.full_name}</p>
-                {portfolioBarber.specialty && <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 2 }}>{portfolioBarber.specialty}</p>}
+              <div style={{ flex: 1 }}>
+                <p style={{ fontWeight: 800, fontSize: 17, color: "var(--text)", marginBottom: 2 }}>{portfolioBarber.full_name}</p>
+                {portfolioBarber.specialty && <p style={{ fontSize: 12, color: "var(--text-faint)" }}>{portfolioBarber.specialty}</p>}
               </div>
+              <button onClick={() => setPortfolioBarber(null)}
+                style={{ width: 32, height: 32, borderRadius: 10, background: "var(--surface2)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-faint)" }}>
+                <X size={16} />
+              </button>
             </div>
-            <button onClick={() => setPortfolioBarber(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-faint)" }}>
-              <X size={22} />
-            </button>
-          </div>
 
-          {/* Grid de fotos */}
-          <div style={{ flex: 1, overflowY: "auto", padding: 12 }}>
-            {loadingPortfolio && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-                {[1,2,3,4,5,6].map(i => <div key={i} style={{ aspectRatio: "1", borderRadius: 8, background: "var(--surface2)" }} />)}
-              </div>
-            )}
+            {/* Fotos */}
+            <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
+              {loadingPortfolio && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  {[1,2,3,4].map(i => <div key={i} style={{ aspectRatio: "1", borderRadius: 14, background: "var(--surface2)" }} />)}
+                </div>
+              )}
 
-            {!loadingPortfolio && portfolio.length === 0 && (
-              <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--text-faint)" }}>
-                <Images size={40} style={{ margin: "0 auto 12px", opacity: 0.3 }} />
-                <p>Este barbero aún no tiene trabajos publicados</p>
-              </div>
-            )}
+              {!loadingPortfolio && portfolio.length === 0 && (
+                <div style={{ textAlign: "center", padding: "48px 20px" }}>
+                  <Images size={44} color="var(--text-faint)" style={{ margin: "0 auto 14px", opacity: 0.3 }} />
+                  <p style={{ color: "var(--text)", fontWeight: 700, fontSize: 15, marginBottom: 6 }}>Sin trabajos publicados</p>
+                  <p style={{ color: "var(--text-faint)", fontSize: 13 }}>Este barbero aún no ha subido fotos de sus trabajos.</p>
+                </div>
+              )}
 
-            {!loadingPortfolio && portfolio.length > 0 && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
-                {portfolio.map(item => (
-                  <div key={item.id} style={{ position: "relative", borderRadius: 8, overflow: "hidden", aspectRatio: "1" }}>
-                    <img src={item.image_url} alt={item.caption ?? "trabajo"} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    {item.caption && (
-                      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "4px 6px", background: "linear-gradient(transparent, rgba(0,0,0,0.7))" }}>
-                        <p style={{ fontSize: 9, color: "#fff" }}>{item.caption}</p>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+              {!loadingPortfolio && portfolio.length > 0 && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  {portfolio.map(item => (
+                    <div key={item.id} style={{ position: "relative", borderRadius: 14, overflow: "hidden", aspectRatio: "1" }}>
+                      <img src={item.image_url} alt={item.caption ?? "trabajo"} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      {item.caption && (
+                        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "16px 12px 10px", background: "linear-gradient(transparent, rgba(0,0,0,0.75))" }}>
+                          <p style={{ fontSize: 11, color: "#fff", fontWeight: 600 }}>{item.caption}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
-          {/* Botón elegir este barbero */}
-          <div style={{ padding: "16px 20px", background: "var(--surface, #141414)", borderTop: "1px solid var(--border)" }}>
-            <button
-              onClick={() => { choose(portfolioBarber); setPortfolioBarber(null); }}
-              style={{ width: "100%", padding: "14px", borderRadius: 12, background: O, color: "#fff", fontWeight: 700, fontSize: 15, border: "none", cursor: "pointer" }}
-            >
-              Elegir a {portfolioBarber.full_name}
-            </button>
+            {/* CTA */}
+            <div style={{ padding: "16px 20px 32px", borderTop: "1px solid var(--border)" }}>
+              <button onClick={() => { choose(portfolioBarber); setPortfolioBarber(null); }}
+                style={{ width: "100%", padding: "16px", borderRadius: 14, background: O, color: "#fff", fontWeight: 800, fontSize: 16, border: "none", cursor: "pointer", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}>
+                Reservar con {portfolioBarber.full_name}
+              </button>
+            </div>
           </div>
         </div>
       )}
