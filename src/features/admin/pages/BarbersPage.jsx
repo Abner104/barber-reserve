@@ -285,7 +285,7 @@ function BarberModal({ barber, onClose, onSave, loading }) {
               folder="avatars"
               label="Subir foto del barbero"
               aspect="square"
-              capture="user"
+              
             />
           </Field>
           <Field label="Bio">

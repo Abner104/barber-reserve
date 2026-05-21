@@ -215,7 +215,7 @@ export default function SettingsPage() {
                 folder="logos"
                 label="Toca para subir tu logo"
                 aspect="square"
-                capture="environment"
+                
               />
             </Field>
             <Field label="Imagen de portada (hero)">
@@ -225,7 +225,7 @@ export default function SettingsPage() {
                 folder="covers"
                 label="Toca para subir tu foto de portada"
                 aspect="wide"
-                capture="environment"
+                
               />
               <p style={{ color: "var(--text-faint)", fontSize: 11, marginTop: 6 }}>
                 Recomendado: foto de la barbería o un corte. Se muestra con overlay oscuro en el hero.

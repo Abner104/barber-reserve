@@ -165,7 +165,7 @@ export default function PerfilPage() {
               folder="avatars"
               label="Subir foto"
               aspect="square"
-              capture="user"
+              
             />
           </div>
         </div>
