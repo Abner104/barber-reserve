@@ -106,22 +106,30 @@ export default function AgendaPage() {
   const DAYS_ORDER = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];
 
   async function toggleDay(day, currentHour) {
-    if (!profile?.id)       { toast.error("Tu cuenta no está vinculada a un barbero. Pídele al admin que te configure."); return; }
-    if (!profile?.shop_id)  { toast.error("Sin shop_id — contacta al administrador."); return; }
-    const isActive = currentHour?.is_active ?? false;
+    if (!profile?.id)      { toast.error("Tu cuenta no está vinculada a un barbero."); return; }
+    if (!profile?.shop_id) { toast.error("Sin shop_id — contacta al administrador."); return; }
+
+    // Si se llama con start_time/end_time nuevos (desde el input de hora), mantener is_active
+    const keepActive = currentHour?.is_active !== undefined && (currentHour.start_time || currentHour.end_time);
+    const isActive   = keepActive ? currentHour.is_active : !(currentHour?.is_active ?? false);
+
     const payload = {
-      shop_id:    profile.shop_id,
-      barber_id:  profile.id,
+      shop_id:         profile.shop_id,
+      barber_id:       profile.id,
       day,
-      start_time: currentHour?.start_time ?? "09:00",
-      end_time:   currentHour?.end_time   ?? "18:00",
-      is_active:  !isActive,
+      start_time:      currentHour?.start_time ?? "09:00",
+      end_time:        currentHour?.end_time   ?? "18:00",
+      is_active:       isActive,
+      available_slots: null,
     };
     const { error } = await supabase.from("working_hours")
       .upsert(payload, { onConflict: "barber_id,day" })
       .select();
     if (error) toast.error("Error: " + error.message);
-    else { refetchHours(); toast.success(!isActive ? "Día activado ✅" : "Día desactivado"); }
+    else {
+      refetchHours();
+      if (!keepActive) toast.success(isActive ? "Día activado ✅" : "Día desactivado");
+    }
   }
 
   async function saveSlots(day, slots) {
@@ -215,47 +223,40 @@ export default function AgendaPage() {
 
         {showHorario && (
           <div style={{ borderTop: "1px solid var(--border)", padding: "14px 16px" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <p style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 12 }}>
+              Activa el día y pon tu horario de trabajo.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {DAYS_ORDER.map(day => {
                 const h      = workingHours.find(wh => wh.day === day);
                 const active = h?.is_active ?? false;
-                const slots  = h?.available_slots ?? [];
-                const isEditingThis = horarioDia === day;
-
                 return (
-                  <div key={day} style={{ background: "var(--surface2)", borderRadius: 10, overflow: "hidden" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px" }}>
-                      {/* Toggle */}
+                  <div key={day} style={{ background: "var(--surface2)", borderRadius: 12, overflow: "hidden", border: `1px solid ${active ? "var(--brand-alpha)" : "transparent"}` }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px" }}>
                       <button
                         onClick={() => toggleDay(day, h)}
-                        style={{ width: 38, height: 21, borderRadius: 11, background: active ? O : "var(--border)", border: "none", cursor: "pointer", position: "relative", flexShrink: 0, transition: "background 0.2s" }}
+                        style={{ width: 42, height: 24, borderRadius: 12, background: active ? O : "var(--border)", border: "none", cursor: "pointer", position: "relative", flexShrink: 0, transition: "background 0.2s" }}
                       >
-                        <div style={{ position: "absolute", top: 2, width: 17, height: 17, borderRadius: "50%", background: "#fff", left: active ? 19 : 2, transition: "left 0.2s" }} />
+                        <div style={{ position: "absolute", top: 3, width: 18, height: 18, borderRadius: "50%", background: "#fff", left: active ? 21 : 3, transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
                       </button>
-                      <span style={{ flex: 1, fontSize: 13, fontWeight: active ? 600 : 400, color: active ? "var(--text)" : "var(--text-faint)" }}>
+                      <span style={{ flex: 1, fontSize: 14, fontWeight: active ? 700 : 400, color: active ? "var(--text)" : "var(--text-faint)" }}>
                         {DAYS_ES[day]}
                       </span>
-                      {active && (
-                        <span style={{ fontSize: 11, color: slots.length ? O : "var(--text-faint)" }}>
-                          {slots.length > 0 ? `${slots.length} slots` : "Sin horas"}
+                      {active && h?.start_time && h?.end_time && (
+                        <span style={{ fontSize: 12, color: O, fontWeight: 600 }}>
+                          {h.start_time.slice(0,5)} – {h.end_time.slice(0,5)}
                         </span>
                       )}
-                      {active && (
-                        <button
-                          onClick={() => setHorarioDia(isEditingThis ? null : day)}
-                          style={{ fontSize: 11, color: O, background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}
-                        >
-                          {isEditingThis ? "Cerrar" : "Editar"}
-                        </button>
-                      )}
                     </div>
-                    {active && isEditingThis && (
-                      <div style={{ padding: "0 12px 12px", borderTop: "1px solid var(--border)" }}>
-                        <p style={{ fontSize: 11, color: "var(--text-faint)", margin: "10px 0 8px" }}>Toca las horas disponibles:</p>
-                        <SlotPicker
-                          selected={slots}
-                          onChange={newSlots => saveSlots(day, newSlots)}
-                        />
+                    {active && (
+                      <div style={{ padding: "0 14px 12px", display: "flex", alignItems: "center", gap: 10 }}>
+                        <input type="time" defaultValue={h?.start_time ?? "09:00"}
+                          onBlur={e => toggleDay(day, { ...h, start_time: e.target.value, end_time: h?.end_time ?? "18:00" })}
+                          style={{ flex: 1, padding: "8px 10px", borderRadius: 8, background: "var(--card-bg)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14, fontFamily: "inherit" }} />
+                        <span style={{ color: "var(--text-faint)", fontSize: 13 }}>–</span>
+                        <input type="time" defaultValue={h?.end_time ?? "18:00"}
+                          onBlur={e => toggleDay(day, { ...h, start_time: h?.start_time ?? "09:00", end_time: e.target.value })}
+                          style={{ flex: 1, padding: "8px 10px", borderRadius: 8, background: "var(--card-bg)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14, fontFamily: "inherit" }} />
                       </div>
                     )}
                   </div>
