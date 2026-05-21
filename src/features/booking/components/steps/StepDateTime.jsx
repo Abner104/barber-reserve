@@ -1,32 +1,22 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import { format, addDays, startOfDay, isToday, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth } from "date-fns";
 import { es } from "date-fns/locale";
 import { useBookingStore } from "../../../../store/bookingStore";
-import { getAvailableSlots } from "../../services/bookingService";
 
 const DAY_LABELS = ["Lu","Ma","Mi","Ju","Vi","Sá","Do"];
 const CSS = `
   @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
-  .slot-btn { transition: all .12s ease; }
-  .slot-btn:hover:not(:disabled) { transform: scale(1.05); }
 `;
 
 export default function StepDateTime() {
-  const { barber, service, date, slot, setDate, setSlot, nextStep, prevStep } = useBookingStore();
+  const { date, slot, setDate, setSlot, nextStep, prevStep } = useBookingStore();
   const [viewMonth, setViewMonth] = useState(startOfMonth(new Date()));
 
   const today   = startOfDay(new Date());
   const maxDate = addDays(today, 30);
   const days    = eachDayOfInterval({ start: startOfMonth(viewMonth), end: endOfMonth(viewMonth) });
   const padStart = (getDay(startOfMonth(viewMonth)) + 6) % 7;
-
-  const { data: slots = [], isLoading: loadingSlots } = useQuery({
-    queryKey: ["slots", barber?.id, date, service?.duration_min],
-    queryFn: () => getAvailableSlots({ barberId: barber.id, date, durationMin: service.duration_min }),
-    enabled: !!barber && !!date && !!service,
-  });
 
   function pickDate(d) {
     if (d < today || d > maxDate) return;
@@ -49,7 +39,6 @@ export default function StepDateTime() {
 
       {/* Calendario */}
       <div style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 20, padding: "20px 16px", marginBottom: 20 }}>
-        {/* Nav mes */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
           <button onClick={() => setViewMonth(addMonths(viewMonth, -1))} disabled={isSameMonth(viewMonth, today)}
             style={{ width: 32, height: 32, borderRadius: 10, background: "var(--surface2)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", opacity: isSameMonth(viewMonth, today) ? 0.3 : 1 }}>
@@ -64,14 +53,12 @@ export default function StepDateTime() {
           </button>
         </div>
 
-        {/* Cabecera días */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 6 }}>
           {DAY_LABELS.map(l => (
             <div key={l} style={{ textAlign: "center", fontSize: 11, color: "var(--text-faint)", padding: "4px 0", fontWeight: 700 }}>{l}</div>
           ))}
         </div>
 
-        {/* Días */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
           {Array.from({ length: padStart }).map((_, i) => <div key={`p${i}`} />)}
           {days.map((d) => {
@@ -97,7 +84,7 @@ export default function StepDateTime() {
         </div>
       </div>
 
-      {/* Slots de hora */}
+      {/* Hora libre */}
       {date && (
         <div style={{ marginBottom: 28 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
@@ -109,59 +96,25 @@ export default function StepDateTime() {
             </p>
           </div>
 
-          {loadingSlots && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-              {[1,2,3,4,5,6,7,8].map(i => <div key={i} style={{ height: 44, borderRadius: 12, background: "var(--surface2)" }} />)}
-            </div>
-          )}
-
-          {!loadingSlots && slots.length === 0 && (
-            <div style={{ padding: "16px", background: "var(--surface2)", borderRadius: 14, marginBottom: 12, textAlign: "center" }}>
-              <p style={{ color: "var(--text-faint)", fontSize: 13 }}>No hay horarios predefinidos para este día.</p>
-            </div>
-          )}
-
-          {!loadingSlots && slots.length > 0 && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 16 }}>
-              {slots.map(s => (
-                <button key={s} className="slot-btn" onClick={() => setSlot(s)}
-                  style={{
-                    padding: "12px 0", borderRadius: 12, fontSize: 13, fontWeight: 700, cursor: "pointer",
-                    border: `2px solid ${slot === s ? "var(--brand)" : "var(--border)"}`,
-                    background: slot === s ? "var(--brand)" : "var(--card-bg)",
-                    color: slot === s ? "#fff" : "var(--text)",
-                  }}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Hora manual */}
-          {!loadingSlots && (
-            <div>
-              <p style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 8, fontWeight: 600 }}>
-                {slots.length > 0 ? "O escribe una hora diferente:" : "Escribe la hora que prefieres:"}
-              </p>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <input
-                  type="time"
-                  value={slot && !slots.includes(slot) ? slot : ""}
-                  onChange={e => setSlot(e.target.value || null)}
-                  style={{
-                    flex: 1, padding: "12px 16px", borderRadius: 12, fontSize: 16, fontWeight: 700,
-                    background: "var(--card-bg)", border: `2px solid ${slot && !slots.includes(slot) ? "var(--brand)" : "var(--border)"}`,
-                    color: "var(--text)", outline: "none", fontFamily: "inherit", cursor: "pointer",
-                  }}
-                />
-                {slot && !slots.includes(slot) && (
-                  <div style={{ padding: "12px 16px", borderRadius: 12, background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 14 }}>
-                    {slot}
-                  </div>
-                )}
-              </div>
-            </div>
+          <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 700, letterSpacing: 0.5, marginBottom: 10 }}>
+            ¿A qué hora?
+          </label>
+          <input
+            type="time"
+            value={slot ?? ""}
+            onChange={e => setSlot(e.target.value || null)}
+            style={{
+              width: "100%", padding: "16px", borderRadius: 14, fontSize: 22, fontWeight: 800,
+              background: "var(--card-bg)", border: `2px solid ${slot ? "var(--brand)" : "var(--border)"}`,
+              color: slot ? "var(--brand)" : "var(--text-muted)", outline: "none",
+              fontFamily: "inherit", cursor: "pointer", boxSizing: "border-box",
+              transition: "border-color .15s",
+            }}
+          />
+          {slot && (
+            <p style={{ fontSize: 12, color: "var(--text-faint)", marginTop: 8, textAlign: "center" }}>
+              Reserva para las <strong style={{ color: "var(--brand)" }}>{slot}</strong>
+            </p>
           )}
         </div>
       )}
