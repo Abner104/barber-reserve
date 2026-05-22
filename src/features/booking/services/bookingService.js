@@ -136,9 +136,9 @@ export async function createBooking({ type, serviceId, barberId, date, slot, dur
   }
 
   // 0b. Verificar conflicto de horario (misma hora ±30min)
-  const scheduledAt  = new Date(`${date}T${slot}:00`).toISOString();
-  const windowStart  = new Date(new Date(scheduledAt).getTime() - 30 * 60000).toISOString();
-  const windowEnd    = new Date(new Date(scheduledAt).getTime() + 30 * 60000).toISOString();
+  const slotTime     = new Date(`${date}T${slot}:00`).toISOString();
+  const windowStart  = new Date(new Date(slotTime).getTime() - 30 * 60000).toISOString();
+  const windowEnd    = new Date(new Date(slotTime).getTime() + 30 * 60000).toISOString();
   const { data: conflict } = await supabase
     .from("bookings")
     .select("id, scheduled_at")
