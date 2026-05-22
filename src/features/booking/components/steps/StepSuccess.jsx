@@ -1,4 +1,4 @@
-import { Calendar, Clock, MapPin, Scissors, Share2 } from "lucide-react";
+import { Calendar, Clock, MapPin, Scissors } from "lucide-react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -73,18 +73,6 @@ export default function StepSuccess({ slug, shopName }) {
               </div>
             </div>
           ))}
-        </div>
-
-        {/* Acciones rápidas */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
-          <button onClick={() => addToCalendar({ date, slot, service, barber, type })}
-            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "12px", borderRadius: 12, background: "var(--card-bg)", border: "1px solid var(--border)", color: "var(--text-muted)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-            <Calendar size={15} /> Agendar
-          </button>
-          <button onClick={() => shareWhatsApp({ date, slot, service, barber, shopName })}
-            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "12px", borderRadius: 12, background: "rgba(37,211,102,0.08)", border: "1px solid rgba(37,211,102,0.2)", color: "#25d166", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-            <Share2 size={15} /> Compartir
-          </button>
         </div>
 
         <p style={{ color: "var(--text-faint)", fontSize: 13, marginBottom: 20 }}>
