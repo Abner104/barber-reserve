@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, MapPin, Navigation } from "lucide-react";
+import { Loader2, MapPin, Search, X } from "lucide-react";
 import { getMyBarberProfile, updateMyAvailability } from "../services/barberService";
 import { getBarberWorkingHours } from "../../admin/services/adminService";
 import { supabase } from "../../../lib/supabase";
@@ -19,7 +19,10 @@ export default function PerfilPage() {
 
   const [form, setForm] = useState(null);
 
-  const [locating, setLocating] = useState(false);
+  const [addrInput, setAddrInput]       = useState("");
+  const [addrSuggestions, setAddrSugg] = useState([]);
+  const [addrLoading, setAddrLoading]  = useState(false);
+  const addrDebounce = useRef(null);
 
   useEffect(() => {
     if (barber && !form) {
@@ -32,34 +35,48 @@ export default function PerfilPage() {
         avatar_url:      barber.avatar_url ?? "",
         lat:             barber.lat ?? null,
         lng:             barber.lng ?? null,
+        address:         barber.address ?? "",
       });
+      if (barber.address) setAddrInput(barber.address);
     }
   }, [barber, form]);
 
-  async function useMyLocation() {
-    if (!navigator.geolocation) { toast.error("Tu dispositivo no soporta geolocalización"); return; }
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      async ({ coords }) => {
-        const { latitude: lat, longitude: lng } = coords;
-        setForm(f => ({ ...f, lat, lng }));
-        // Guardar inmediatamente en Supabase
-        const { error } = await supabase.from("barbers").update({ lat, lng }).eq("id", barber.id);
-        if (error) toast.error("Error al guardar ubicación");
-        else {
-          qc.invalidateQueries(["my-barber-profile"]);
-          toast.success("Ubicación guardada ✅");
-        }
-        setLocating(false);
-      },
-      (err) => {
-        if (err.code === 1) toast.error("Permiso de ubicación denegado. Ve a Configuración → Permisos → Ubicación y actívalo para este sitio.");
-        else if (err.code === 2) toast.error("No se pudo obtener tu ubicación. Cierra burbujas flotantes de otras apps e intenta de nuevo.");
-        else toast.error("Error al obtener ubicación. Intenta de nuevo.");
-        setLocating(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
+  // Buscar dirección con Nominatim
+  useEffect(() => {
+    if (addrDebounce.current) clearTimeout(addrDebounce.current);
+    if (!addrInput || addrInput.length < 4 || addrInput === form?.address) { setAddrSugg([]); return; }
+    addrDebounce.current = setTimeout(async () => {
+      setAddrLoading(true);
+      try {
+        const q    = encodeURIComponent(addrInput + ", Chile");
+        const url  = `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=5&countrycodes=cl&addressdetails=1`;
+        const res  = await fetch(url, { headers: { "Accept-Language": "es" } });
+        const data = await res.json();
+        setAddrSugg(data.map(r => ({
+          display: [r.address?.road, r.address?.house_number, r.address?.suburb, r.address?.city || r.address?.town].filter(Boolean).join(", ") || r.display_name.split(",").slice(0,3).join(","),
+          lat: parseFloat(r.lat),
+          lng: parseFloat(r.lon),
+        })));
+      } catch { setAddrSugg([]); }
+      finally { setAddrLoading(false); }
+    }, 500);
+    return () => clearTimeout(addrDebounce.current);
+  }, [addrInput]);
+
+  async function selectAddress(s) {
+    setAddrInput(s.display);
+    setAddrSugg([]);
+    setForm(f => ({ ...f, lat: s.lat, lng: s.lng, address: s.display }));
+    // Guardar inmediatamente
+    const { error } = await supabase.from("barbers").update({ lat: s.lat, lng: s.lng, address: s.display }).eq("id", barber.id);
+    if (error) toast.error("Error al guardar dirección");
+    else { qc.invalidateQueries(["my-barber-profile"]); toast.success("Dirección base guardada ✅"); }
+  }
+
+  function clearAddress() {
+    setAddrInput("");
+    setAddrSugg([]);
+    setForm(f => ({ ...f, lat: null, lng: null, address: "" }));
   }
 
   const mut = useMutation({
@@ -114,31 +131,58 @@ export default function PerfilPage() {
               />
             </div>
 
-            {/* Ubicación del barbero */}
+            {/* Dirección base del barbero */}
             <div style={{ background: "var(--surface2)", borderRadius: 10, padding: 14 }}>
-              <p style={{ fontSize: 12, fontWeight: 700, color: "var(--text-faint)", marginBottom: 4 }}>MI UBICACIÓN BASE</p>
-              <p style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 10, lineHeight: 1.5 }}>
-                Los clientes solo podrán reservar domicilio dentro de tu radio desde esta ubicación.
+              <p style={{ fontSize: 12, fontWeight: 700, color: "var(--text-faint)", marginBottom: 4 }}>MI DIRECCIÓN BASE</p>
+              <p style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 12, lineHeight: 1.5 }}>
+                Los km del domicilio se calcularán desde aquí. Escribe tu dirección exacta.
               </p>
-              {form.lat && form.lng ? (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                  <MapPin size={14} color="var(--brand)" />
-                  <span style={{ fontSize: 12, color: "var(--text)" }}>
-                    {form.lat.toFixed(5)}, {form.lng.toFixed(5)}
-                  </span>
-                  <span style={{ fontSize: 11, color: "#22c55e", fontWeight: 600 }}>✓ Configurada</span>
+
+              <div style={{ position: "relative" }}>
+                <div style={{ display: "flex", alignItems: "center", background: "var(--card-bg)", border: `1px solid ${form.lat ? "var(--brand)" : "var(--border)"}`, borderRadius: 10, overflow: "hidden" }}>
+                  <div style={{ padding: "0 12px", color: form.lat ? "var(--brand)" : "var(--text-faint)" }}>
+                    <MapPin size={16} />
+                  </div>
+                  <input
+                    value={addrInput}
+                    onChange={e => { setAddrInput(e.target.value); if (form.lat) clearAddress(); }}
+                    placeholder="Ej: Arauco 507, La Cisterna"
+                    style={{ flex: 1, padding: "11px 0", background: "transparent", border: "none", outline: "none", fontSize: 14, color: "var(--text)", fontFamily: "inherit" }}
+                  />
+                  {addrLoading && <Loader2 size={14} color="var(--text-faint)" style={{ marginRight: 12, animation: "spin 1s linear infinite" }} />}
+                  {form.lat && !addrLoading && (
+                    <button onClick={clearAddress} style={{ padding: "0 12px", background: "none", border: "none", cursor: "pointer", color: "var(--text-faint)" }}>
+                      <X size={14} />
+                    </button>
+                  )}
                 </div>
-              ) : (
-                <p style={{ fontSize: 12, color: "#f59e0b", marginBottom: 10 }}>⚠️ Sin ubicación — los domicilios usan la ubicación del local</p>
+
+                {/* Sugerencias */}
+                {addrSuggestions.length > 0 && (
+                  <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 50, background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 10, marginTop: 4, overflow: "hidden", boxShadow: "0 8px 24px rgba(0,0,0,0.3)" }}>
+                    {addrSuggestions.map((s, i) => (
+                      <button key={i} onClick={() => selectAddress(s)}
+                        style={{ display: "flex", alignItems: "flex-start", gap: 8, width: "100%", padding: "10px 14px", background: "none", border: "none", borderBottom: i < addrSuggestions.length - 1 ? "1px solid var(--border)" : "none", cursor: "pointer", textAlign: "left" }}
+                        onMouseEnter={e => e.currentTarget.style.background = "var(--surface2)"}
+                        onMouseLeave={e => e.currentTarget.style.background = "none"}>
+                        <MapPin size={13} color="var(--text-faint)" style={{ marginTop: 2, flexShrink: 0 }} />
+                        <span style={{ fontSize: 13, color: "var(--text)", lineHeight: 1.4 }}>{s.display}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {form.lat && (
+                <p style={{ fontSize: 11, color: "#22c55e", fontWeight: 600, marginTop: 8 }}>
+                  ✓ Dirección configurada — los domicilios se calculan desde aquí
+                </p>
               )}
-              <button
-                onClick={useMyLocation}
-                disabled={locating}
-                style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 9, background: "var(--brand)", border: "none", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", opacity: locating ? 0.7 : 1 }}
-              >
-                {locating ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Navigation size={14} />}
-                {locating ? "Obteniendo ubicación..." : "Usar mi ubicación actual"}
-              </button>
+              {!form.lat && (
+                <p style={{ fontSize: 11, color: "#f59e0b", marginTop: 8 }}>
+                  ⚠️ Sin dirección — los domicilios usarán la ubicación del local
+                </p>
+              )}
             </div>
           </div>
         )}

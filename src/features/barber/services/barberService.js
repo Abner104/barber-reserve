@@ -9,7 +9,7 @@ async function getMyBarberId() {
   // Buscar por profile_id (barbero con cuenta propia)
   const { data: byProfile } = await supabase
     .from("barbers")
-    .select("id, shop_id, full_name, phone, specialty, does_delivery, delivery_radius, commission_pct, is_active, avatar_url, lat, lng")
+    .select("id, shop_id, full_name, phone, specialty, does_delivery, delivery_radius, commission_pct, is_active, avatar_url, lat, lng, address")
     .eq("profile_id", user.id)
     .maybeSingle();
 
@@ -20,7 +20,7 @@ async function getMyBarberId() {
     const shopId = profile?.shop_id ?? SHOP_ID;
     const { data: first } = await supabase
       .from("barbers")
-      .select("id, shop_id, full_name, phone, specialty, does_delivery, delivery_radius, commission_pct, is_active, avatar_url, lat, lng")
+      .select("id, shop_id, full_name, phone, specialty, does_delivery, delivery_radius, commission_pct, is_active, avatar_url, lat, lng, address")
       .eq("shop_id", shopId)
       .eq("is_active", true)
       .order("created_at")
