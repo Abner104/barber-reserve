@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, MapPin, Search, X } from "lucide-react";
+import { Loader2, MapPin, Navigation2 } from "lucide-react";
 import { getMyBarberProfile, updateMyAvailability } from "../services/barberService";
 import { getBarberWorkingHours } from "../../admin/services/adminService";
 import { supabase } from "../../../lib/supabase";
@@ -19,10 +19,10 @@ export default function PerfilPage() {
 
   const [form, setForm] = useState(null);
 
-  const [addrInput, setAddrInput]       = useState("");
-  const [addrSuggestions, setAddrSugg] = useState([]);
-  const [addrLoading, setAddrLoading]  = useState(false);
-  const addrDebounce = useRef(null);
+  const [showMap, setShowMap]   = useState(false);
+  const mapRef                  = useRef(null);
+  const leafletMap              = useRef(null);
+  const markerRef               = useRef(null);
 
   useEffect(() => {
     if (barber && !form) {
@@ -41,42 +41,61 @@ export default function PerfilPage() {
     }
   }, [barber, form]);
 
-  // Buscar dirección con Nominatim
+  // Inicializar mapa Leaflet cuando se abre
   useEffect(() => {
-    if (addrDebounce.current) clearTimeout(addrDebounce.current);
-    if (!addrInput || addrInput.length < 4 || addrInput === form?.address) { setAddrSugg([]); return; }
-    addrDebounce.current = setTimeout(async () => {
-      setAddrLoading(true);
-      try {
-        const q    = encodeURIComponent(addrInput + ", Chile");
-        const url  = `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=5&countrycodes=cl&addressdetails=1`;
-        const res  = await fetch(url, { headers: { "Accept-Language": "es" } });
-        const data = await res.json();
-        setAddrSugg(data.map(r => ({
-          display: [r.address?.road, r.address?.house_number, r.address?.suburb, r.address?.city || r.address?.town].filter(Boolean).join(", ") || r.display_name.split(",").slice(0,3).join(","),
-          lat: parseFloat(r.lat),
-          lng: parseFloat(r.lon),
-        })));
-      } catch { setAddrSugg([]); }
-      finally { setAddrLoading(false); }
-    }, 500);
-    return () => clearTimeout(addrDebounce.current);
-  }, [addrInput]);
+    if (!showMap || !mapRef.current) return;
+    if (leafletMap.current) return; // ya iniciado
 
-  async function selectAddress(s) {
-    setAddrInput(s.display);
-    setAddrSugg([]);
-    setForm(f => ({ ...f, lat: s.lat, lng: s.lng, address: s.display }));
-    // Guardar inmediatamente
-    const { error } = await supabase.from("barbers").update({ lat: s.lat, lng: s.lng, address: s.display }).eq("id", barber.id);
-    if (error) toast.error("Error al guardar dirección");
-    else { qc.invalidateQueries(["my-barber-profile"]); toast.success("Dirección base guardada ✅"); }
-  }
+    import("leaflet").then(L => {
+      // Fix íconos Leaflet en Vite
+      delete L.Icon.Default.prototype._getIconUrl;
+      L.Icon.Default.mergeOptions({
+        iconUrl:       "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+        iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+        shadowUrl:     "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+      });
 
-  function clearAddress() {
-    setAddrInput("");
-    setAddrSugg([]);
-    setForm(f => ({ ...f, lat: null, lng: null, address: "" }));
+      const initLat = form?.lat ?? -33.4489;
+      const initLng = form?.lng ?? -70.6693;
+
+      const map = L.map(mapRef.current).setView([initLat, initLng], 15);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap"
+      }).addTo(map);
+
+      const marker = L.marker([initLat, initLng], { draggable: true }).addTo(map);
+      marker.bindPopup("📍 Arrastra el pin a tu ubicación exacta").openPopup();
+
+      marker.on("dragend", () => {
+        const { lat, lng } = marker.getLatLng();
+        markerRef.current = { lat, lng };
+      });
+
+      leafletMap.current = map;
+      markerRef.current  = { lat: initLat, lng: initLng };
+    });
+
+    return () => {
+      if (leafletMap.current) {
+        leafletMap.current.remove();
+        leafletMap.current = null;
+      }
+    };
+  }, [showMap]);
+
+  async function saveMapLocation() {
+    const pos = markerRef.current;
+    if (!pos) return;
+    const { error } = await supabase.from("barbers")
+      .update({ lat: pos.lat, lng: pos.lng })
+      .eq("id", barber.id);
+    if (error) toast.error("Error al guardar");
+    else {
+      setForm(f => ({ ...f, lat: pos.lat, lng: pos.lng }));
+      qc.invalidateQueries(["my-barber-profile"]);
+      toast.success("Ubicación guardada ✅");
+      setShowMap(false);
+    }
   }
 
   const mut = useMutation({
@@ -131,59 +150,59 @@ export default function PerfilPage() {
               />
             </div>
 
-            {/* Dirección base del barbero */}
+            {/* Ubicación base en mapa */}
             <div style={{ background: "var(--surface2)", borderRadius: 10, padding: 14 }}>
-              <p style={{ fontSize: 12, fontWeight: 700, color: "var(--text-faint)", marginBottom: 4 }}>MI DIRECCIÓN BASE</p>
+              <p style={{ fontSize: 12, fontWeight: 700, color: "var(--text-faint)", marginBottom: 4 }}>MI UBICACIÓN BASE</p>
               <p style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 12, lineHeight: 1.5 }}>
-                Los km del domicilio se calcularán desde aquí. Escribe tu dirección exacta.
+                El costo del domicilio se calcula desde aquí. Mueve el pin a tu ubicación exacta.
               </p>
 
-              <div style={{ position: "relative" }}>
-                <div style={{ display: "flex", alignItems: "center", background: "var(--card-bg)", border: `1px solid ${form.lat ? "var(--brand)" : "var(--border)"}`, borderRadius: 10, overflow: "hidden" }}>
-                  <div style={{ padding: "0 12px", color: form.lat ? "var(--brand)" : "var(--text-faint)" }}>
-                    <MapPin size={16} />
-                  </div>
-                  <input
-                    value={addrInput}
-                    onChange={e => { setAddrInput(e.target.value); if (form.lat) clearAddress(); }}
-                    placeholder="Ej: Arauco 507, La Cisterna"
-                    style={{ flex: 1, padding: "11px 0", background: "transparent", border: "none", outline: "none", fontSize: 14, color: "var(--text)", fontFamily: "inherit" }}
-                  />
-                  {addrLoading && <Loader2 size={14} color="var(--text-faint)" style={{ marginRight: 12, animation: "spin 1s linear infinite" }} />}
-                  {form.lat && !addrLoading && (
-                    <button onClick={clearAddress} style={{ padding: "0 12px", background: "none", border: "none", cursor: "pointer", color: "var(--text-faint)" }}>
-                      <X size={14} />
-                    </button>
-                  )}
+              {form.lat && form.lng && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, padding: "8px 10px", background: "var(--card-bg)", borderRadius: 8, border: "1px solid rgba(34,197,94,0.3)" }}>
+                  <MapPin size={14} color="#22c55e" />
+                  <span style={{ fontSize: 12, color: "#22c55e", fontWeight: 600 }}>Configurada ✓</span>
+                  <span style={{ fontSize: 11, color: "var(--text-faint)", marginLeft: 4 }}>
+                    {Number(form.lat).toFixed(4)}, {Number(form.lng).toFixed(4)}
+                  </span>
                 </div>
-
-                {/* Sugerencias */}
-                {addrSuggestions.length > 0 && (
-                  <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 50, background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 10, marginTop: 4, overflow: "hidden", boxShadow: "0 8px 24px rgba(0,0,0,0.3)" }}>
-                    {addrSuggestions.map((s, i) => (
-                      <button key={i} onClick={() => selectAddress(s)}
-                        style={{ display: "flex", alignItems: "flex-start", gap: 8, width: "100%", padding: "10px 14px", background: "none", border: "none", borderBottom: i < addrSuggestions.length - 1 ? "1px solid var(--border)" : "none", cursor: "pointer", textAlign: "left" }}
-                        onMouseEnter={e => e.currentTarget.style.background = "var(--surface2)"}
-                        onMouseLeave={e => e.currentTarget.style.background = "none"}>
-                        <MapPin size={13} color="var(--text-faint)" style={{ marginTop: 2, flexShrink: 0 }} />
-                        <span style={{ fontSize: 13, color: "var(--text)", lineHeight: 1.4 }}>{s.display}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {form.lat && (
-                <p style={{ fontSize: 11, color: "#22c55e", fontWeight: 600, marginTop: 8 }}>
-                  ✓ Dirección configurada — los domicilios se calculan desde aquí
-                </p>
               )}
+
               {!form.lat && (
-                <p style={{ fontSize: 11, color: "#f59e0b", marginTop: 8 }}>
-                  ⚠️ Sin dirección — los domicilios usarán la ubicación del local
+                <p style={{ fontSize: 11, color: "#f59e0b", marginBottom: 10 }}>
+                  ⚠️ Sin ubicación — los domicilios usarán la ubicación del local
                 </p>
               )}
+
+              <button onClick={() => setShowMap(true)}
+                style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 9, background: "var(--brand)", border: "none", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+                <Navigation2 size={14} />
+                {form.lat ? "Cambiar ubicación en mapa" : "Fijar mi ubicación en el mapa"}
+              </button>
             </div>
+
+            {/* Modal mapa */}
+            {showMap && (
+              <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 300, display: "flex", flexDirection: "column" }}>
+                <style>{`.leaflet-container { height: 100%; width: 100%; }`}</style>
+                <div style={{ padding: "14px 16px", background: "#141414", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                  <div>
+                    <p style={{ fontWeight: 700, fontSize: 15, color: "#fff", marginBottom: 2 }}>Fijar mi ubicación</p>
+                    <p style={{ fontSize: 12, color: "#666" }}>Arrastra el pin 📍 a tu dirección exacta</p>
+                  </div>
+                  <button onClick={() => setShowMap(false)}
+                    style={{ background: "#222", border: "1px solid #333", borderRadius: 8, padding: "8px 12px", color: "#aaa", cursor: "pointer", fontSize: 13 }}>
+                    Cancelar
+                  </button>
+                </div>
+                <div ref={mapRef} style={{ flex: 1 }} />
+                <div style={{ padding: "14px 16px", background: "#141414" }}>
+                  <button onClick={saveMapLocation}
+                    style={{ width: "100%", padding: "14px", borderRadius: 12, background: "var(--brand)", border: "none", color: "#fff", fontWeight: 800, fontSize: 16, cursor: "pointer" }}>
+                    ✓ Guardar esta ubicación
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
