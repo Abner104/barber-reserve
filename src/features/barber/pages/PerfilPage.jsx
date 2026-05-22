@@ -72,6 +72,9 @@ export default function PerfilPage() {
 
       leafletMap.current = map;
       markerRef.current  = { lat: initLat, lng: initLng };
+
+      // Forzar recálculo de tamaño después de que el DOM esté listo
+      setTimeout(() => map.invalidateSize(), 100);
     });
 
     return () => {
@@ -181,22 +184,32 @@ export default function PerfilPage() {
 
             {/* Modal mapa */}
             {showMap && (
-              <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 300, display: "flex", flexDirection: "column" }}>
-                <style>{`.leaflet-container { height: 100%; width: 100%; }`}</style>
-                <div style={{ padding: "14px 16px", background: "#141414", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <div style={{ position: "fixed", inset: 0, zIndex: 300, display: "flex", flexDirection: "column", background: "#000" }}>
+                <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+                <style>{`
+                  #barber-map { position: absolute; inset: 0; top: 56px; bottom: 72px; }
+                  #barber-map .leaflet-container { width: 100%; height: 100%; }
+                `}</style>
+
+                {/* Header */}
+                <div style={{ height: 56, background: "#111", borderBottom: "1px solid #222", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", flexShrink: 0, zIndex: 1 }}>
                   <div>
-                    <p style={{ fontWeight: 700, fontSize: 15, color: "#fff", marginBottom: 2 }}>Fijar mi ubicación</p>
-                    <p style={{ fontSize: 12, color: "#666" }}>Arrastra el pin 📍 a tu dirección exacta</p>
+                    <p style={{ fontWeight: 700, fontSize: 15, color: "#fff", lineHeight: 1 }}>Fijar mi ubicación</p>
+                    <p style={{ fontSize: 11, color: "#666", marginTop: 2 }}>Arrastra el pin 📍 a tu dirección exacta</p>
                   </div>
-                  <button onClick={() => setShowMap(false)}
-                    style={{ background: "#222", border: "1px solid #333", borderRadius: 8, padding: "8px 12px", color: "#aaa", cursor: "pointer", fontSize: 13 }}>
+                  <button onClick={() => { setShowMap(false); leafletMap.current?.remove(); leafletMap.current = null; }}
+                    style={{ background: "#222", border: "1px solid #333", borderRadius: 8, padding: "7px 14px", color: "#aaa", cursor: "pointer", fontSize: 13 }}>
                     Cancelar
                   </button>
                 </div>
-                <div ref={mapRef} style={{ flex: 1 }} />
-                <div style={{ padding: "14px 16px", background: "#141414" }}>
+
+                {/* Mapa */}
+                <div id="barber-map" ref={mapRef} />
+
+                {/* Footer */}
+                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 72, background: "#111", borderTop: "1px solid #222", padding: "12px 16px", zIndex: 1 }}>
                   <button onClick={saveMapLocation}
-                    style={{ width: "100%", padding: "14px", borderRadius: 12, background: "var(--brand)", border: "none", color: "#fff", fontWeight: 800, fontSize: 16, cursor: "pointer" }}>
+                    style={{ width: "100%", height: 48, borderRadius: 12, background: "var(--brand, #FF6B2C)", border: "none", color: "#fff", fontWeight: 800, fontSize: 16, cursor: "pointer" }}>
                     ✓ Guardar esta ubicación
                   </button>
                 </div>
