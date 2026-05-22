@@ -37,7 +37,6 @@ export default function PerfilPage() {
         lng:             barber.lng ?? null,
         address:         barber.address ?? "",
       });
-      if (barber.address) setAddrInput(barber.address);
     }
   }, [barber, form]);
 
