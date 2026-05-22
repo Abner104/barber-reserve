@@ -24,7 +24,7 @@ export async function getBarbers({ serviceId, type, shopId } = {}) {
   const id = shopId || getShopId();
   let query = supabase
     .from("barbers")
-    .select("id, full_name, avatar_url, bio, specialty, does_delivery, delivery_radius, barber_services(service_id)")
+    .select("id, full_name, avatar_url, bio, specialty, does_delivery, delivery_radius, lat, lng, barber_services(service_id)")
     .eq("shop_id", id)
     .eq("is_active", true);
 
