@@ -375,7 +375,7 @@ export async function getBookings({ from, to, barberId, status } = {}) {
 
 export async function updateBookingNotes(id, barber_notes) {
   const { data, error } = await supabase
-    .from("bookings").update({ barber_notes }).eq("id", id).eq("shop_id", SHOP_ID)
+    .from("bookings").update({ barber_notes }).eq("id", id).eq("shop_id", resolveShopId())
     .select().single();
   if (error) throw error;
   return data;

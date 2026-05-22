@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { Outlet, Link, useLocation, useNavigate, Navigate } from "react-router-dom";
-import { Calendar, User, LogOut, Menu, X, Scissors, ChevronRight, Images } from "lucide-react";
+import { Calendar, User, LogOut, Menu, X, Scissors, ChevronRight, Images, Clock } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 import { useRealtimeBarberBookings } from "../features/barber/hooks/useRealtimeBarberBookings";
 import { BarberOnboardingTour, useBarberTour } from "../components/shared/OnboardingTour";
 
 const NAV = [
-  { to: "/barber",           icon: Calendar,  label: "Mi agenda"    , exact: true },
-  { to: "/barber/portfolio", icon: Images,    label: "Mis trabajos" },
-  { to: "/barber/perfil",    icon: User,      label: "Mi perfil"    },
+  { to: "/barber",            icon: Calendar, label: "Mi agenda",    exact: true },
+  { to: "/barber/historial",  icon: Clock,    label: "Historial"    },
+  { to: "/barber/portfolio",  icon: Images,   label: "Mis trabajos" },
+  { to: "/barber/perfil",     icon: User,     label: "Mi perfil"    },
 ];
 
 export default function BarberLayout() {

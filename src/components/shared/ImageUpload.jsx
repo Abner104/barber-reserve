@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { Upload, X, Loader2, Camera } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
-import { SHOP_ID } from "../../lib/constants";
+import { useAuthStore } from "../../store/authStore";
 
 const O = "#FF6B2C";
 
@@ -11,8 +11,9 @@ const O = "#FF6B2C";
  * folder: 'logos' | 'covers' | 'avatars'
  */
 export async function uploadImage(file, folder = "logos") {
-  const ext  = file.name.split(".").pop();
-  const name = `${SHOP_ID}/${folder}/${Date.now()}.${ext}`;
+  const shopId = useAuthStore.getState().profile?.shop_id ?? "shared";
+  const ext    = file.name.split(".").pop();
+  const name   = `${shopId}/${folder}/${Date.now()}.${ext}`;
 
   const { error } = await supabase.storage
     .from("shop-images")

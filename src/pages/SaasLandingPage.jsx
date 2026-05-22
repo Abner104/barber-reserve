@@ -45,7 +45,7 @@ function buildPlans(cfg) {
     {
       name: "Cadenas", price: "A medida", sub: "para múltiples sedes",
       features: ["Sedes ilimitadas", "Gestión centralizada", "Reportes por sede", "Soporte dedicado"],
-      cta: "Hablar con nosotros", href: "https://wa.me/56900000000", highlight: false,
+      cta: "Hablar con nosotros", href: "https://wa.me/56948487391", highlight: false,
     },
   ];
 }

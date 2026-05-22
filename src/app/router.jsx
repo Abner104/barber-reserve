@@ -26,6 +26,7 @@ import AgendaPage     from "../features/barber/pages/AgendaPage";
 import BarberCajaPage from "../features/barber/pages/CajaPage";
 import PerfilPage     from "../features/barber/pages/PerfilPage";
 import PortfolioPage  from "../features/barber/pages/PortfolioPage";
+import HistorialPage  from "../features/barber/pages/HistorialPage";
 
 export const router = createBrowserRouter([
   // ── SAAS LANDING ──
@@ -67,6 +68,7 @@ export const router = createBrowserRouter([
     element: <BarberLayout />,
     children: [
       { index: true,         element: <AgendaPage />    },
+      { path: "historial",   element: <HistorialPage /> },
       { path: "caja",        element: <BarberCajaPage /> },
       { path: "portfolio",   element: <PortfolioPage /> },
       { path: "perfil",      element: <PerfilPage />    },
