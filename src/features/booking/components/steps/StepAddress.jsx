@@ -6,19 +6,44 @@ import { useBookingStore } from "../../../../store/bookingStore";
 import { getDistanceKm, calcDeliveryFee } from "../../../../lib/mapbox";
 
 
-// Autocompletado con Nominatim (OSM) — sin API key
+// Autocompletado con Nominatim (OSM) mejorado para Chile
 async function searchAddress(query) {
   if (!query || query.length < 4) return [];
-  const q   = encodeURIComponent(query + ", Chile");
-  const url = `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=5&countrycodes=cl&addressdetails=1`;
-  const res = await fetch(url, { headers: { "Accept-Language": "es" } });
+
+  // Agregar contexto chileno si no está en la query
+  const hasChile   = /chile|santiago|valparaíso|concepción|antofagasta|rm/i.test(query);
+  const q          = encodeURIComponent(query + (hasChile ? "" : ", Región Metropolitana, Chile"));
+
+  // Búsqueda estructurada con viewbox centrado en Santiago para priorizar resultados urbanos
+  const viewbox    = "-71.8,-34.3,-69.9,-32.9"; // bbox Región Metropolitana
+  const url = `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=8&countrycodes=cl&addressdetails=1&viewbox=${viewbox}&bounded=0`;
+
+  const res  = await fetch(url, { headers: { "Accept-Language": "es", "User-Agent": "ClipprApp/1.0" } });
   const data = await res.json();
-  return data.map(r => ({
-    display: r.display_name.split(",").slice(0, 3).join(",").trim(),
-    full:    r.display_name,
-    lat:     parseFloat(r.lat),
-    lng:     parseFloat(r.lon),
-  }));
+
+  // Filtrar solo resultados con número de calle o lugar específico (no solo comunas o regiones)
+  const filtered = data.filter(r =>
+    r.address?.road || r.address?.pedestrian || r.address?.suburb ||
+    r.class === "amenity" || r.class === "building" || r.type === "house"
+  );
+
+  const results = (filtered.length > 0 ? filtered : data).slice(0, 5);
+
+  return results.map(r => {
+    // Construir display limpio: calle número, comuna
+    const road    = r.address?.road || r.address?.pedestrian || "";
+    const number  = r.address?.house_number ? ` ${r.address.house_number}` : "";
+    const suburb  = r.address?.suburb || r.address?.neighbourhood || "";
+    const city    = r.address?.city || r.address?.town || r.address?.municipality || "";
+    const display = [road + number, suburb, city].filter(Boolean).join(", ") || r.display_name.split(",").slice(0, 3).join(",").trim();
+
+    return {
+      display,
+      full: r.display_name,
+      lat:  parseFloat(r.lat),
+      lng:  parseFloat(r.lon),
+    };
+  });
 }
 
 export default function StepAddress() {

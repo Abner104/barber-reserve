@@ -42,7 +42,9 @@ export function getDistanceKm(from, to) {
  * Costo de domicilio: tarifa base + distancia × tarifa por km.
  */
 export function calcDeliveryFee(distanceKm, baseFee, feePerKm) {
+  // Factor 1.3 para compensar ruta real vs línea recta (calles no son rectas)
   // Mínimo 1 km cobrado aunque la distancia sea menor
-  const effectiveKm = Math.max(1, distanceKm);
+  const routeKm     = distanceKm * 1.3;
+  const effectiveKm = Math.max(1, routeKm);
   return Math.round(baseFee + effectiveKm * feePerKm);
 }
