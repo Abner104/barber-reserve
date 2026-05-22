@@ -73,6 +73,9 @@ export default function CajaPage() {
   const [showEgresoModal, setShowEgresoModal] = useState(false);
   const [showCierreModal, setShowCierreModal] = useState(false);
   const [showVentaModal, setShowVentaModal]   = useState(false);
+  const [pagoModal, setPagoModal]             = useState(null); // booking a registrar pago
+  const [pagoMethod, setPagoMethod]           = useState("cash");
+  const [pagoPriceFinal, setPagoPriceFinal]   = useState("");
   const [cajaChica, setCajaChica]     = useState("");
   const [egresoDesc, setEgresoDesc]   = useState("");
   const [egresoMonto, setEgresoMonto] = useState("");
@@ -127,6 +130,25 @@ export default function CajaPage() {
       toast.success("Egreso registrado");
     },
     onError: () => toast.error("Error al registrar egreso"),
+  });
+
+  const pagoMut = useMutation({
+    mutationFn: async ({ bookingId, method, priceFinal }) => {
+      const { error } = await supabase.from("bookings")
+        .update({
+          payment_method: method,
+          payment_status: "paid",
+          price_final: priceFinal ? Number(priceFinal) : null,
+        })
+        .eq("id", bookingId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["caja-turno-data"], exact: false, refetchType: "all" });
+      setPagoModal(null);
+      toast.success("Pago registrado ✅");
+    },
+    onError: () => toast.error("Error al registrar pago"),
   });
 
   // Barberos para asignar la venta
@@ -376,17 +398,29 @@ export default function CajaPage() {
           )}
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {bookings.map(b => {
-              const m   = b.payment_method;
-              const cfg = METHOD_CFG[m] ?? { emoji: "❓" };
-              const amt = Number(b.price_final ?? b.price ?? 0);
+              const m      = b.payment_method;
+              const cfg    = METHOD_CFG[m] ?? null;
+              const amt    = Number(b.price_final ?? b.price ?? 0);
+              const sinPago = !m;
               return (
-                <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 10 }}>
-                  <span style={{ fontSize: 14, flexShrink: 0 }}>{cfg.emoji}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontWeight: 600, fontSize: 12, color: "var(--text)", marginBottom: 1 }}>{b.clients?.full_name}</p>
-                    <p style={{ fontSize: 11, color: "var(--text-faint)" }}>{b.services?.name} · {b.barbers?.full_name}</p>
+                <div key={b.id} style={{ background: "var(--card-bg)", border: `1px solid ${sinPago ? "rgba(251,191,36,0.4)" : "var(--border)"}`, borderRadius: 10, overflow: "hidden" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px" }}>
+                    <span style={{ fontSize: 14, flexShrink: 0 }}>{cfg ? cfg.emoji : "❓"}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontWeight: 600, fontSize: 12, color: "var(--text)", marginBottom: 1 }}>{b.clients?.full_name}</p>
+                      <p style={{ fontSize: 11, color: "var(--text-faint)" }}>{b.services?.name} · {b.barbers?.full_name}</p>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                      <p style={{ fontWeight: 700, color: O, fontSize: 13 }}>{formatCurrency(amt)}</p>
+                      {sinPago && (
+                        <button
+                          onClick={() => { setPagoModal(b); setPagoMethod("cash"); setPagoPriceFinal(String(amt)); }}
+                          style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 8, background: "rgba(251,191,36,0.15)", border: "1px solid rgba(251,191,36,0.4)", color: "#f59e0b", cursor: "pointer", whiteSpace: "nowrap" }}>
+                          Registrar pago
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <p style={{ fontWeight: 700, color: O, fontSize: 13, flexShrink: 0 }}>{formatCurrency(amt)}</p>
                 </div>
               );
             })}
@@ -555,6 +589,57 @@ export default function CajaPage() {
               <button onClick={() => cerrarMut.mutate()} disabled={cerrarMut.isPending}
                 style={{ flex: 2, padding: "12px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                 <Lock size={15} /> Cerrar turno
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL REGISTRAR PAGO ── */}
+      {pagoModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+          <div style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: "20px 20px 0 0", padding: 24, width: "100%", maxWidth: 500 }}>
+            <div style={{ marginBottom: 20 }}>
+              <p style={{ fontSize: 17, fontWeight: 800, color: "var(--text)", marginBottom: 4 }}>Registrar pago</p>
+              <p style={{ fontSize: 13, color: "var(--text-faint)" }}>
+                {pagoModal.clients?.full_name} · {pagoModal.services?.name} · {pagoModal.barbers?.full_name}
+              </p>
+            </div>
+
+            {/* Precio final */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 12, color: "var(--text-faint)", fontWeight: 700, display: "block", marginBottom: 8 }}>MONTO COBRADO</label>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 18, color: "var(--text-faint)" }}>$</span>
+                <input type="number" value={pagoPriceFinal} onChange={e => setPagoPriceFinal(e.target.value)}
+                  style={{ flex: 1, padding: "12px 14px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 18, fontWeight: 700, outline: "none", boxSizing: "border-box" }} />
+              </div>
+            </div>
+
+            {/* Método de pago */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: 12, color: "var(--text-faint)", fontWeight: 700, display: "block", marginBottom: 10 }}>MÉTODO DE PAGO</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {PAYMENT_METHODS.map(m => (
+                  <button key={m.key} onClick={() => setPagoMethod(m.key)}
+                    style={{ padding: "12px", borderRadius: 10, cursor: "pointer", border: `1px solid ${pagoMethod === m.key ? O : "var(--border)"}`, background: pagoMethod === m.key ? "var(--brand-alpha)" : "var(--surface2)", display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 18 }}>{m.emoji}</span>
+                    <span style={{ fontSize: 13, fontWeight: pagoMethod === m.key ? 700 : 400, color: pagoMethod === m.key ? O : "var(--text)" }}>{m.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setPagoModal(null)}
+                style={{ flex: 1, padding: "13px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", fontWeight: 600, cursor: "pointer" }}>
+                Cancelar
+              </button>
+              <button
+                onClick={() => pagoMut.mutate({ bookingId: pagoModal.id, method: pagoMethod, priceFinal: pagoPriceFinal })}
+                disabled={pagoMut.isPending || !pagoPriceFinal}
+                style={{ flex: 2, padding: "13px", borderRadius: 10, background: "#22c55e", border: "none", color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", opacity: pagoMut.isPending ? 0.7 : 1 }}>
+                {pagoMut.isPending ? "Guardando..." : "✓ Confirmar pago"}
               </button>
             </div>
           </div>
