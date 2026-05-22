@@ -1,11 +1,12 @@
 import { formatCurrency } from "../../../lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Calendar, MapPin, Users, TrendingUp } from "lucide-react";
-import { format } from "date-fns";
+import { format, subDays, startOfDay } from "date-fns";
 import { es } from "date-fns/locale";
 import { getDashboardStats, getUpcomingBookings, resolveShopId } from "../services/adminService";
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_COLOR } from "../../../lib/constants";
 import { useAuthStore } from "../../../store/authStore";
+import { supabase } from "../../../lib/supabase";
 
 const O = "var(--brand, #FF6B2C)";
 
@@ -29,6 +30,32 @@ export default function DashboardPage() {
 
   const today = format(new Date(), "EEEE d 'de' MMMM", { locale: es });
 
+  // Últimos 7 días para el gráfico
+  const { data: weekData = [] } = useQuery({
+    queryKey: ["week-bookings", shopId],
+    queryFn: async () => {
+      const from = subDays(startOfDay(new Date()), 6).toISOString();
+      const { data } = await supabase
+        .from("bookings")
+        .select("scheduled_at, status")
+        .eq("shop_id", shopId)
+        .gte("scheduled_at", from)
+        .in("status", ["completed", "confirmed", "pending", "in_progress"]);
+      // Agrupar por día
+      const days = Array.from({ length: 7 }, (_, i) => {
+        const d     = subDays(new Date(), 6 - i);
+        const key   = format(d, "yyyy-MM-dd");
+        const label = format(d, "EEE", { locale: es });
+        const count = (data || []).filter(b => b.scheduled_at.startsWith(key)).length;
+        return { label, count, isToday: i === 6 };
+      });
+      return days;
+    },
+    enabled: !!shopId,
+    refetchInterval: 60000,
+  });
+  const maxCount = Math.max(...weekData.map(d => d.count), 1);
+
   return (
     <div className="admin-page" style={{ maxWidth: "min(1100px, 100%)" }}>
       {/* Header */}
@@ -44,6 +71,39 @@ export default function DashboardPage() {
         <StatCard icon={<MapPin size={20} />} label="Domicilios"    value={stats?.deliveriesToday ?? "—"} />
         <StatCard icon={<Users size={20} />} label="Clientes nuevos" value={stats?.newClients ?? "—"} />
       </div>
+
+      {/* Gráfico últimos 7 días */}
+      {weekData.length > 0 && (
+        <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 14, padding: "20px 20px 16px", marginBottom: 32 }}>
+          <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text)", marginBottom: 16 }}>Reservas — últimos 7 días</p>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 80 }}>
+            {weekData.map((d, i) => (
+              <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, height: "100%" }}>
+                <div style={{ flex: 1, width: "100%", display: "flex", alignItems: "flex-end" }}>
+                  <div style={{
+                    width: "100%",
+                    height: d.count === 0 ? "4px" : `${Math.round((d.count / maxCount) * 100)}%`,
+                    borderRadius: "6px 6px 4px 4px",
+                    background: d.isToday ? "var(--brand)" : "var(--surface2)",
+                    border: d.isToday ? "none" : "1px solid var(--border)",
+                    transition: "height 0.4s ease",
+                    position: "relative",
+                  }}>
+                    {d.count > 0 && (
+                      <span style={{ position: "absolute", top: -18, left: "50%", transform: "translateX(-50%)", fontSize: 10, fontWeight: 700, color: d.isToday ? "var(--brand)" : "var(--text-faint)", whiteSpace: "nowrap" }}>
+                        {d.count}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <span style={{ fontSize: 10, color: d.isToday ? "var(--brand)" : "var(--text-faint)", fontWeight: d.isToday ? 700 : 400, textTransform: "capitalize" }}>
+                  {d.label}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Reservas del día */}
       <div>

@@ -124,6 +124,34 @@ export async function getAvailableSlots({ barberId, date, durationMin }) {
 export async function createBooking({ type, serviceId, barberId, date, slot, durationMin, price, deliveryFee = 0, address, clientInfo }) {
   const shopId = getShopId();
 
+  // 0. Verificar que el día no esté bloqueado por el barbero
+  const { data: block } = await supabase
+    .from("barber_blocks")
+    .select("id, reason")
+    .eq("barber_id", barberId)
+    .eq("date", date)
+    .maybeSingle();
+  if (block) {
+    throw new Error(block.reason ? `El barbero no está disponible ese día: ${block.reason}` : "El barbero no está disponible ese día.");
+  }
+
+  // 0b. Verificar conflicto de horario (misma hora ±30min)
+  const scheduledAt  = new Date(`${date}T${slot}:00`).toISOString();
+  const windowStart  = new Date(new Date(scheduledAt).getTime() - 30 * 60000).toISOString();
+  const windowEnd    = new Date(new Date(scheduledAt).getTime() + 30 * 60000).toISOString();
+  const { data: conflict } = await supabase
+    .from("bookings")
+    .select("id, scheduled_at")
+    .eq("barber_id", barberId)
+    .in("status", ["pending", "confirmed", "in_progress"])
+    .gte("scheduled_at", windowStart)
+    .lte("scheduled_at", windowEnd)
+    .maybeSingle();
+  if (conflict) {
+    const hora = new Date(conflict.scheduled_at).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" });
+    throw new Error(`El barbero ya tiene una reserva a las ${hora}. Elige otra hora.`);
+  }
+
   // 1. buscar o crear cliente por teléfono dentro del shop
   let clientId;
   const { data: existing } = await supabase

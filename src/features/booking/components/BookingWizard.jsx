@@ -19,7 +19,7 @@ export default function BookingWizard({ slug, shopName, shopLogo }) {
   const backUrl = slug ? `/${slug}` : "/";
   const [summaryOpen, setSummaryOpen] = useState(false);
 
-  if (step === 7) return <StepSuccess slug={slug} />;
+  if (step === 7) return <StepSuccess slug={slug} shopName={shopName} />;
 
   const visibleSteps = type === "delivery" ? STEPS : STEPS.filter((_, i) => i !== 4);
   const totalSteps   = visibleSteps.length;

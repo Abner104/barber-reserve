@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { MapPin, Phone, ChevronDown, ChevronUp, MessageCircle, Calendar, List } from "lucide-react";
+import { MapPin, Phone, ChevronDown, ChevronUp, MessageCircle, Calendar, List, Ban, X } from "lucide-react";
 import FullCalendar from "@fullcalendar/react";
 import esLocale from "@fullcalendar/core/locales/es";
 import dayGridPlugin from "@fullcalendar/daygrid";
@@ -34,6 +34,8 @@ export default function AgendaPage() {
   const [view, setView]                 = useState("list");
   const [showHorario, setShowHorario]   = useState(false);
   const [horarioDia, setHorarioDia]     = useState(null);
+  const [blockModal, setBlockModal]     = useState(false);
+  const [blockForm, setBlockForm]       = useState({ date: "", reason: "" });
 
   const dateStr = selectedDate;
 
@@ -165,6 +167,17 @@ export default function AgendaPage() {
     extendedProps:   b,
   }));
 
+  async function saveBlock() {
+    if (!blockForm.date || !profile?.id) return;
+    const { error } = await supabase.from("barber_blocks").insert({
+      barber_id: profile.id,
+      date:      blockForm.date,
+      reason:    blockForm.reason || null,
+    });
+    if (error) toast.error("Error: " + error.message);
+    else { toast.success("Día bloqueado ✅ — no recibirás reservas ese día"); setBlockModal(false); setBlockForm({ date: "", reason: "" }); }
+  }
+
   function buildWaLink(b) {
     const phone = b.clients?.phone?.replace(/\D/g, "");
     if (!phone) return null;
@@ -251,25 +264,59 @@ export default function AgendaPage() {
 
       {/* Selector de fecha */}
       <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
-        <button
-          onClick={() => setSelectedDate(null)}
-          style={{ padding: "7px 14px", borderRadius: 20, fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer", background: !dateStr ? O : "var(--surface2)", color: !dateStr ? "#fff" : "var(--text-muted)" }}
-        >
+        <button onClick={() => setSelectedDate(null)}
+          style={{ padding: "7px 14px", borderRadius: 20, fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer", background: !dateStr ? O : "var(--surface2)", color: !dateStr ? "#fff" : "var(--text-muted)" }}>
           Todas
         </button>
-        <button
-          onClick={() => setSelectedDate(today)}
-          style={{ padding: "7px 14px", borderRadius: 20, fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer", background: isToday ? O : "var(--surface2)", color: isToday ? "#fff" : "var(--text-muted)" }}
-        >
+        <button onClick={() => setSelectedDate(today)}
+          style={{ padding: "7px 14px", borderRadius: 20, fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer", background: isToday ? O : "var(--surface2)", color: isToday ? "#fff" : "var(--text-muted)" }}>
           Hoy
         </button>
-        <input
-          type="date"
-          value={dateStr ?? ""}
-          onChange={e => setSelectedDate(e.target.value || null)}
-          style={{ padding: "7px 12px", borderRadius: 20, background: "var(--surface2)", border: `1px solid ${dateStr && !isToday ? O : "var(--border)"}`, color: "var(--text)", fontSize: 13, cursor: "pointer" }}
-        />
+        <input type="date" value={dateStr ?? ""} onChange={e => setSelectedDate(e.target.value || null)}
+          style={{ padding: "7px 12px", borderRadius: 20, background: "var(--surface2)", border: `1px solid ${dateStr && !isToday ? O : "var(--border)"}`, color: "var(--text)", fontSize: 13, cursor: "pointer" }} />
+        <button onClick={() => setBlockModal(true)}
+          style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 14px", borderRadius: 20, fontSize: 13, fontWeight: 600, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.08)", color: "#ef4444", cursor: "pointer", marginLeft: "auto" }}>
+          <Ban size={13} /> Bloquear día
+        </button>
       </div>
+
+      {/* Modal bloqueo */}
+      {blockModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 20, padding: 28, width: "100%", maxWidth: 400 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <p style={{ fontSize: 17, fontWeight: 800, color: "var(--text)" }}>Bloquear día</p>
+              <button onClick={() => setBlockModal(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-faint)" }}><X size={18} /></button>
+            </div>
+            <p style={{ fontSize: 13, color: "var(--text-faint)", marginBottom: 16, lineHeight: 1.5 }}>
+              Los clientes no podrán reservar ese día. Útil para vacaciones, descanso o compromisos.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div>
+                <label style={{ fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6, display: "block" }}>DÍA A BLOQUEAR</label>
+                <input type="date" value={blockForm.date} onChange={e => setBlockForm({ ...blockForm, date: e.target.value })}
+                  style={{ width: "100%", padding: "11px 13px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14, boxSizing: "border-box" }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6, display: "block" }}>MOTIVO (opcional)</label>
+                <input value={blockForm.reason} onChange={e => setBlockForm({ ...blockForm, reason: e.target.value })}
+                  placeholder="Ej: Vacaciones, cita médica..."
+                  style={{ width: "100%", padding: "11px 13px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14, boxSizing: "border-box", outline: "none" }} />
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+              <button onClick={() => setBlockModal(false)}
+                style={{ flex: 1, padding: "12px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", fontWeight: 600, cursor: "pointer" }}>
+                Cancelar
+              </button>
+              <button onClick={saveBlock} disabled={!blockForm.date}
+                style={{ flex: 1, padding: "12px", borderRadius: 10, background: "rgba(239,68,68,0.9)", border: "none", color: "#fff", fontWeight: 700, cursor: "pointer", opacity: !blockForm.date ? 0.5 : 1 }}>
+                Bloquear día
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats rápidas */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 24 }}>
