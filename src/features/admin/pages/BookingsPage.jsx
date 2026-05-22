@@ -255,6 +255,15 @@ export default function BookingsPage() {
                       <InfoRow icon={<User size={13} />} label="Barbero" value={b.barbers?.full_name} />
                       {b.type === "delivery" && <InfoRow icon={<MapPin size={13} />} label="Dirección" value={b.address_line || "—"} />}
                       {b.client_notes && <InfoRow icon={<MessageCircle size={13} />} label="Nota cliente" value={b.client_notes} />}
+                      {b.payment_proof_url && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 12, color: "var(--text-faint)", width: 72 }}>Comprobante</span>
+                          <a href={b.payment_proof_url} target="_blank" rel="noopener noreferrer"
+                            style={{ fontSize: 12, color: "var(--brand)", fontWeight: 600, textDecoration: "none" }}>
+                            Ver comprobante →
+                          </a>
+                        </div>
+                      )}
                     </div>
 
                     {/* acciones */}

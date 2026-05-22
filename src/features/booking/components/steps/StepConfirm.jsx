@@ -1,13 +1,15 @@
 import { formatCurrency } from "../../../../lib/utils";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronLeft, MapPin, User, Scissors, Calendar, Clock, Loader2, Eye, EyeOff } from "lucide-react";
+import { ChevronLeft, MapPin, User, Scissors, Calendar, Clock, Loader2, Eye, EyeOff, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { useBookingStore } from "../../../../store/bookingStore";
 import { createBooking } from "../../services/bookingService";
 import { getDistanceKm, calcDeliveryFee } from "../../../../lib/mapbox";
+import { supabase } from "../../../../lib/supabase";
+import { uploadImage } from "../../../../components/shared/ImageUpload";
 
 const O = "var(--brand)";
 const WA_URL = import.meta.env.VITE_WA_SERVICE_URL ?? "http://localhost:3001";
@@ -44,9 +46,35 @@ async function notifyBarber(bookingRecord, clientInfo, serviceInfo) {
 
 export default function StepConfirm() {
   const { type, service, barber, date, slot, address, clientInfo, setClientInfo, setStep, prevStep, shopConfig } = useBookingStore();
-  const [form, setForm] = useState(clientInfo);
-  const [errors, setErrors] = useState({});
+  const [form, setForm]         = useState(clientInfo);
+  const [errors, setErrors]     = useState({});
   const [showPhone, setShowPhone] = useState(false);
+  const [proofUrl, setProofUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [shopBank, setShopBank] = useState(null);
+  const proofInputRef           = useRef(null);
+
+  // Cargar datos bancarios del shop para domicilios
+  const shopId = useBookingStore(s => s.shopId);
+  useEffect(() => {
+    if (type !== "delivery" || !shopId) return;
+    supabase.from("barbershops")
+      .select("bank_account, bank_name, bank_holder")
+      .eq("id", shopId)
+      .maybeSingle()
+      .then(({ data }) => { if (data) setShopBank(data); });
+  }, [type, shopId]);
+
+  async function handleProofUpload(file) {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error("Máx 5MB"); return; }
+    setUploading(true);
+    try {
+      const url = await uploadImage(file, "delivery-proofs");
+      setProofUrl(url);
+    } catch { toast.error("Error al subir el comprobante"); }
+    finally { setUploading(false); }
+  }
 
   const origin = barber?.lat && barber?.lng
     ? { lat: Number(barber.lat), lng: Number(barber.lng) }
@@ -62,12 +90,22 @@ export default function StepConfirm() {
   const dateLabel    = date ? format(new Date(date + "T12:00:00"), "EEEE d 'de' MMMM", { locale: es }) : "";
 
   const mutation = useMutation({
-    mutationFn: () => createBooking({ type, serviceId: service.id, barberId: barber.id, date, slot, durationMin: service.duration_min, price: servicePrice, deliveryFee, address, clientInfo: form }),
+    mutationFn: () => createBooking({ type, serviceId: service.id, barberId: barber.id, date, slot, durationMin: service.duration_min, price: servicePrice, deliveryFee, address, clientInfo: form, proofUrl: proofUrl || null }),
     onSuccess: (booking) => {
       setClientInfo(form);
       setStep(7);
       toast.success("¡Reserva creada!");
       notifyBarber(booking, form, service);
+      // Notificar al barbero del comprobante si es domicilio
+      if (type === "delivery" && proofUrl) {
+        fetch(`${WA_URL}/notify`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            barberId: booking.barber_id,
+            message: `🧾 *Comprobante de domicilio recibido*\n\nCliente: ${form.full_name}\nMonto: ${formatCurrency(deliveryFee)}\n\nRevisa el comprobante antes de salir ✅`,
+          }),
+        }).catch(() => {});
+      }
     },
     onError: (err) => toast.error(err?.message || "Error al crear la reserva"),
   });
@@ -76,6 +114,7 @@ export default function StepConfirm() {
     const e = {};
     if (!form.full_name?.trim()) e.full_name = "Ingresa tu nombre";
     if (!/^\d{7,15}$/.test((form.phone || "").replace(/\s/g, ""))) e.phone = "Teléfono inválido";
+    if (type === "delivery" && !proofUrl) e.proof = "Debes subir el comprobante de pago del domicilio";
     return e;
   }
 
@@ -160,6 +199,60 @@ export default function StepConfirm() {
             placeholder="Ej: fade bien bajo, con línea..." />
         </div>
       </div>
+
+      {/* Pago domicilio por transferencia */}
+      {type === "delivery" && deliveryFee > 0 && (
+        <div style={{ background: "var(--card-bg)", border: "2px solid var(--brand)", borderRadius: 20, padding: 20, marginBottom: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: "var(--brand-alpha)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ fontSize: 18 }}>💸</span>
+            </div>
+            <div>
+              <p style={{ fontWeight: 800, fontSize: 15, color: "var(--text)", marginBottom: 2 }}>Pago del domicilio requerido</p>
+              <p style={{ fontSize: 12, color: "var(--text-faint)" }}>Transfiere {formatCurrency(deliveryFee)} antes de confirmar</p>
+            </div>
+          </div>
+
+          {/* Datos bancarios */}
+          {shopBank?.bank_account ? (
+            <div style={{ background: "var(--surface2)", borderRadius: 12, padding: 14, marginBottom: 14 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {shopBank.bank_name && <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 12, color: "var(--text-faint)" }}>Banco</span><span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{shopBank.bank_name}</span></div>}
+                {shopBank.bank_holder && <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 12, color: "var(--text-faint)" }}>Titular</span><span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{shopBank.bank_holder}</span></div>}
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 12, color: "var(--text-faint)" }}>Cuenta / RUT</span><span style={{ fontSize: 13, fontWeight: 700, color: "var(--brand)" }}>{shopBank.bank_account}</span></div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 12, color: "var(--text-faint)" }}>Monto</span><span style={{ fontSize: 15, fontWeight: 800, color: "var(--brand)" }}>{formatCurrency(deliveryFee)}</span></div>
+              </div>
+            </div>
+          ) : (
+            <div style={{ background: "var(--surface2)", borderRadius: 12, padding: 14, marginBottom: 14 }}>
+              <p style={{ fontSize: 13, color: "var(--text-faint)", textAlign: "center" }}>El barbero te enviará los datos de pago por WhatsApp</p>
+            </div>
+          )}
+
+          {/* Subir comprobante */}
+          <input ref={proofInputRef} type="file" accept="image/*" style={{ display: "none" }}
+            onChange={e => handleProofUpload(e.target.files[0])} />
+
+          {proofUrl ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.3)", borderRadius: 12 }}>
+              <span style={{ fontSize: 16 }}>✅</span>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: "#22c55e" }}>Comprobante subido</p>
+                <p style={{ fontSize: 11, color: "var(--text-faint)" }}>El barbero lo revisará antes de salir</p>
+              </div>
+              <button onClick={() => setProofUrl("")}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-faint)", fontSize: 18 }}>×</button>
+            </div>
+          ) : (
+            <button onClick={() => proofInputRef.current?.click()} disabled={uploading}
+              style={{ width: "100%", padding: "12px", borderRadius: 12, background: "var(--surface2)", border: `2px dashed ${errors.proof ? "#ef4444" : "var(--border)"}`, color: "var(--text-muted)", fontWeight: 600, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              {uploading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <Upload size={16} />}
+              {uploading ? "Subiendo..." : "📸 Subir foto del comprobante"}
+            </button>
+          )}
+          {errors.proof && <p style={{ color: "#ef4444", fontSize: 12, marginTop: 8 }}>{errors.proof}</p>}
+        </div>
+      )}
 
       {mutation.isError && (
         <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 12, padding: "12px 16px", marginBottom: 16 }}>

@@ -121,7 +121,7 @@ export async function getAvailableSlots({ barberId, date, durationMin }) {
   return slots;
 }
 
-export async function createBooking({ type, serviceId, barberId, date, slot, durationMin, price, deliveryFee = 0, address, clientInfo }) {
+export async function createBooking({ type, serviceId, barberId, date, slot, durationMin, price, deliveryFee = 0, address, clientInfo, proofUrl = null }) {
   const shopId = getShopId();
 
   // 0. Verificar que el día no esté bloqueado por el barbero
@@ -196,7 +196,8 @@ export async function createBooking({ type, serviceId, barberId, date, slot, dur
     duration_min: durationMin,
     price,
     status:       "pending",
-    client_notes: clientInfo.notes || null,
+    client_notes:      clientInfo.notes || null,
+    payment_proof_url: proofUrl || null,
     ...(type === "delivery" && {
       address_id:   addressId,
       address_line: address.line,

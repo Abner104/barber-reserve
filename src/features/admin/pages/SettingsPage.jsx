@@ -51,6 +51,9 @@ async function updateShopSettings(shopId, updates) {
     city:              updates.city,
     whatsapp_number:   updates.whatsapp_number,
     instagram_url:     updates.instagram_url,
+    bank_account:      updates.bank_account,
+    bank_name:         updates.bank_name,
+    bank_holder:       updates.bank_holder,
     allows_delivery:   updates.allows_delivery,
     delivery_fee_base: updates.delivery_fee_base,
     delivery_fee_per_km: updates.delivery_fee_per_km,
@@ -95,6 +98,9 @@ export default function SettingsPage() {
         city:        shop.city        ?? "",
         whatsapp_number: shop.whatsapp_number ?? "",
         instagram_url:   shop.instagram_url   ?? "",
+        bank_account:    shop.bank_account    ?? "",
+        bank_name:       shop.bank_name       ?? "",
+        bank_holder:     shop.bank_holder     ?? "",
         tagline:     shop.tagline     ?? "",
         theme_mode:  shop.theme_mode  ?? "dark",
         theme_color: shop.theme_color ?? "#FF6B2C",
@@ -204,6 +210,28 @@ export default function SettingsPage() {
                   onFocus={f => f.target.style.borderColor = O} onBlur={f => f.target.style.borderColor = "#2A2A2A"} />
               </Field>
             </div>
+          </Section>
+
+          {/* Cuenta para transferencias */}
+          <Section title="💸 Cuenta para domicilios">
+            <p style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 12, lineHeight: 1.5 }}>
+              Los clientes verán estos datos para pagar el domicilio antes de confirmar la reserva.
+            </p>
+            <Field label="Banco">
+              <input style={inp} value={form.bank_name ?? ""} onChange={e => setForm({ ...form, bank_name: e.target.value })}
+                placeholder="Banco Estado, Santander..."
+                onFocus={f => f.target.style.borderColor = O} onBlur={f => f.target.style.borderColor = "#2A2A2A"} />
+            </Field>
+            <Field label="Nombre del titular">
+              <input style={inp} value={form.bank_holder ?? ""} onChange={e => setForm({ ...form, bank_holder: e.target.value })}
+                placeholder="Juan Pérez"
+                onFocus={f => f.target.style.borderColor = O} onBlur={f => f.target.style.borderColor = "#2A2A2A"} />
+            </Field>
+            <Field label="Número de cuenta / RUT">
+              <input style={inp} value={form.bank_account ?? ""} onChange={e => setForm({ ...form, bank_account: e.target.value })}
+                placeholder="12.345.678-9"
+                onFocus={f => f.target.style.borderColor = O} onBlur={f => f.target.style.borderColor = "#2A2A2A"} />
+            </Field>
           </Section>
 
           {/* Imágenes */}

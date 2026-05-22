@@ -58,7 +58,7 @@ export async function getTodayBookings() {
     .from("bookings")
     .select(`
       id, scheduled_at, duration_min, status, type, price, delivery_fee,
-      address_line, client_notes,
+      address_line, client_notes, payment_proof_url,
       clients(full_name, phone),
       barbers(full_name),
       services(name)
@@ -81,7 +81,7 @@ export async function getUpcomingBookings() {
     .from("bookings")
     .select(`
       id, scheduled_at, duration_min, status, type, price, delivery_fee,
-      address_line, client_notes,
+      address_line, client_notes, payment_proof_url,
       clients(full_name, phone),
       barbers(full_name),
       services(name)
