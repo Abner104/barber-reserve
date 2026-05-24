@@ -12,7 +12,9 @@ import { supabase } from "../../../../lib/supabase";
 import { uploadImage } from "../../../../components/shared/ImageUpload";
 
 const O = "var(--brand)";
-const WA_URL = import.meta.env.VITE_WA_SERVICE_URL ?? "http://localhost:3001";
+const WA_URL    = import.meta.env.VITE_WA_SERVICE_URL ?? "http://localhost:3001";
+const WA_SECRET = import.meta.env.VITE_WA_SECRET ?? "barberos2026secret";
+const WA_HEADERS = { "Content-Type": "application/json", "Authorization": `Bearer ${WA_SECRET}` };
 
 const CSS = `
   @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
@@ -39,7 +41,7 @@ async function notifyBarber(bookingRecord, clientInfo, serviceInfo) {
       clientInfo?.notes ? `📝 Nota: ${clientInfo.notes}` : "",
     ].filter(Boolean).join("\n");
     await fetch(`${WA_URL}/notify`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST", headers: WA_HEADERS,
       body: JSON.stringify({ barberId: bookingRecord.barber_id, message }),
     });
   } catch {}
@@ -67,7 +69,7 @@ async function notifyClient(bookingRecord, clientInfo, serviceInfo, barberName) 
       `_Si necesitas cancelar o cambiar, contáctanos por este medio._`,
     ].filter(Boolean).join("\n");
     await fetch(`${WA_URL}/notify`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST", headers: WA_HEADERS,
       body: JSON.stringify({ barberId: bookingRecord.barber_id, toPhone: clientInfo.phone, message }),
     });
   } catch {}
@@ -130,7 +132,7 @@ export default function StepConfirm() {
       // Notificar al barbero del comprobante si es domicilio
       if (type === "delivery" && proofUrl) {
         fetch(`${WA_URL}/notify`, {
-          method: "POST", headers: { "Content-Type": "application/json" },
+          method: "POST", headers: WA_HEADERS,
           body: JSON.stringify({
             barberId: booking.barber_id,
             message: `🧾 *Comprobante de domicilio recibido*\n\nCliente: ${form.full_name}\nMonto: ${formatCurrency(deliveryFee)}\n\nRevisa el comprobante antes de salir ✅`,
