@@ -75,7 +75,7 @@ export async function getAvailableSlots({ barberId, date, durationMin, type }) {
 
   const [{ data: existingBookings }, { data: blocks }] = await Promise.all([
     supabase.from("bookings")
-      .select("scheduled_at, duration_min")
+      .select("scheduled_at, duration_min, type")
       .eq("barber_id", barberId)
       .gte("scheduled_at", dayStart)
       .lte("scheduled_at", dayEnd)
@@ -88,15 +88,27 @@ export async function getAvailableSlots({ barberId, date, durationMin, type }) {
   ]);
 
   // Función para verificar si un slot está bloqueado
-  // Usa effectiveDuration para incluir trayecto en domicilios
   function isBlocked(cursor) {
     const slotEnd = addMinutes(cursor, effectiveDuration);
+
     return (
       (existingBookings || []).some(b => {
         const bs  = new Date(b.scheduled_at);
         const dur = b.duration_min || durationMin;
         const be  = addMinutes(bs, dur);
-        return cursor < be && slotEnd > bs;
+
+        // Solapamiento directo
+        if (cursor < be && slotEnd > bs) return true;
+
+        // Si estamos reservando un domicilio, necesitamos travelMin libres
+        // antes también — no puede salir si hay un corte local próximo
+        if (travelMin > 0 && b.type !== "delivery") {
+          // La reserva local empieza antes de que el barbero llegue de vuelta
+          const departureLatest = addMinutes(cursor, -travelMin);
+          if (bs < slotEnd && be > departureLatest) return true;
+        }
+
+        return false;
       }) ||
       (blocks || []).some(bl => {
         const bs = new Date(bl.starts_at);
