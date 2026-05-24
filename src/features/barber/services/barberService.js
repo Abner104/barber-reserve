@@ -11,7 +11,7 @@ async function getMyBarberId() {
   if (adminViewId && (profile?.role === "owner" || profile?.role === "super_admin")) {
     const { data: override } = await supabase
       .from("barbers")
-      .select("id, shop_id, full_name, phone, specialty, does_delivery, delivery_radius, commission_pct, is_active, avatar_url, lat, lng, address")
+      .select("id, shop_id, full_name, phone, specialty, does_delivery, delivery_radius, travel_time_min, commission_pct, is_active, avatar_url, lat, lng, address")
       .eq("id", adminViewId)
       .maybeSingle();
     if (override) return override;
@@ -20,7 +20,7 @@ async function getMyBarberId() {
   // Buscar por profile_id (barbero con cuenta propia)
   const { data: byProfile } = await supabase
     .from("barbers")
-    .select("id, shop_id, full_name, phone, specialty, does_delivery, delivery_radius, commission_pct, is_active, avatar_url, lat, lng, address")
+    .select("id, shop_id, full_name, phone, specialty, does_delivery, delivery_radius, travel_time_min, commission_pct, is_active, avatar_url, lat, lng, address")
     .eq("profile_id", user.id)
     .maybeSingle();
 
@@ -31,7 +31,7 @@ async function getMyBarberId() {
     const shopId = profile?.shop_id ?? SHOP_ID;
     const { data: first } = await supabase
       .from("barbers")
-      .select("id, shop_id, full_name, phone, specialty, does_delivery, delivery_radius, commission_pct, is_active, avatar_url, lat, lng, address")
+      .select("id, shop_id, full_name, phone, specialty, does_delivery, delivery_radius, travel_time_min, commission_pct, is_active, avatar_url, lat, lng, address")
       .eq("shop_id", shopId)
       .eq("is_active", true)
       .order("created_at")
