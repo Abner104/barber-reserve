@@ -45,6 +45,34 @@ async function notifyBarber(bookingRecord, clientInfo, serviceInfo) {
   } catch {}
 }
 
+async function notifyClient(bookingRecord, clientInfo, serviceInfo, barberName) {
+  if (!bookingRecord?.barber_id || !clientInfo?.phone) return;
+  try {
+    const fecha = bookingRecord.scheduled_at
+      ? new Date(bookingRecord.scheduled_at).toLocaleString("es-CL", {
+          weekday: "long", day: "numeric", month: "long",
+          hour: "2-digit", minute: "2-digit", timeZone: "America/Santiago",
+        })
+      : "";
+    const pc = bookingRecord.people_count || 1;
+    const message = [
+      `✅ *¡Reserva confirmada!* ✂️`, ``,
+      `Hola ${clientInfo?.full_name?.split(" ")[0] ?? ""}! Tu reserva quedó registrada.`,
+      ``,
+      `✂️ Servicio: ${serviceInfo?.name ?? "—"}${pc > 1 ? ` × ${pc} personas` : ""}`,
+      `💈 Barbero: ${barberName ?? "—"}`,
+      `📅 ${fecha}`,
+      bookingRecord.type === "delivery" ? `📍 A domicilio: ${bookingRecord.address_line ?? ""}` : `📍 En el local`,
+      ``,
+      `_Si necesitas cancelar o cambiar, contáctanos por este medio._`,
+    ].filter(Boolean).join("\n");
+    await fetch(`${WA_URL}/notify`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ barberId: bookingRecord.barber_id, toPhone: clientInfo.phone, message }),
+    });
+  } catch {}
+}
+
 export default function StepConfirm() {
   const { type, service, people, barber, date, slot, address, clientInfo, setClientInfo, setStep, prevStep, shopConfig } = useBookingStore();
   const [form, setForm]         = useState(clientInfo);
@@ -98,6 +126,7 @@ export default function StepConfirm() {
       setStep(7);
       toast.success("¡Reserva creada!");
       notifyBarber(booking, form, service);
+      notifyClient(booking, form, service, barber?.full_name);
       // Notificar al barbero del comprobante si es domicilio
       if (type === "delivery" && proofUrl) {
         fetch(`${WA_URL}/notify`, {
