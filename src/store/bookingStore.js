@@ -6,6 +6,7 @@ const INITIAL = {
   shopConfig: null,  // { lat, lng, delivery_fee_base, delivery_fee_per_km }
   type: null,
   service: null,
+  people: 1,
   barber: null,
   date: null,
   slot: null,
@@ -23,7 +24,8 @@ export const useBookingStore = create((set, get) => ({
   prevStep: () => set((s) => ({ step: Math.max(1, s.step - 1) })),
 
   setType: (type) => set({ type, barber: null, slot: null, date: null }),
-  setService: (service) => set({ service, barber: null, slot: null, date: null }),
+  setService: (service) => set({ service, people: 1, barber: null, slot: null, date: null }),
+  setPeople: (people) => set({ people, barber: null, slot: null, date: null }),
   setBarber: (barber) => set({ barber, slot: null, date: null }),
   setDate: (date) => set({ date, slot: null }),
   setSlot: (slot) => set({ slot }),
@@ -34,11 +36,11 @@ export const useBookingStore = create((set, get) => ({
 
   // precio total incluyendo domicilio si aplica
   getTotal: () => {
-    const { service, type } = get();
+    const { service, type, people } = get();
     if (!service) return 0;
     const base = type === "delivery" && service.price_delivery != null
       ? service.price_delivery
       : service.price;
-    return base;
+    return base * (people || 1);
   },
 }));

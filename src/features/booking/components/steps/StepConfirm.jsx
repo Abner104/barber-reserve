@@ -28,11 +28,12 @@ async function notifyBarber(bookingRecord, clientInfo, serviceInfo) {
           hour: "2-digit", minute: "2-digit", timeZone: "America/Santiago",
         })
       : "";
+    const pc = bookingRecord.people_count || 1;
     const message = [
       `🔔 *Nueva reserva* ✂️`, ``,
       `👤 Cliente: ${clientInfo?.full_name ?? "—"}`,
       `📱 Teléfono: ${clientInfo?.phone ?? "—"}`,
-      `✂️ Servicio: ${serviceInfo?.name ?? "—"}`,
+      `✂️ Servicio: ${serviceInfo?.name ?? "—"}${pc > 1 ? ` × ${pc} personas` : ""}`,
       `📅 Fecha: ${fecha}`,
       bookingRecord.type === "delivery" ? `📍 Domicilio: ${bookingRecord.address_line ?? ""}` : `📍 En el local`,
       clientInfo?.notes ? `📝 Nota: ${clientInfo.notes}` : "",
@@ -45,7 +46,7 @@ async function notifyBarber(bookingRecord, clientInfo, serviceInfo) {
 }
 
 export default function StepConfirm() {
-  const { type, service, barber, date, slot, address, clientInfo, setClientInfo, setStep, prevStep, shopConfig } = useBookingStore();
+  const { type, service, people, barber, date, slot, address, clientInfo, setClientInfo, setStep, prevStep, shopConfig } = useBookingStore();
   const [form, setForm]         = useState(clientInfo);
   const [errors, setErrors]     = useState({});
   const [showPhone, setShowPhone] = useState(false);
@@ -85,12 +86,13 @@ export default function StepConfirm() {
   const feePerKm     = shopConfig?.delivery_fee_per_km ?? 650;
   const distanceKm   = type === "delivery" && address.lat ? getDistanceKm(origin, { lat: address.lat, lng: address.lng }) : null;
   const deliveryFee  = distanceKm != null ? calcDeliveryFee(distanceKm, 0, feePerKm) : 0;
-  const servicePrice = service?.price ?? 0;
+  const peopleCount  = people || 1;
+  const servicePrice = (service?.price ?? 0) * peopleCount;
   const total        = servicePrice + deliveryFee;
   const dateLabel    = date ? format(new Date(date + "T12:00:00"), "EEEE d 'de' MMMM", { locale: es }) : "";
 
   const mutation = useMutation({
-    mutationFn: () => createBooking({ type, serviceId: service.id, barberId: barber.id, date, slot, durationMin: service.duration_min, price: servicePrice, deliveryFee, address, clientInfo: form, proofUrl: proofUrl || null }),
+    mutationFn: () => createBooking({ type, serviceId: service.id, barberId: barber.id, date, slot, durationMin: service.duration_min * peopleCount, price: servicePrice, deliveryFee, address, clientInfo: form, proofUrl: proofUrl || null, peopleCount }),
     onSuccess: (booking) => {
       setClientInfo(form);
       setStep(7);
@@ -144,7 +146,7 @@ export default function StepConfirm() {
       {/* Resumen */}
       <div style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 20, padding: 20, marginBottom: 24 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <SRow icon={<Scissors size={14} />} label="Servicio" value={service?.name} sub={formatCurrency(servicePrice)} />
+          <SRow icon={<Scissors size={14} />} label="Servicio" value={service?.name} sub={peopleCount > 1 ? `${peopleCount} personas · ${formatCurrency(servicePrice)}` : formatCurrency(servicePrice)} />
           <SRow icon={<User size={14} />} label="Barbero" value={barber?.full_name} />
           <SRow icon={<Calendar size={14} />} label="Fecha" value={<span style={{ textTransform: "capitalize" }}>{dateLabel}</span>} />
           <SRow icon={<Clock size={14} />} label="Hora" value={slot} />
@@ -155,7 +157,7 @@ export default function StepConfirm() {
 
         <div style={{ borderTop: "1px solid var(--border)", marginTop: 16, paddingTop: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "var(--text-muted)", marginBottom: 6 }}>
-            <span>Servicio</span><span style={{ color: "var(--text)" }}>{formatCurrency(servicePrice)}</span>
+            <span>Servicio{peopleCount > 1 ? ` × ${peopleCount}` : ""}</span><span style={{ color: "var(--text)" }}>{formatCurrency(servicePrice)}</span>
           </div>
           {type === "delivery" && distanceKm != null && (
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "var(--text-muted)", marginBottom: 6 }}>

@@ -1,6 +1,6 @@
 import { formatCurrency } from "../../../../lib/utils";
 import { useQuery } from "@tanstack/react-query";
-import { Clock, ChevronLeft, Check } from "lucide-react";
+import { Clock, ChevronLeft, Check, Users } from "lucide-react";
 import { useBookingStore } from "../../../../store/bookingStore";
 import { getServices } from "../../services/bookingService";
 
@@ -11,7 +11,7 @@ const CSS = `
 `;
 
 export default function StepService() {
-  const { type, service: selected, setService, setStep, step, prevStep } = useBookingStore();
+  const { type, service: selected, people, setService, setPeople, setStep, step, prevStep } = useBookingStore();
   const shopId = useBookingStore(s => s.shopId);
 
   const { data: services = [], isLoading } = useQuery({
@@ -29,7 +29,7 @@ export default function StepService() {
     return acc;
   }, {});
 
-  function choose(s) { setService(s); setStep(step + 1); }
+  function choose(s) { setService(s); }
 
   return (
     <div style={{ animation: "fadeUp .4s ease" }}>
@@ -78,7 +78,6 @@ export default function StepService() {
                     background: isSelected ? "var(--brand-alpha)" : "var(--card-bg)",
                   }}
                 >
-                  {/* Duración pill */}
                   <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 10px", borderRadius: 10, background: "var(--surface2)", flexShrink: 0 }}>
                     <Clock size={11} color="var(--text-faint)" />
                     <span style={{ fontSize: 11, color: "var(--text-faint)", fontWeight: 600 }}>{s.duration_min}m</span>
@@ -105,6 +104,54 @@ export default function StepService() {
           </div>
         </div>
       ))}
+
+      {/* Selector de personas — aparece solo cuando hay servicio elegido */}
+      {selected && (
+        <div style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 20, padding: 20, marginBottom: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+            <Users size={15} color="var(--brand)" />
+            <p style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>¿Cuántas personas?</p>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+            {[1, 2, 3, 4].map(n => (
+              <button key={n} onClick={() => setPeople(n)}
+                style={{
+                  padding: "14px 0", borderRadius: 12, fontSize: 15, fontWeight: 800, cursor: "pointer",
+                  border: `2px solid ${people === n ? "var(--brand)" : "var(--border)"}`,
+                  background: people === n ? "var(--brand)" : "var(--card-bg)",
+                  color: people === n ? "#fff" : "var(--text)",
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+                }}
+              >
+                {n}
+                <span style={{ fontSize: 10, fontWeight: 500, opacity: 0.75 }}>
+                  {n === 1 ? "persona" : "personas"}
+                </span>
+              </button>
+            ))}
+          </div>
+          {people > 1 && (
+            <p style={{ fontSize: 12, color: "var(--text-faint)", marginTop: 12, textAlign: "center" }}>
+              {people}× {selected.name} · {formatCurrency(selected.price * people)} total · {selected.duration_min * people} min
+            </p>
+          )}
+        </div>
+      )}
+
+      <button onClick={() => setStep(step + 1)} disabled={!selected}
+        style={{
+          width: "100%", padding: "16px", borderRadius: 14, fontSize: 15, fontWeight: 800,
+          cursor: selected ? "pointer" : "not-allowed",
+          background: selected ? "var(--brand)" : "var(--surface2)",
+          color: selected ? "#fff" : "var(--text-faint)",
+          border: "none", transition: "all .2s ease",
+          boxShadow: selected ? "0 4px 20px rgba(0,0,0,0.2)" : "none",
+        }}
+      >
+        {selected
+          ? `Continuar — ${formatCurrency(selected.price * people)}${people > 1 ? ` (${people} personas)` : ""}`
+          : "Selecciona un servicio"}
+      </button>
     </div>
   );
 }
