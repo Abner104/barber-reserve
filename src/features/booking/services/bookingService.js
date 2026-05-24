@@ -135,18 +135,26 @@ export async function createBooking({ type, serviceId, barberId, date, slot, dur
     throw new Error(block.reason ? `El barbero no está disponible ese día: ${block.reason}` : "El barbero no está disponible ese día.");
   }
 
-  // 0b. Verificar conflicto de horario (misma hora ±30min)
-  const slotTime     = new Date(`${date}T${slot}:00`).toISOString();
-  const windowStart  = new Date(new Date(slotTime).getTime() - 30 * 60000).toISOString();
-  const windowEnd    = new Date(new Date(slotTime).getTime() + 30 * 60000).toISOString();
-  const { data: conflict } = await supabase
+  // 0b. Verificar solapamiento real con reservas existentes del día
+  const newStart = new Date(`${date}T${slot}:00`);
+  const newEnd   = addMinutes(newStart, durationMin);
+  const dayStart = `${date}T00:00:00`;
+  const dayEnd   = `${date}T23:59:59`;
+
+  const { data: dayBookings } = await supabase
     .from("bookings")
-    .select("id, scheduled_at")
+    .select("id, scheduled_at, duration_min")
     .eq("barber_id", barberId)
     .in("status", ["pending", "confirmed", "in_progress"])
-    .gte("scheduled_at", windowStart)
-    .lte("scheduled_at", windowEnd)
-    .maybeSingle();
+    .gte("scheduled_at", dayStart)
+    .lte("scheduled_at", dayEnd);
+
+  const conflict = (dayBookings || []).find(b => {
+    const bStart = new Date(b.scheduled_at);
+    const bEnd   = addMinutes(bStart, b.duration_min);
+    return newStart < bEnd && newEnd > bStart;
+  });
+
   if (conflict) {
     const hora = new Date(conflict.scheduled_at).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" });
     throw new Error(`El barbero ya tiene una reserva a las ${hora}. Elige otra hora.`);
