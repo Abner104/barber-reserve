@@ -114,13 +114,16 @@ export async function getAvailableSlots({ barberId, date, durationMin }) {
   }
 
   // MODO 2: Rango continuo
+  console.log("[slots2] existingBookings:", existingBookings?.map(b => ({ at: b.scheduled_at, utc: new Date(b.scheduled_at).toISOString(), dur: b.duration_min })));
   const slots     = [];
   const workStart = new Date(`${date}T${wh.start_time}-04:00`);
   const workEnd   = new Date(`${date}T${wh.end_time}-04:00`);
   let cursor      = workStart;
 
   while (addMinutes(cursor, durationMin) <= workEnd) {
-    if (!isBlocked(cursor)) slots.push(format(cursor, "HH:mm"));
+    const blocked = isBlocked(cursor);
+    console.log(`[slots2] ${format(cursor, "HH:mm")} cursor=${cursor.toISOString()} blocked=${blocked}`);
+    if (!blocked) slots.push(format(cursor, "HH:mm"));
     cursor = addMinutes(cursor, slotInterval);
   }
 
