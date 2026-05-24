@@ -1,7 +1,8 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Plus, Pencil, Power, X, Loader2, ChevronDown, ChevronUp, Images, Trash2, Upload } from "lucide-react";
+import { Plus, Pencil, Power, X, Loader2, ChevronDown, ChevronUp, Images, Trash2, Upload, ExternalLink } from "lucide-react";
 import ImageUpload, { uploadImage } from "../../../components/shared/ImageUpload";
 import WhatsAppStatus from "../components/WhatsAppStatus";
 import { getAdminBarbers, createBarber, updateBarber, toggleBarberActive, getBarberWorkingHours, upsertWorkingHours, getBarberPortfolio, addPortfolioPhoto, deletePortfolioPhoto } from "../services/adminService";
@@ -143,6 +144,13 @@ export default function BarbersPage() {
 }
 
 function BarberRow({ barber, expanded, onExpand, onEdit, onToggle }) {
+  const navigate = useNavigate();
+
+  function viewAsBarber() {
+    sessionStorage.setItem("admin_view_barber_id", barber.id);
+    navigate("/barber");
+  }
+
   return (
     <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 12, overflow: "hidden" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px" }}>
@@ -165,6 +173,7 @@ function BarberRow({ barber, expanded, onExpand, onEdit, onToggle }) {
         </div>
 
         <div style={{ display: "flex", gap: 6 }}>
+          <IconBtn onClick={viewAsBarber} title="Ver panel del barbero"><ExternalLink size={15} /></IconBtn>
           <IconBtn onClick={onEdit} title="Editar"><Pencil size={15} /></IconBtn>
           <IconBtn onClick={onToggle} title={barber.is_active ? "Desactivar" : "Activar"} danger={barber.is_active}>
             <Power size={15} />

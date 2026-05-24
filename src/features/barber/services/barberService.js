@@ -6,6 +6,17 @@ async function getMyBarberId() {
   const { user, profile } = useAuthStore.getState();
   if (!user) return null;
 
+  // Override del admin para ver el panel de un barbero específico
+  const adminViewId = sessionStorage.getItem("admin_view_barber_id");
+  if (adminViewId && (profile?.role === "owner" || profile?.role === "super_admin")) {
+    const { data: override } = await supabase
+      .from("barbers")
+      .select("id, shop_id, full_name, phone, specialty, does_delivery, delivery_radius, commission_pct, is_active, avatar_url, lat, lng, address")
+      .eq("id", adminViewId)
+      .maybeSingle();
+    if (override) return override;
+  }
+
   // Buscar por profile_id (barbero con cuenta propia)
   const { data: byProfile } = await supabase
     .from("barbers")

@@ -88,6 +88,21 @@ export default function BarberLayout() {
           </div>
         </div>
 
+        {/* ── BANNER VISTA ADMIN ── */}
+        {sessionStorage.getItem("admin_view_barber_id") && (
+          <div style={{ background: "rgba(255,107,44,0.12)", borderBottom: "1px solid rgba(255,107,44,0.3)", padding: "8px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 12, color: "var(--brand)", fontWeight: 600 }}>
+              👁️ Viendo como barbero
+            </span>
+            <button
+              onClick={() => { sessionStorage.removeItem("admin_view_barber_id"); navigate("/admin/barbers"); }}
+              style={{ fontSize: 12, color: "var(--brand)", background: "none", border: "1px solid rgba(255,107,44,0.4)", borderRadius: 8, padding: "4px 10px", cursor: "pointer", fontWeight: 700 }}
+            >
+              ← Volver al admin
+            </button>
+          </div>
+        )}
+
         {/* ── CONTENIDO ── */}
         <div style={{ width: "100%", maxWidth: 960, margin: "0 auto", padding: "clamp(16px, 3vw, 32px)" }}>
           <Outlet />
