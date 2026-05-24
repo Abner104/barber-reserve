@@ -27,15 +27,16 @@ export default function PerfilPage() {
   useEffect(() => {
     if (barber && !form) {
       setForm({
-        is_active:       barber.is_active,
-        does_delivery:   barber.does_delivery,
-        delivery_radius: barber.delivery_radius,
-        phone:           barber.phone ?? "",
-        specialty:       barber.specialty ?? "",
-        avatar_url:      barber.avatar_url ?? "",
-        lat:             barber.lat ?? null,
-        lng:             barber.lng ?? null,
-        address:         barber.address ?? "",
+        is_active:        barber.is_active,
+        does_delivery:    barber.does_delivery,
+        delivery_radius:  barber.delivery_radius,
+        travel_time_min:  barber.travel_time_min ?? 0,
+        phone:            barber.phone ?? "",
+        specialty:        barber.specialty ?? "",
+        avatar_url:       barber.avatar_url ?? "",
+        lat:              barber.lat ?? null,
+        lng:              barber.lng ?? null,
+        address:          barber.address ?? "",
       });
     }
   }, [barber, form]);
@@ -140,17 +141,33 @@ export default function PerfilPage() {
 
         {form.does_delivery && (
           <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
-            <div>
-              <label style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 6, display: "block", fontWeight: 600 }}>
-                Radio máximo (km)
-              </label>
-              <input
-                type="number" min={1} max={50}
-                style={{ ...inp, width: 120 }}
-                value={form.delivery_radius}
-                onChange={e => setForm({ ...form, delivery_radius: Number(e.target.value) })}
-              />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div>
+                <label style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 6, display: "block", fontWeight: 600 }}>
+                  Radio máximo (km)
+                </label>
+                <input
+                  type="number" min={1} max={50}
+                  style={inp}
+                  value={form.delivery_radius}
+                  onChange={e => setForm({ ...form, delivery_radius: Number(e.target.value) })}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 6, display: "block", fontWeight: 600 }}>
+                  Tiempo de trayecto (min)
+                </label>
+                <input
+                  type="number" min={0} max={120} step={5}
+                  style={inp}
+                  value={form.travel_time_min}
+                  onChange={e => setForm({ ...form, travel_time_min: Number(e.target.value) })}
+                />
+              </div>
             </div>
+            <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: -4 }}>
+              🛵 El tiempo de trayecto se bloquea automáticamente después de cada domicilio
+            </p>
 
             {/* Ubicación base en mapa */}
             <div style={{ background: "var(--surface2)", borderRadius: 10, padding: 14 }}>

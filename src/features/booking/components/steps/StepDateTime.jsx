@@ -9,7 +9,7 @@ import { getAvailableSlots } from "../../services/bookingService";
 const DAY_LABELS = ["Lu","Ma","Mi","Ju","Vi","Sá","Do"];
 
 export default function StepDateTime() {
-  const { barber, service, people, date, slot, setDate, setSlot, nextStep, prevStep } = useBookingStore();
+  const { barber, service, people, type, date, slot, setDate, setSlot, nextStep, prevStep } = useBookingStore();
   const [viewMonth, setViewMonth] = useState(startOfMonth(new Date()));
 
   const today   = startOfDay(new Date());
@@ -19,10 +19,10 @@ export default function StepDateTime() {
   const durationMin = (service?.duration_min ?? 30) * (people || 1);
 
   const { data: slots = [], isLoading: loadingSlots } = useQuery({
-    queryKey: ["barber-slots", barber?.id, date, durationMin],
-    queryFn:  () => getAvailableSlots({ barberId: barber.id, date, durationMin }),
+    queryKey: ["barber-slots", barber?.id, date, durationMin, type],
+    queryFn:  () => getAvailableSlots({ barberId: barber.id, date, durationMin, type }),
     enabled:  !!barber?.id && !!date,
-    staleTime: 0, // siempre re-fetch para mostrar disponibilidad actualizada
+    staleTime: 0,
   });
 
   function pickDate(d) {

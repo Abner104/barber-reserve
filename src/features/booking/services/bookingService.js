@@ -42,11 +42,11 @@ export async function getBarbers({ serviceId, type, shopId } = {}) {
   return data;
 }
 
-export async function getAvailableSlots({ barberId, date, durationMin }) {
+export async function getAvailableSlots({ barberId, date, durationMin, type }) {
   const dayNames = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
   const dayName  = dayNames[new Date(date + "T12:00:00").getDay()];
 
-  // Obtener horario y slot_duration_min del barbero en paralelo
+  // Obtener horario y datos del barbero en paralelo
   const [{ data: wh }, { data: barberData }] = await Promise.all([
     supabase.from("working_hours")
       .select("start_time, end_time, available_slots")
@@ -55,13 +55,17 @@ export async function getAvailableSlots({ barberId, date, durationMin }) {
       .eq("is_active", true)
       .maybeSingle(),
     supabase.from("barbers")
-      .select("slot_duration_min")
+      .select("slot_duration_min, travel_time_min")
       .eq("id", barberId)
       .maybeSingle(),
   ]);
 
   // Intervalo entre slots según el barbero (default 30 min)
   const slotInterval = barberData?.slot_duration_min ?? 30;
+
+  // Para domicilios, el bloqueo real incluye el trayecto
+  const travelMin      = type === "delivery" ? (barberData?.travel_time_min ?? 0) : 0;
+  const effectiveDuration = durationMin + travelMin;
 
   if (!wh) return [];
 
@@ -84,9 +88,9 @@ export async function getAvailableSlots({ barberId, date, durationMin }) {
   ]);
 
   // Función para verificar si un slot está bloqueado
-  // Todos los Date() se comparan en UTC internamente — consistente
+  // Usa effectiveDuration para incluir trayecto en domicilios
   function isBlocked(cursor) {
-    const slotEnd = addMinutes(cursor, durationMin);
+    const slotEnd = addMinutes(cursor, effectiveDuration);
     return (
       (existingBookings || []).some(b => {
         const bs  = new Date(b.scheduled_at);
@@ -116,7 +120,7 @@ export async function getAvailableSlots({ barberId, date, durationMin }) {
   const workEnd   = new Date(`${date}T${wh.end_time}-04:00`);
   let cursor      = workStart;
 
-  while (addMinutes(cursor, durationMin) <= workEnd) {
+  while (addMinutes(cursor, effectiveDuration) <= workEnd) {
     if (!isBlocked(cursor)) slots.push(format(cursor, "HH:mm"));
     cursor = addMinutes(cursor, slotInterval);
   }
