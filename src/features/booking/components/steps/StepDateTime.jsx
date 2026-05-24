@@ -4,44 +4,25 @@ import { ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import { format, addDays, startOfDay, isToday, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth } from "date-fns";
 import { es } from "date-fns/locale";
 import { useBookingStore } from "../../../../store/bookingStore";
-import { supabase } from "../../../../lib/supabase";
+import { getAvailableSlots } from "../../services/bookingService";
 
 const DAY_LABELS = ["Lu","Ma","Mi","Ju","Vi","Sá","Do"];
-const CSS = `
-  @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
-  .slot-btn { transition: all .12s ease; }
-  .slot-btn:hover:not(:disabled) { transform: scale(1.05); }
-`;
-
-// Obtener los slots disponibles del barbero para un día específico
-async function getBarberSlots(barberId, date) {
-  const dayMap = { 0: "sunday", 1: "monday", 2: "tuesday", 3: "wednesday", 4: "thursday", 5: "friday", 6: "saturday" };
-  const dayOfWeek = dayMap[new Date(date + "T12:00:00").getDay()];
-
-  const { data } = await supabase
-    .from("working_hours")
-    .select("available_slots, is_active")
-    .eq("barber_id", barberId)
-    .eq("day", dayOfWeek)
-    .maybeSingle();
-
-  if (!data?.is_active) return [];
-  return data?.available_slots ?? [];
-}
 
 export default function StepDateTime() {
-  const { barber, date, slot, setDate, setSlot, nextStep, prevStep } = useBookingStore();
+  const { barber, service, date, slot, setDate, setSlot, nextStep, prevStep } = useBookingStore();
   const [viewMonth, setViewMonth] = useState(startOfMonth(new Date()));
 
   const today   = startOfDay(new Date());
   const maxDate = addDays(today, 30);
   const days    = eachDayOfInterval({ start: startOfMonth(viewMonth), end: endOfMonth(viewMonth) });
   const padStart = (getDay(startOfMonth(viewMonth)) + 6) % 7;
+  const durationMin = service?.duration_min ?? 30;
 
   const { data: slots = [], isLoading: loadingSlots } = useQuery({
-    queryKey: ["barber-slots", barber?.id, date],
-    queryFn:  () => getBarberSlots(barber.id, date),
+    queryKey: ["barber-slots", barber?.id, date, durationMin],
+    queryFn:  () => getAvailableSlots({ barberId: barber.id, date, durationMin }),
     enabled:  !!barber?.id && !!date,
+    staleTime: 0, // siempre re-fetch para mostrar disponibilidad actualizada
   });
 
   function pickDate(d) {

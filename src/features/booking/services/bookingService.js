@@ -104,26 +104,20 @@ export async function getAvailableSlots({ barberId, date, durationMin }) {
 
   // MODO 1: Slots específicos — construir con timezone Chile
   if (wh.available_slots && wh.available_slots.length > 0) {
-    console.log("[slots] existingBookings:", existingBookings?.map(b => ({ at: b.scheduled_at, utc: new Date(b.scheduled_at).toISOString() })));
     return wh.available_slots.filter(slot => {
       const cursor = new Date(`${date}T${slot}:00-04:00`);
-      const blocked = isBlocked(cursor);
-      console.log(`[slots] ${slot} cursor=${cursor.toISOString()} blocked=${blocked}`);
-      return !blocked;
+      return !isBlocked(cursor);
     });
   }
 
   // MODO 2: Rango continuo
-  console.log("[slots2] existingBookings:", existingBookings?.map(b => ({ at: b.scheduled_at, utc: new Date(b.scheduled_at).toISOString(), dur: b.duration_min })));
   const slots     = [];
   const workStart = new Date(`${date}T${wh.start_time}-04:00`);
   const workEnd   = new Date(`${date}T${wh.end_time}-04:00`);
   let cursor      = workStart;
 
   while (addMinutes(cursor, durationMin) <= workEnd) {
-    const blocked = isBlocked(cursor);
-    console.log(`[slots2] ${format(cursor, "HH:mm")} cursor=${cursor.toISOString()} blocked=${blocked}`);
-    if (!blocked) slots.push(format(cursor, "HH:mm"));
+    if (!isBlocked(cursor)) slots.push(format(cursor, "HH:mm"));
     cursor = addMinutes(cursor, slotInterval);
   }
 
