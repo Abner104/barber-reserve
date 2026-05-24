@@ -22,6 +22,7 @@ export default function StepService() {
 
   const grouped = services.reduce((acc, s) => {
     if (type === "delivery" && !s.allows_delivery) return acc;
+    if (type === "local" && s.allows_local === false) return acc;
     const cat = s.service_categories?.name ?? "Otros";
     if (!acc[cat]) acc[cat] = [];
     acc[cat].push(s);

@@ -6,7 +6,7 @@ import { Plus, Pencil, Power, X, Loader2, Clock, Trash2 } from "lucide-react";
 import { getAdminServices, getAdminCategories, createService, updateService, toggleServiceAvailable, deleteService } from "../services/adminService";
 
 const B = "var(--brand, #FF6B2C)";
-const EMPTY_SVC = { name: "", description: "", duration_min: 30, price: 0, allows_delivery: true, is_available: true, category_id: "", sort_order: 0 };
+const EMPTY_SVC = { name: "", description: "", duration_min: 30, price: 0, allows_local: true, allows_delivery: true, is_available: true, category_id: "", sort_order: 0 };
 
 export default function ServicesPage() {
   const qc = useQueryClient();
@@ -71,14 +71,15 @@ export default function ServicesPage() {
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                     <p style={{ fontWeight: 600, color: "var(--text)", fontSize: 14 }}>{s.name}</p>
                     {!s.is_available && <span style={{ fontSize: 11, color: "var(--text-faint)", background: "var(--surface2)", padding: "2px 8px", borderRadius: 20 }}>Inactivo</span>}
-                    {s.allows_delivery && <span style={{ fontSize: 11, color: B, background: "var(--brand-alpha)", padding: "2px 8px", borderRadius: 20 }}>Domicilio</span>}
+                    {s.allows_local && s.allows_delivery && <span style={{ fontSize: 11, color: B, background: "var(--brand-alpha)", padding: "2px 8px", borderRadius: 20 }}>Local y domicilio</span>}
+                    {s.allows_local && !s.allows_delivery && <span style={{ fontSize: 11, color: "var(--text-muted)", background: "var(--surface2)", padding: "2px 8px", borderRadius: 20 }}>Solo local</span>}
+                    {!s.allows_local && s.allows_delivery && <span style={{ fontSize: 11, color: B, background: "var(--brand-alpha)", padding: "2px 8px", borderRadius: 20 }}>Solo domicilio</span>}
                   </div>
                   <div style={{ display: "flex", gap: 12, marginTop: 4, flexWrap: "wrap" }}>
                     <span style={{ fontSize: 12, color: "var(--text-faint)", display: "flex", alignItems: "center", gap: 3 }}>
                       <Clock size={11} /> {s.duration_min}min
                     </span>
                     <span style={{ fontSize: 12, color: B, fontWeight: 600 }}>{formatCurrency(s.price)}</span>
-                    {s.allows_delivery && <span style={{ fontSize: 11, color: "var(--text-faint)" }}>📍 Domicilio</span>}
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
@@ -129,7 +130,7 @@ export default function ServicesPage() {
 function ServiceModal({ service, categories, onClose, onSave, loading }) {
   const [form, setForm] = useState(service ? {
     name: service.name, description: service.description ?? "", duration_min: service.duration_min,
-    price: service.price, allows_delivery: service.allows_delivery,
+    price: service.price, allows_local: service.allows_local ?? true, allows_delivery: service.allows_delivery ?? true,
     is_available: service.is_available, category_id: service.category_id ?? "", sort_order: service.sort_order,
   } : EMPTY_SVC);
 
@@ -164,38 +165,35 @@ function ServiceModal({ service, categories, onClose, onSave, loading }) {
             <Field label="Duración (min)"><input style={inp} type="number" min={5} value={form.duration_min} onChange={e => setForm({ ...form, duration_min: Number(e.target.value) })} /></Field>
             <Field label="Precio"><input style={inp} type="number" min={0} value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} placeholder="25000" /></Field>
           </div>
-          <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: -8 }}>
-            💡 El costo de domicilio se calcula automáticamente por distancia (configurado en Ajustes)
-          </p>
-          <button
-            type="button"
-            onClick={() => setForm({ ...form, allows_delivery: !form.allows_delivery })}
-            style={{
-              display: "flex", alignItems: "center", gap: 12, padding: "12px 14px",
-              borderRadius: 10, cursor: "pointer", textAlign: "left",
-              background: form.allows_delivery ? "var(--brand-alpha)" : "var(--surface2)",
-              border: `1px solid ${form.allows_delivery ? "var(--brand, #FF6B2C)" : "var(--border)"}`,
-            }}
-          >
-            <div style={{
-              width: 40, height: 22, borderRadius: 11, position: "relative", flexShrink: 0,
-              background: form.allows_delivery ? "var(--brand, #FF6B2C)" : "var(--border)",
-              transition: "background 0.2s",
-            }}>
-              <div style={{
-                position: "absolute", top: 2, width: 18, height: 18, borderRadius: "50%", background: "#fff",
-                left: form.allows_delivery ? 20 : 2, transition: "left 0.2s",
-              }} />
+          <Field label="Disponibilidad">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+              {[
+                { label: "Solo local", icon: "🏪", local: true, delivery: false },
+                { label: "Solo domicilio", icon: "🛵", local: false, delivery: true },
+                { label: "Ambos", icon: "✓", local: true, delivery: true },
+              ].map(opt => {
+                const active = form.allows_local === opt.local && form.allows_delivery === opt.delivery;
+                return (
+                  <button
+                    key={opt.label}
+                    type="button"
+                    onClick={() => setForm({ ...form, allows_local: opt.local, allows_delivery: opt.delivery })}
+                    style={{
+                      padding: "10px 6px", borderRadius: 10, cursor: "pointer", textAlign: "center",
+                      background: active ? "var(--brand-alpha)" : "var(--surface2)",
+                      border: `1.5px solid ${active ? "var(--brand, #FF6B2C)" : "var(--border)"}`,
+                      color: active ? "var(--brand, #FF6B2C)" : "var(--text-muted)",
+                      fontWeight: active ? 700 : 500, fontSize: 12,
+                      display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+                    }}
+                  >
+                    <span style={{ fontSize: 18 }}>{opt.icon}</span>
+                    {opt.label}
+                  </button>
+                );
+              })}
             </div>
-            <div>
-              <p style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>
-                {form.allows_delivery ? "✓ Disponible a domicilio" : "No disponible a domicilio"}
-              </p>
-              <p style={{ fontSize: 12, color: "var(--text-faint)" }}>
-                {form.allows_delivery ? "Los clientes pueden pedirlo a su dirección" : "Solo en el local"}
-              </p>
-            </div>
-          </button>
+          </Field>
         </div>
 
         <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
