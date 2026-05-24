@@ -63,9 +63,11 @@ export async function getAvailableSlots({ barberId, date, durationMin, type }) {
   // Intervalo entre slots según el barbero (default 30 min)
   const slotInterval = barberData?.slot_duration_min ?? 30;
 
-  // Para domicilios, el bloqueo real incluye el trayecto
-  const travelMin      = type === "delivery" ? (barberData?.travel_time_min ?? 0) : 0;
-  const effectiveDuration = durationMin + travelMin;
+  // travel_time_min del barbero — siempre disponible para calcular bloqueos
+  const travelMin = barberData?.travel_time_min ?? 0;
+
+  // Para domicilios, el bloqueo del slot nuevo incluye el trayecto de ida+vuelta
+  const effectiveDuration = type === "delivery" ? durationMin + travelMin : durationMin;
 
   if (!wh) return [];
 
@@ -95,17 +97,21 @@ export async function getAvailableSlots({ barberId, date, durationMin, type }) {
       (existingBookings || []).some(b => {
         const bs  = new Date(b.scheduled_at);
         const dur = b.duration_min || durationMin;
-        const be  = addMinutes(bs, dur);
 
-        // Solapamiento directo
-        if (cursor < be && slotEnd > bs) return true;
+        // Si la reserva existente es un domicilio, su bloqueo real incluye
+        // el trayecto de vuelta — nadie puede atenderse hasta que llegue
+        const beReal = b.type === "delivery"
+          ? addMinutes(bs, dur + travelMin)
+          : addMinutes(bs, dur);
 
-        // Si estamos reservando un domicilio, necesitamos travelMin libres
-        // antes también — no puede salir si hay un corte local próximo
-        if (travelMin > 0 && b.type !== "delivery") {
-          // La reserva local empieza antes de que el barbero llegue de vuelta
+        // Solapamiento con el bloqueo real de la reserva existente
+        if (cursor < beReal && slotEnd > bs) return true;
+
+        // Si el nuevo slot es domicilio, necesita travelMin libres antes
+        // para poder salir sin dejar a nadie esperando en el local
+        if (type === "delivery" && travelMin > 0 && b.type !== "delivery") {
           const departureLatest = addMinutes(cursor, -travelMin);
-          if (bs < slotEnd && be > departureLatest) return true;
+          if (bs < slotEnd && beReal > departureLatest) return true;
         }
 
         return false;
