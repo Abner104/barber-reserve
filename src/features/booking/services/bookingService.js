@@ -241,14 +241,6 @@ export async function createBooking({ type, serviceId, barberId, date, slot, dur
   `).single();
   if (error) throw error;
 
-  // Notificar al barbero por WhatsApp
-  const WA_URL = import.meta.env.VITE_WA_SERVICE_URL ?? "http://localhost:3001";
-  fetch(`${WA_URL}/notify`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ record: data }),
-  }).catch(() => {});
-
   return data;
 }
 
