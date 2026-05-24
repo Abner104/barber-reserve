@@ -87,8 +87,9 @@ export async function getAvailableSlots({ barberId, date, durationMin }) {
     const slotEnd = addMinutes(cursor, durationMin);
     return (
       (existingBookings || []).some(b => {
-        const bs = new Date(b.scheduled_at);
-        const be = addMinutes(bs, b.duration_min);
+        const bs  = new Date(b.scheduled_at);
+        const dur = b.duration_min || durationMin; // fallback si duration_min es null
+        const be  = addMinutes(bs, dur);
         return cursor < be && slotEnd > bs;
       }) ||
       (blocks || []).some(bl => {
@@ -150,8 +151,9 @@ export async function createBooking({ type, serviceId, barberId, date, slot, dur
     .lte("scheduled_at", dayEnd);
 
   const conflict = (dayBookings || []).find(b => {
-    const bStart = new Date(b.scheduled_at);
-    const bEnd   = addMinutes(bStart, b.duration_min);
+    const bStart   = new Date(b.scheduled_at);
+    const bDur     = b.duration_min || durationMin; // fallback a duración del nuevo si la existente es null
+    const bEnd     = addMinutes(bStart, bDur);
     return newStart < bEnd && newEnd > bStart;
   });
 
