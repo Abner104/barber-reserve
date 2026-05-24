@@ -35,7 +35,7 @@ export default function StepDateTime() {
 
   return (
     <div style={{ animation: "fadeUp .4s ease" }}>
-      <style>{CSS}</style>
+      <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}.slot-btn{transition:all .12s ease}.slot-btn:hover:not(:disabled){transform:scale(1.05)}`}</style>
 
       <button onClick={prevStep} style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontSize: 13, marginBottom: 28, padding: 0 }}>
         <ChevronLeft size={15} /> Atrás
