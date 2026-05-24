@@ -207,8 +207,18 @@ export async function createBooking({ type, serviceId, barberId, date, slot, dur
     }),
   };
 
-  const { data, error } = await supabase.from("bookings").insert(payload).select("*").single();
+  const { data, error } = await supabase.from("bookings").insert(payload).select(`
+    *, clients(full_name, phone), services(name)
+  `).single();
   if (error) throw error;
+
+  // Notificar al barbero por WhatsApp
+  const WA_URL = import.meta.env.VITE_WA_SERVICE_URL ?? "http://localhost:3001";
+  fetch(`${WA_URL}/notify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ record: data }),
+  }).catch(() => {});
 
   return data;
 }
