@@ -1,215 +1,228 @@
 import { useState, useEffect, useRef } from "react";
-import { Loader2, CheckCircle, RefreshCw, Wifi, WifiOff, AlertTriangle, Trash2 } from "lucide-react";
+import { Loader2, CheckCircle, Wifi, WifiOff, AlertTriangle, Trash2, Phone } from "lucide-react";
 
-const WA_URL = import.meta.env.VITE_WA_SERVICE_URL ?? "http://localhost:3001";
-const WA_HEADERS = { "bypass-tunnel-reminder": "true", "Content-Type": "application/json" };
-const WA_SECRET  = "barberos2026secret";
+const WA_URL    = import.meta.env.VITE_WA_SERVICE_URL ?? "http://localhost:3001";
+const WA_SECRET = "barberos2026secret";
+const HEADERS   = { "Content-Type": "application/json", "Authorization": `Bearer ${WA_SECRET}` };
 
-export default function WhatsAppQR({ barberId, barberName }) {
-  const [status, setStatus]       = useState("idle");   // idle | loading | qr_ready | connected | error | reconnecting
-  const [qr, setQr]               = useState(null);
-  const [error, setError]         = useState(null);
+export default function WhatsAppQR({ barberId, barberName, barberPhone }) {
+  const [status, setStatus]     = useState("idle");
+  const [error, setError]       = useState(null);
+  const [phone, setPhone]       = useState(barberPhone?.replace(/\D/g, "") || "");
+  const [code, setCode]         = useState("");
+  const [step, setStep]         = useState("idle"); // idle | entering_phone | waiting_code | verifying | connected
   const [showReset, setShowReset] = useState(false);
   const [resetting, setResetting] = useState(false);
-  const pollRef  = useRef(null);
-  const retryRef = useRef(null);
+  const pollRef = useRef(null);
 
-  function clearTimers() {
-    if (pollRef.current)  clearTimeout(pollRef.current);
-    if (retryRef.current) clearTimeout(retryRef.current);
-  }
-
-  // Consulta el estado actual sin iniciar sesión
   async function checkStatus() {
     try {
-      const res  = await fetch(`${WA_URL}/status/${barberId}`, { headers: WA_HEADERS });
-      if (!res.ok) return;
+      const res  = await fetch(`${WA_URL}/status/${barberId}`, { headers: HEADERS });
       const data = await res.json();
-      if (data.status === "connected") {
-        setStatus("connected");
-        setQr(null);
-      } else if (["idle","disconnected","closed"].includes(data.status)) {
-        setStatus("idle");
-        setQr(null);
-      }
-    } catch {
-      // servidor no disponible — quedamos en idle
-    }
-  }
-
-  // Inicia la sesión y obtiene el QR (o detecta que ya está conectado)
-  async function startSession() {
-    clearTimers();
-    setStatus("loading");
-    setError(null);
-    setQr(null);
-
-    // Intentos con backoff: 2s, 4s, 6s, 8s … hasta 30s
-    let attempt = 0;
-    const maxAttempts = 12;
-
-    async function attempt_() {
-      attempt++;
-      try {
-        const res  = await fetch(`${WA_URL}/qr/${barberId}`, {
-          headers: { ...WA_HEADERS, "Authorization": `Bearer ${WA_SECRET}` },
-        });
-        const data = await res.json();
-
-        if (data.status === "connected") {
-          setStatus("connected");
-          setQr(null);
-          return;
-        }
-        if (data.status === "qr_ready" && data.qr) {
-          setStatus("qr_ready");
-          setQr(data.qr);
-          // Refrescar el QR antes de que expire (cada 25s)
-          pollRef.current = setTimeout(startSession, 25000);
-          return;
-        }
-        // still generating — reintentar
-        if (attempt < maxAttempts) {
-          retryRef.current = setTimeout(attempt_, Math.min(attempt * 2000, 8000));
-        } else {
-          setStatus("error");
-          setError("No se pudo generar el QR. Intenta nuevamente.");
-        }
-      } catch {
-        if (attempt < maxAttempts) {
-          retryRef.current = setTimeout(attempt_, Math.min(attempt * 2000, 8000));
-        } else {
-          setStatus("error");
-          setError("No se puede conectar al servicio de WhatsApp.");
-        }
-      }
-    }
-
-    attempt_();
-  }
-
-  // Desconecta sin borrar la sesión (para volver a conectar el mismo teléfono)
-  async function disconnect() {
-    clearTimers();
-    try {
-      await fetch(`${WA_URL}/session/${barberId}/logout`, {
-        method: "POST",
-        headers: { ...WA_HEADERS, "Authorization": `Bearer ${WA_SECRET}` },
-      });
+      if (data.status === "connected") setStep("connected");
     } catch {}
-    setStatus("idle");
-    setQr(null);
   }
 
-  // Resetea completamente la sesión (celular perdido / cambio de teléfono)
-  async function resetSession() {
-    clearTimers();
-    setResetting(true);
-    try {
-      await fetch(`${WA_URL}/session/${barberId}`, {
-        method: "DELETE",
-        headers: { ...WA_HEADERS, "Authorization": `Bearer ${WA_SECRET}` },
-      });
-    } catch {}
-    setResetting(false);
-    setShowReset(false);
-    setStatus("idle");
-    setQr(null);
-    setError(null);
-    // Iniciar nueva sesión automáticamente
-    setTimeout(startSession, 500);
-  }
-
-  // Al montar, consultar estado actual
   useEffect(() => {
     checkStatus();
-    return clearTimers;
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [barberId]);
 
-  // Polling cuando está conectado para detectar desconexiones
-  useEffect(() => {
-    if (status !== "connected") return;
-    const id = setInterval(async () => {
-      try {
-        const res  = await fetch(`${WA_URL}/status/${barberId}`, { headers: WA_HEADERS });
-        const data = await res.json();
-        if (data.status !== "connected") {
-          setStatus("idle");
-          setQr(null);
-        }
-      } catch {}
-    }, 30000);
-    return () => clearInterval(id);
-  }, [status, barberId]);
+  // Paso 1: solicitar código al número
+  async function requestCode() {
+    if (!phone || phone.length < 8) {
+      setError("Ingresa un número válido");
+      return;
+    }
+    setError(null);
+    setStep("verifying");
+    try {
+      const res  = await fetch(`${WA_URL}/pair/request`, {
+        method: "POST",
+        headers: HEADERS,
+        body: JSON.stringify({ barberId, phone }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Error al solicitar código");
+      setStep("waiting_code");
+      // Polling para detectar si ya se conectó automáticamente
+      pollRef.current = setInterval(async () => {
+        try {
+          const r = await fetch(`${WA_URL}/status/${barberId}`, { headers: HEADERS });
+          const d = await r.json();
+          if (d.status === "connected") {
+            clearInterval(pollRef.current);
+            setStep("connected");
+            setCode("");
+          }
+        } catch {}
+      }, 3000);
+    } catch (e) {
+      setError(e.message);
+      setStep("entering_phone");
+    }
+  }
 
-  const isConnected = status === "connected";
-  const isLoading   = ["loading", "connecting", "reconnecting"].includes(status);
-  const hasQR       = status === "qr_ready" && qr;
+  // Paso 2: confirmar con el código recibido
+  async function confirmCode() {
+    if (code.trim().length < 8) {
+      setError("El código debe tener 8 caracteres");
+      return;
+    }
+    setError(null);
+    setStep("verifying");
+    try {
+      const res  = await fetch(`${WA_URL}/pair/confirm`, {
+        method: "POST",
+        headers: HEADERS,
+        body: JSON.stringify({ barberId, code: code.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Código incorrecto");
+      setStep("connected");
+      setCode("");
+      if (pollRef.current) clearInterval(pollRef.current);
+    } catch (e) {
+      setError(e.message);
+      setStep("waiting_code");
+    }
+  }
+
+  async function disconnect() {
+    try {
+      await fetch(`${WA_URL}/session/${barberId}/logout`, { method: "POST", headers: HEADERS });
+    } catch {}
+    if (pollRef.current) clearInterval(pollRef.current);
+    setStep("idle");
+    setCode("");
+    setError(null);
+  }
+
+  async function resetSession() {
+    setResetting(true);
+    try {
+      await fetch(`${WA_URL}/session/${barberId}`, { method: "DELETE", headers: HEADERS });
+    } catch {}
+    if (pollRef.current) clearInterval(pollRef.current);
+    setResetting(false);
+    setShowReset(false);
+    setStep("idle");
+    setCode("");
+    setError(null);
+  }
+
+  const isConnected = step === "connected";
+  const isLoading   = step === "verifying";
+
+  // Formatear número para display
+  const phoneDisplay = phone.startsWith("56") ? `+${phone}` : phone ? `+56${phone}` : "";
 
   return (
     <div style={{ padding: 16, background: "var(--surface2)", borderRadius: 12, border: "1px solid var(--border)" }}>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {isConnected
-            ? <CheckCircle size={16} color="#22c55e" />
-            : <WifiOff size={16} color="var(--text-faint)" />}
-          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
-            WhatsApp — {barberName}
-          </span>
+          {isConnected ? <CheckCircle size={16} color="#22c55e" /> : <WifiOff size={16} color="var(--text-faint)" />}
+          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>WhatsApp — {barberName}</span>
         </div>
         <span style={{
           fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20,
-          background: isConnected ? "rgba(34,197,94,0.1)" : hasQR ? "rgba(234,179,8,0.1)" : "rgba(113,113,122,0.1)",
-          color: isConnected ? "#22c55e" : hasQR ? "#eab308" : "var(--text-faint)",
+          background: isConnected ? "rgba(34,197,94,0.1)" : "rgba(113,113,122,0.1)",
+          color: isConnected ? "#22c55e" : "var(--text-faint)",
         }}>
-          {isConnected ? "Conectado" : hasQR ? "Escanea el QR" : isLoading ? "Iniciando..." : "Desconectado"}
+          {isConnected ? "Conectado" : step === "waiting_code" ? "Esperando código" : step === "verifying" ? "Verificando..." : "Desconectado"}
         </span>
       </div>
 
-      {/* Conectado */}
+      {/* Error */}
+      {error && (
+        <div style={{ display: "flex", gap: 8, alignItems: "flex-start", background: "rgba(239,68,68,0.08)", borderRadius: 8, padding: "10px 12px", marginBottom: 12 }}>
+          <AlertTriangle size={14} color="#ef4444" style={{ marginTop: 1, flexShrink: 0 }} />
+          <p style={{ fontSize: 12, color: "#ef4444", margin: 0 }}>{error}</p>
+        </div>
+      )}
+
+      {/* CONECTADO */}
       {isConnected && (
         <div style={{ textAlign: "center" }}>
           <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12 }}>
-            ✅ El barbero recibirá notificaciones automáticas de nuevas reservas.
+            ✅ Recibirá notificaciones automáticas de nuevas reservas.
           </p>
           <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-            <button
-              onClick={disconnect}
-              style={{ fontSize: 12, color: "var(--text-faint)", background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 14px", cursor: "pointer" }}
-            >
+            <button onClick={disconnect} style={{ fontSize: 12, color: "var(--text-faint)", background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 14px", cursor: "pointer" }}>
               Desconectar
             </button>
-            <button
-              onClick={() => setShowReset(true)}
-              style={{ fontSize: 12, color: "#ef4444", background: "none", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "6px 14px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
-            >
-              <Trash2 size={11} /> Perdí mi celular
+            <button onClick={() => setShowReset(true)} style={{ fontSize: 12, color: "#ef4444", background: "none", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "6px 14px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+              <Trash2 size={11} /> Cambiar celular
             </button>
           </div>
         </div>
       )}
 
-      {/* QR listo */}
-      {hasQR && (
-        <div style={{ textAlign: "center" }}>
-          <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 10 }}>
-            Abre WhatsApp → Dispositivos vinculados → Escanea este QR
+      {/* IDLE — botón inicial */}
+      {step === "idle" && (
+        <button
+          onClick={() => { setStep("entering_phone"); setError(null); }}
+          style={{ width: "100%", padding: 11, borderRadius: 9, background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 13, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+        >
+          <Wifi size={14} /> Conectar WhatsApp
+        </button>
+      )}
+
+      {/* PASO 1 — ingresar número */}
+      {step === "entering_phone" && (
+        <div>
+          <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 10, lineHeight: 1.5 }}>
+            Ingresa el número de WhatsApp del barbero. Le llegará un código de 8 dígitos por WhatsApp.
           </p>
-          <img src={qr} alt="QR WhatsApp" style={{ width: 200, height: 200, borderRadius: 8, border: "1px solid var(--border)", display: "block", margin: "0 auto" }} />
-          <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 8 }}>El QR se actualiza automáticamente</p>
-          <div style={{ display: "flex", gap: 8, marginTop: 10, justifyContent: "center" }}>
-            <button
-              onClick={startSession}
-              style={{ fontSize: 12, padding: "7px 14px", borderRadius: 9, background: "none", color: "var(--text-faint)", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
-            >
-              <RefreshCw size={12} /> Nuevo QR
+          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 9, padding: "0 10px", fontSize: 13, color: "var(--text-faint)", flexShrink: 0 }}>
+              🇨🇱 +56
+            </div>
+            <input
+              type="tel"
+              value={phone.startsWith("56") ? phone.slice(2) : phone}
+              onChange={e => setPhone(e.target.value.replace(/\D/g, ""))}
+              placeholder="9 1234 5678"
+              style={{ flex: 1, padding: "10px 12px", borderRadius: 9, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", fontSize: 14, outline: "none" }}
+            />
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => setStep("idle")} style={{ flex: 1, padding: 10, borderRadius: 9, background: "none", border: "1px solid var(--border)", color: "var(--text-faint)", fontSize: 13, cursor: "pointer" }}>
+              Cancelar
             </button>
-            <button
-              onClick={() => setShowReset(true)}
-              style={{ fontSize: 12, padding: "7px 14px", borderRadius: 9, background: "none", color: "#ef4444", border: "1px solid rgba(239,68,68,0.3)", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
-            >
-              <Trash2 size={12} /> Resetear sesión
+            <button onClick={requestCode} style={{ flex: 2, padding: 10, borderRadius: 9, background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 13, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+              <Phone size={13} /> Enviar código
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* PASO 2 — ingresar código */}
+      {step === "waiting_code" && (
+        <div>
+          <div style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 8, padding: "10px 12px", marginBottom: 12 }}>
+            <p style={{ fontSize: 12, color: "#22c55e", margin: 0, fontWeight: 600 }}>
+              ✅ Código enviado a {phoneDisplay}
+            </p>
+            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>
+              Abre WhatsApp → verás un mensaje con el código de 8 dígitos
+            </p>
+          </div>
+          <input
+            type="text"
+            value={code}
+            onChange={e => setCode(e.target.value.toUpperCase())}
+            placeholder="XXXX-XXXX"
+            maxLength={9}
+            style={{ width: "100%", padding: "12px", borderRadius: 9, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", fontSize: 20, fontWeight: 700, letterSpacing: 4, textAlign: "center", outline: "none", marginBottom: 10, boxSizing: "border-box" }}
+          />
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => { setStep("entering_phone"); setCode(""); setError(null); }} style={{ flex: 1, padding: 10, borderRadius: 9, background: "none", border: "1px solid var(--border)", color: "var(--text-faint)", fontSize: 13, cursor: "pointer" }}>
+              Atrás
+            </button>
+            <button onClick={confirmCode} style={{ flex: 2, padding: 10, borderRadius: 9, background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 13, border: "none", cursor: "pointer" }}>
+              Confirmar código
             </button>
           </div>
         </div>
@@ -220,67 +233,29 @@ export default function WhatsAppQR({ barberId, barberName }) {
         <div style={{ textAlign: "center", padding: "20px 0" }}>
           <Loader2 size={28} color="var(--brand)" style={{ animation: "spin 1s linear infinite", margin: "0 auto 10px" }} />
           <p style={{ fontSize: 12, color: "var(--text-faint)" }}>
-            Generando QR… puede tardar unos segundos
+            {step === "verifying" && code ? "Verificando código..." : "Enviando código a WhatsApp..."}
           </p>
         </div>
       )}
 
-      {/* Error */}
-      {status === "error" && (
-        <div style={{ display: "flex", gap: 8, alignItems: "flex-start", background: "rgba(239,68,68,0.08)", borderRadius: 8, padding: "10px 12px", marginBottom: 10 }}>
-          <AlertTriangle size={14} color="#ef4444" style={{ marginTop: 1, flexShrink: 0 }} />
-          <p style={{ fontSize: 12, color: "#ef4444", margin: 0 }}>{error}</p>
-        </div>
-      )}
-
-      {/* Botón conectar (idle o error) */}
-      {!isConnected && !isLoading && !hasQR && (
-        <div>
-          <button
-            onClick={startSession}
-            style={{ width: "100%", padding: "11px", borderRadius: 9, background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 13, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
-          >
-            <Wifi size={14} /> Conectar WhatsApp
-          </button>
-          {status !== "idle" && (
-            <button
-              onClick={() => setShowReset(true)}
-              style={{ width: "100%", marginTop: 8, padding: "8px", borderRadius: 9, background: "none", color: "var(--text-faint)", fontSize: 12, border: "1px solid var(--border)", cursor: "pointer" }}
-            >
-              Hay una sesión antigua — resetear
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Modal confirmación reset */}
+      {/* Modal reset */}
       {showReset && (
-        <div style={{
-          position: "fixed", inset: 0, zIndex: 9999,
-          background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
-        }} onClick={() => setShowReset(false)}>
+        <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={() => setShowReset(false)}>
           <div style={{ background: "var(--surface)", borderRadius: 16, padding: 24, maxWidth: 340, width: "100%" }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
               <AlertTriangle size={20} color="#f59e0b" />
-              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--text)" }}>Resetear sesión de WhatsApp</h3>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--text)" }}>Cambiar celular vinculado</h3>
             </div>
             <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 20, lineHeight: 1.5 }}>
-              Esto borrará la sesión actual de WhatsApp del barbero <strong>{barberName}</strong>. Deberás volver a escanear el QR con el teléfono nuevo (o el mismo si solo quieres reconectar).
+              Se desvinculará WhatsApp de <strong>{barberName}</strong>. Tendrás que volver a conectar con el número nuevo.
             </p>
             <div style={{ display: "flex", gap: 10 }}>
-              <button
-                onClick={() => setShowReset(false)}
-                style={{ flex: 1, padding: "10px", borderRadius: 9, background: "none", border: "1px solid var(--border)", color: "var(--text)", fontSize: 13, cursor: "pointer" }}
-              >
+              <button onClick={() => setShowReset(false)} style={{ flex: 1, padding: 10, borderRadius: 9, background: "none", border: "1px solid var(--border)", color: "var(--text)", fontSize: 13, cursor: "pointer" }}>
                 Cancelar
               </button>
-              <button
-                onClick={resetSession}
-                disabled={resetting}
-                style={{ flex: 1, padding: "10px", borderRadius: 9, background: "#ef4444", color: "#fff", fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
-              >
+              <button onClick={resetSession} disabled={resetting} style={{ flex: 1, padding: 10, borderRadius: 9, background: "#ef4444", color: "#fff", fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                 {resetting ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : null}
-                {resetting ? "Reseteando..." : "Sí, resetear"}
+                {resetting ? "Reseteando..." : "Sí, desvincular"}
               </button>
             </div>
           </div>

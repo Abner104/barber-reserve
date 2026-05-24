@@ -255,7 +255,7 @@ export default function PerfilPage() {
           <p style={{ fontSize: 12, color: "var(--text-faint)", fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 10 }}>
             Notificaciones WhatsApp
           </p>
-          <WhatsAppQR barberId={barber.id} barberName={barber.full_name} />
+          <WhatsAppQR barberId={barber.id} barberName={barber.full_name} barberPhone={barber.phone} />
           <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 8, lineHeight: 1.5 }}>
             Conecta tu WhatsApp para recibir alertas automáticas cuando llegue una reserva nueva.
           </p>
