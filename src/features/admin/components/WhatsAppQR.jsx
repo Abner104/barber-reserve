@@ -1,126 +1,290 @@
 import { useState, useEffect, useRef } from "react";
-import { Loader2, CheckCircle, RefreshCw, Wifi, WifiOff } from "lucide-react";
+import { Loader2, CheckCircle, RefreshCw, Wifi, WifiOff, AlertTriangle, Trash2 } from "lucide-react";
 
 const WA_URL = import.meta.env.VITE_WA_SERVICE_URL ?? "http://localhost:3001";
+const WA_HEADERS = { "bypass-tunnel-reminder": "true", "Content-Type": "application/json" };
+const WA_SECRET  = "barberos2026secret";
 
 export default function WhatsAppQR({ barberId, barberName }) {
-  const [state, setState] = useState({ status: "idle", qr: null, error: null });
-  const pollRef = useRef(null);
+  const [status, setStatus]       = useState("idle");   // idle | loading | qr_ready | connected | error | reconnecting
+  const [qr, setQr]               = useState(null);
+  const [error, setError]         = useState(null);
+  const [showReset, setShowReset] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const pollRef  = useRef(null);
+  const retryRef = useRef(null);
 
-  const WA_HEADERS = { "bypass-tunnel-reminder": "true" };
+  function clearTimers() {
+    if (pollRef.current)  clearTimeout(pollRef.current);
+    if (retryRef.current) clearTimeout(retryRef.current);
+  }
 
-  async function fetchQR() {
-    setState(s => ({ ...s, status: "loading", error: null }));
+  // Consulta el estado actual sin iniciar sesión
+  async function checkStatus() {
     try {
-      const res  = await fetch(`${WA_URL}/qr/${barberId}`, { headers: WA_HEADERS });
+      const res  = await fetch(`${WA_URL}/status/${barberId}`, { headers: WA_HEADERS });
+      if (!res.ok) return;
       const data = await res.json();
-      setState({ status: data.status, qr: data.qr, error: null });
-
-      // Si hay QR, volver a pedir en 30s (el QR expira)
-      if (data.status === "qr_ready") {
-        pollRef.current = setTimeout(fetchQR, 30000);
+      if (data.status === "connected") {
+        setStatus("connected");
+        setQr(null);
+      } else if (["idle","disconnected","closed"].includes(data.status)) {
+        setStatus("idle");
+        setQr(null);
       }
     } catch {
-      setState({ status: "error", qr: null, error: "No se puede conectar al servicio de WhatsApp" });
+      // servidor no disponible — quedamos en idle
     }
   }
 
-  async function disconnect() {
-    try {
-      await fetch(`${WA_URL}/session/${barberId}`, { method: "DELETE", headers: WA_HEADERS });
-      setState({ status: "idle", qr: null, error: null });
-    } catch {}
+  // Inicia la sesión y obtiene el QR (o detecta que ya está conectado)
+  async function startSession() {
+    clearTimers();
+    setStatus("loading");
+    setError(null);
+    setQr(null);
+
+    // Intentos con backoff: 2s, 4s, 6s, 8s … hasta 30s
+    let attempt = 0;
+    const maxAttempts = 12;
+
+    async function attempt_() {
+      attempt++;
+      try {
+        const res  = await fetch(`${WA_URL}/qr/${barberId}`, {
+          headers: { ...WA_HEADERS, "Authorization": `Bearer ${WA_SECRET}` },
+        });
+        const data = await res.json();
+
+        if (data.status === "connected") {
+          setStatus("connected");
+          setQr(null);
+          return;
+        }
+        if (data.status === "qr_ready" && data.qr) {
+          setStatus("qr_ready");
+          setQr(data.qr);
+          // Refrescar el QR antes de que expire (cada 25s)
+          pollRef.current = setTimeout(startSession, 25000);
+          return;
+        }
+        // still generating — reintentar
+        if (attempt < maxAttempts) {
+          retryRef.current = setTimeout(attempt_, Math.min(attempt * 2000, 8000));
+        } else {
+          setStatus("error");
+          setError("No se pudo generar el QR. Intenta nuevamente.");
+        }
+      } catch {
+        if (attempt < maxAttempts) {
+          retryRef.current = setTimeout(attempt_, Math.min(attempt * 2000, 8000));
+        } else {
+          setStatus("error");
+          setError("No se puede conectar al servicio de WhatsApp.");
+        }
+      }
+    }
+
+    attempt_();
   }
 
-  useEffect(() => {
-    fetch(`${WA_URL}/status/${barberId}`, { headers: WA_HEADERS })
-      .then(r => r.json())
-      .then(d => setState(s => ({ ...s, status: d.status })))
-      .catch(() => {});
+  // Desconecta sin borrar la sesión (para volver a conectar el mismo teléfono)
+  async function disconnect() {
+    clearTimers();
+    try {
+      await fetch(`${WA_URL}/session/${barberId}/logout`, {
+        method: "POST",
+        headers: { ...WA_HEADERS, "Authorization": `Bearer ${WA_SECRET}` },
+      });
+    } catch {}
+    setStatus("idle");
+    setQr(null);
+  }
 
-    return () => { if (pollRef.current) clearTimeout(pollRef.current); };
+  // Resetea completamente la sesión (celular perdido / cambio de teléfono)
+  async function resetSession() {
+    clearTimers();
+    setResetting(true);
+    try {
+      await fetch(`${WA_URL}/session/${barberId}`, {
+        method: "DELETE",
+        headers: { ...WA_HEADERS, "Authorization": `Bearer ${WA_SECRET}` },
+      });
+    } catch {}
+    setResetting(false);
+    setShowReset(false);
+    setStatus("idle");
+    setQr(null);
+    setError(null);
+    // Iniciar nueva sesión automáticamente
+    setTimeout(startSession, 500);
+  }
+
+  // Al montar, consultar estado actual
+  useEffect(() => {
+    checkStatus();
+    return clearTimers;
   }, [barberId]);
 
-  const isConnected    = state.status === "connected";
-  const isLoading      = state.status === "loading" || state.status === "connecting" || state.status === "reconnecting";
-  const hasQR          = state.status === "qr_ready" && state.qr;
+  // Polling cuando está conectado para detectar desconexiones
+  useEffect(() => {
+    if (status !== "connected") return;
+    const id = setInterval(async () => {
+      try {
+        const res  = await fetch(`${WA_URL}/status/${barberId}`, { headers: WA_HEADERS });
+        const data = await res.json();
+        if (data.status !== "connected") {
+          setStatus("idle");
+          setQr(null);
+        }
+      } catch {}
+    }, 30000);
+    return () => clearInterval(id);
+  }, [status, barberId]);
+
+  const isConnected = status === "connected";
+  const isLoading   = ["loading", "connecting", "reconnecting"].includes(status);
+  const hasQR       = status === "qr_ready" && qr;
 
   return (
-    <div style={{ padding: "16px", background: "var(--surface2)", borderRadius: 12, border: "1px solid var(--border)" }}>
+    <div style={{ padding: 16, background: "var(--surface2)", borderRadius: 12, border: "1px solid var(--border)" }}>
+      {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {isConnected
             ? <CheckCircle size={16} color="#22c55e" />
-            : <WifiOff size={16} color="var(--text-faint)" />
-          }
+            : <WifiOff size={16} color="var(--text-faint)" />}
           <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
             WhatsApp — {barberName}
           </span>
         </div>
         <span style={{
           fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20,
-          background: isConnected ? "rgba(34,197,94,0.1)" : "rgba(113,113,122,0.1)",
-          color: isConnected ? "#22c55e" : "var(--text-faint)",
+          background: isConnected ? "rgba(34,197,94,0.1)" : hasQR ? "rgba(234,179,8,0.1)" : "rgba(113,113,122,0.1)",
+          color: isConnected ? "#22c55e" : hasQR ? "#eab308" : "var(--text-faint)",
         }}>
-          {isConnected ? "Conectado" : state.status === "qr_ready" ? "Escanea el QR" : "Desconectado"}
+          {isConnected ? "Conectado" : hasQR ? "Escanea el QR" : isLoading ? "Iniciando..." : "Desconectado"}
         </span>
       </div>
 
       {/* Conectado */}
       {isConnected && (
         <div style={{ textAlign: "center" }}>
-          <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 10 }}>
-            ✅ Recibirá notificaciones automáticas de nuevas reservas.
+          <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12 }}>
+            ✅ El barbero recibirá notificaciones automáticas de nuevas reservas.
           </p>
-          <button onClick={disconnect} style={{ fontSize: 12, color: "var(--text-faint)", background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 12px", cursor: "pointer" }}>
-            Desconectar
-          </button>
+          <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+            <button
+              onClick={disconnect}
+              style={{ fontSize: 12, color: "var(--text-faint)", background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 14px", cursor: "pointer" }}
+            >
+              Desconectar
+            </button>
+            <button
+              onClick={() => setShowReset(true)}
+              style={{ fontSize: 12, color: "#ef4444", background: "none", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "6px 14px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+            >
+              <Trash2 size={11} /> Perdí mi celular
+            </button>
+          </div>
         </div>
       )}
 
-      {/* QR listo para escanear */}
+      {/* QR listo */}
       {hasQR && (
         <div style={{ textAlign: "center" }}>
           <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 10 }}>
             Abre WhatsApp → Dispositivos vinculados → Escanea este QR
           </p>
-          <img src={state.qr} alt="QR WhatsApp" style={{ width: 200, height: 200, borderRadius: 8, border: "1px solid var(--border)" }} />
-          <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 8 }}>
-            El QR expira en 30 segundos
-          </p>
+          <img src={qr} alt="QR WhatsApp" style={{ width: 200, height: 200, borderRadius: 8, border: "1px solid var(--border)", display: "block", margin: "0 auto" }} />
+          <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 8 }}>El QR se actualiza automáticamente</p>
+          <div style={{ display: "flex", gap: 8, marginTop: 10, justifyContent: "center" }}>
+            <button
+              onClick={startSession}
+              style={{ fontSize: 12, padding: "7px 14px", borderRadius: 9, background: "none", color: "var(--text-faint)", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+            >
+              <RefreshCw size={12} /> Nuevo QR
+            </button>
+            <button
+              onClick={() => setShowReset(true)}
+              style={{ fontSize: 12, padding: "7px 14px", borderRadius: 9, background: "none", color: "#ef4444", border: "1px solid rgba(239,68,68,0.3)", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+            >
+              <Trash2 size={12} /> Resetear sesión
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Loading */}
+      {/* Cargando */}
       {isLoading && (
-        <div style={{ textAlign: "center", padding: "16px 0" }}>
-          <Loader2 size={24} color="var(--brand)" style={{ animation: "spin 1s linear infinite", margin: "0 auto" }} />
-          <p style={{ fontSize: 12, color: "var(--text-faint)", marginTop: 8 }}>
-            {state.status === "reconnecting" ? "Reconectando..." : "Generando QR..."}
+        <div style={{ textAlign: "center", padding: "20px 0" }}>
+          <Loader2 size={28} color="var(--brand)" style={{ animation: "spin 1s linear infinite", margin: "0 auto 10px" }} />
+          <p style={{ fontSize: 12, color: "var(--text-faint)" }}>
+            Generando QR… puede tardar unos segundos
           </p>
         </div>
       )}
 
       {/* Error */}
-      {state.status === "error" && (
-        <p style={{ fontSize: 12, color: "#ef4444", marginBottom: 8 }}>{state.error}</p>
+      {status === "error" && (
+        <div style={{ display: "flex", gap: 8, alignItems: "flex-start", background: "rgba(239,68,68,0.08)", borderRadius: 8, padding: "10px 12px", marginBottom: 10 }}>
+          <AlertTriangle size={14} color="#ef4444" style={{ marginTop: 1, flexShrink: 0 }} />
+          <p style={{ fontSize: 12, color: "#ef4444", margin: 0 }}>{error}</p>
+        </div>
       )}
 
-      {/* Botón conectar (cuando está idle o error) */}
+      {/* Botón conectar (idle o error) */}
       {!isConnected && !isLoading && !hasQR && (
-        <button
-          onClick={fetchQR}
-          style={{ width: "100%", padding: "10px", borderRadius: 9, background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 13, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
-        >
-          <Wifi size={14} /> Conectar WhatsApp
-        </button>
+        <div>
+          <button
+            onClick={startSession}
+            style={{ width: "100%", padding: "11px", borderRadius: 9, background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 13, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+          >
+            <Wifi size={14} /> Conectar WhatsApp
+          </button>
+          {status !== "idle" && (
+            <button
+              onClick={() => setShowReset(true)}
+              style={{ width: "100%", marginTop: 8, padding: "8px", borderRadius: 9, background: "none", color: "var(--text-faint)", fontSize: 12, border: "1px solid var(--border)", cursor: "pointer" }}
+            >
+              Hay una sesión antigua — resetear
+            </button>
+          )}
+        </div>
       )}
 
-      {/* Botón refrescar QR */}
-      {hasQR && (
-        <button onClick={fetchQR} style={{ width: "100%", marginTop: 8, padding: "8px", borderRadius: 9, background: "none", color: "var(--text-faint)", fontSize: 12, border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-          <RefreshCw size={12} /> Refrescar QR
-        </button>
+      {/* Modal confirmación reset */}
+      {showReset && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 9999,
+          background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
+        }} onClick={() => setShowReset(false)}>
+          <div style={{ background: "var(--surface)", borderRadius: 16, padding: 24, maxWidth: 340, width: "100%" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <AlertTriangle size={20} color="#f59e0b" />
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--text)" }}>Resetear sesión de WhatsApp</h3>
+            </div>
+            <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 20, lineHeight: 1.5 }}>
+              Esto borrará la sesión actual de WhatsApp del barbero <strong>{barberName}</strong>. Deberás volver a escanear el QR con el teléfono nuevo (o el mismo si solo quieres reconectar).
+            </p>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => setShowReset(false)}
+                style={{ flex: 1, padding: "10px", borderRadius: 9, background: "none", border: "1px solid var(--border)", color: "var(--text)", fontSize: 13, cursor: "pointer" }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={resetSession}
+                disabled={resetting}
+                style={{ flex: 1, padding: "10px", borderRadius: 9, background: "#ef4444", color: "#fff", fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+              >
+                {resetting ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : null}
+                {resetting ? "Reseteando..." : "Sí, resetear"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
