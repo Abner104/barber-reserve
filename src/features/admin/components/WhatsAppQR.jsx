@@ -44,6 +44,8 @@ export default function WhatsAppQR({ barberId, barberName, barberPhone }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error al solicitar código");
+      // Mostrar el código generado por Baileys para que el barbero lo ingrese en su WhatsApp
+      if (data.code) setCode(data.code);
       setStep("waiting_code");
       // Polling para detectar si ya se conectó automáticamente
       pollRef.current = setInterval(async () => {
@@ -203,28 +205,23 @@ export default function WhatsAppQR({ barberId, barberName, barberPhone }) {
         <div>
           <div style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 8, padding: "10px 12px", marginBottom: 12 }}>
             <p style={{ fontSize: 12, color: "#22c55e", margin: 0, fontWeight: 600 }}>
-              ✅ Código enviado a {phoneDisplay}
+              ✅ Código generado para {phoneDisplay}
             </p>
             <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>
-              Abre WhatsApp → verás un mensaje con el código de 8 dígitos
+              El barbero debe abrir WhatsApp → Dispositivos vinculados → Vincular con número de teléfono → e ingresar este código:
             </p>
           </div>
-          <input
-            type="text"
-            value={code}
-            onChange={e => setCode(e.target.value.toUpperCase())}
-            placeholder="XXXX-XXXX"
-            maxLength={9}
-            style={{ width: "100%", padding: "12px", borderRadius: 9, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", fontSize: 20, fontWeight: 700, letterSpacing: 4, textAlign: "center", outline: "none", marginBottom: 10, boxSizing: "border-box" }}
-          />
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={() => { setStep("entering_phone"); setCode(""); setError(null); }} style={{ flex: 1, padding: 10, borderRadius: 9, background: "none", border: "1px solid var(--border)", color: "var(--text-faint)", fontSize: 13, cursor: "pointer" }}>
-              Atrás
-            </button>
-            <button onClick={confirmCode} style={{ flex: 2, padding: 10, borderRadius: 9, background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 13, border: "none", cursor: "pointer" }}>
-              Confirmar código
-            </button>
+          {/* Código generado — mostrar en grande para que el barbero lo vea */}
+          <div style={{ background: "var(--surface)", border: "2px dashed var(--brand)", borderRadius: 12, padding: "16px", textAlign: "center", marginBottom: 12 }}>
+            <p style={{ fontSize: 11, color: "var(--text-faint)", margin: "0 0 6px", textTransform: "uppercase", letterSpacing: 1 }}>Código de vinculación</p>
+            <p style={{ fontSize: 32, fontWeight: 900, color: "var(--brand)", letterSpacing: 6, margin: 0, fontFamily: "monospace" }}>{code || "———————"}</p>
           </div>
+          <p style={{ fontSize: 11, color: "var(--text-faint)", textAlign: "center", marginBottom: 10 }}>
+            Esperando que el barbero lo ingrese en WhatsApp…
+          </p>
+          <button onClick={() => { setStep("entering_phone"); setCode(""); setError(null); if (pollRef.current) clearInterval(pollRef.current); }} style={{ width: "100%", padding: 10, borderRadius: 9, background: "none", border: "1px solid var(--border)", color: "var(--text-faint)", fontSize: 13, cursor: "pointer" }}>
+            Cancelar y volver
+          </button>
         </div>
       )}
 
