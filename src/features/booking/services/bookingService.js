@@ -65,8 +65,9 @@ export async function getAvailableSlots({ barberId, date, durationMin }) {
 
   if (!wh) return [];
 
-  const dayStart = `${date}T00:00:00`;
-  const dayEnd   = `${date}T23:59:59`;
+  // Usar UTC explícito para filtrar — Chile es UTC-4
+  const dayStart = `${date}T00:00:00-04:00`;
+  const dayEnd   = `${date}T23:59:59-04:00`;
 
   const [{ data: existingBookings }, { data: blocks }] = await Promise.all([
     supabase.from("bookings")
@@ -83,12 +84,13 @@ export async function getAvailableSlots({ barberId, date, durationMin }) {
   ]);
 
   // Función para verificar si un slot está bloqueado
+  // Todos los Date() se comparan en UTC internamente — consistente
   function isBlocked(cursor) {
     const slotEnd = addMinutes(cursor, durationMin);
     return (
       (existingBookings || []).some(b => {
         const bs  = new Date(b.scheduled_at);
-        const dur = b.duration_min || durationMin; // fallback si duration_min es null
+        const dur = b.duration_min || durationMin;
         const be  = addMinutes(bs, dur);
         return cursor < be && slotEnd > bs;
       }) ||
@@ -100,18 +102,18 @@ export async function getAvailableSlots({ barberId, date, durationMin }) {
     );
   }
 
-  // MODO 1: Slots específicos configurados por el barbero
+  // MODO 1: Slots específicos — construir con timezone Chile
   if (wh.available_slots && wh.available_slots.length > 0) {
     return wh.available_slots.filter(slot => {
-      const cursor = new Date(`${date}T${slot}:00`);
+      const cursor = new Date(`${date}T${slot}:00-04:00`);
       return !isBlocked(cursor);
     });
   }
 
-  // MODO 2: Rango continuo (backward compatible)
+  // MODO 2: Rango continuo
   const slots     = [];
-  const workStart = new Date(`${date}T${wh.start_time}`);
-  const workEnd   = new Date(`${date}T${wh.end_time}`);
+  const workStart = new Date(`${date}T${wh.start_time}-04:00`);
+  const workEnd   = new Date(`${date}T${wh.end_time}-04:00`);
   let cursor      = workStart;
 
   while (addMinutes(cursor, durationMin) <= workEnd) {
@@ -137,10 +139,10 @@ export async function createBooking({ type, serviceId, barberId, date, slot, dur
   }
 
   // 0b. Verificar solapamiento real con reservas existentes del día
-  const newStart = new Date(`${date}T${slot}:00`);
+  const newStart = new Date(`${date}T${slot}:00-04:00`);
   const newEnd   = addMinutes(newStart, durationMin);
-  const dayStart = `${date}T00:00:00`;
-  const dayEnd   = `${date}T23:59:59`;
+  const dayStart = `${date}T00:00:00-04:00`;
+  const dayEnd   = `${date}T23:59:59-04:00`;
 
   const { data: dayBookings } = await supabase
     .from("bookings")
