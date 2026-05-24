@@ -104,9 +104,12 @@ export async function getAvailableSlots({ barberId, date, durationMin }) {
 
   // MODO 1: Slots específicos — construir con timezone Chile
   if (wh.available_slots && wh.available_slots.length > 0) {
+    console.log("[slots] existingBookings:", existingBookings?.map(b => ({ at: b.scheduled_at, utc: new Date(b.scheduled_at).toISOString() })));
     return wh.available_slots.filter(slot => {
       const cursor = new Date(`${date}T${slot}:00-04:00`);
-      return !isBlocked(cursor);
+      const blocked = isBlocked(cursor);
+      console.log(`[slots] ${slot} cursor=${cursor.toISOString()} blocked=${blocked}`);
+      return !blocked;
     });
   }
 
