@@ -3,12 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2, MapPin, Navigation2 } from "lucide-react";
 import { getMyBarberProfile, updateMyAvailability } from "../services/barberService";
-import { getBarberWorkingHours } from "../../admin/services/adminService";
 import { supabase } from "../../../lib/supabase";
 import ImageUpload from "../../../components/shared/ImageUpload";
-import { DAYS_OF_WEEK, DAY_LABEL } from "../../../lib/constants";
-import SlotPicker from "../../../components/shared/SlotPicker";
-import TimeSelect from "../../../components/shared/TimeSelect";
 import WhatsAppQR from "../../admin/components/WhatsAppQR";
 
 const O = "var(--brand, #FF6B2C)";
@@ -263,9 +259,6 @@ export default function PerfilPage() {
         </div>
       </div>
 
-      {/* Horario semanal */}
-      {barber?.id && <HorarioEditor barberId={barber.id} shopId={barber.shop_id} />}
-
       {/* WhatsApp — el barbero conecta su propio WS */}
       {barber?.id && (
         <div style={{ marginBottom: 16 }}>
@@ -291,133 +284,6 @@ export default function PerfilPage() {
   );
 }
 
-function HorarioEditor({ barberId, shopId }) {
-  const qc = useQueryClient();
-  const [openDay, setOpenDay] = useState(null);
-
-  const { data: hours = [] } = useQuery({
-    queryKey: ["wh", barberId],
-    queryFn:  () => getBarberWorkingHours(barberId),
-  });
-
-  const mut = useMutation({
-    mutationFn: async ({ day, slots, is_active }) => {
-      const sorted = [...slots].sort();
-
-      function addThirty(time) {
-        const [h, m] = time.split(":").map(Number);
-        const total  = h * 60 + m + 30;
-        return `${String(Math.floor(total / 60)).padStart(2,"0")}:${String(total % 60).padStart(2,"0")}`;
-      }
-
-      const startTime = sorted[0]                 ?? "09:00";
-      const lastSlot  = sorted[sorted.length - 1] ?? "09:00";
-      const endTime   = addThirty(lastSlot);
-
-      const { error } = await supabase
-        .from("working_hours")
-        .upsert({
-          shop_id:         shopId,
-          barber_id:       barberId,
-          day,
-          start_time:      startTime,
-          end_time:        endTime,
-          is_active:       is_active && sorted.length > 0,
-          available_slots: sorted.length > 0 ? sorted : null,
-        }, { onConflict: "barber_id,day" });
-
-      if (error) throw error;
-    },
-    onSuccess: () => { qc.invalidateQueries(["wh", barberId]); toast.success("Horario guardado ✅"); },
-    onError:   (e) => { console.error("wh error:", e); toast.error("Error al guardar: " + (e?.message ?? "")); },
-  });
-
-  const getDay = (day) => hours.find(h => h.day === day);
-
-  return (
-    <div style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 16, padding: 20, marginBottom: 16 }}>
-      <p style={{ fontSize: 12, color: "var(--text-faint)", fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 4 }}>
-        Mi horario semanal
-      </p>
-      <p style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 16 }}>
-        Activa el día y selecciona las horas en que estás disponible
-      </p>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {DAYS_OF_WEEK.map(day => {
-          const h       = getDay(day);
-          const active  = h?.is_active ?? false;
-          const slots   = h?.available_slots ?? [];
-          const isOpen  = openDay === day;
-
-          return (
-            <div key={day} style={{ background: "var(--surface2)", borderRadius: 12, overflow: "hidden" }}>
-              {/* Fila del día */}
-              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px" }}>
-                {/* Toggle activo */}
-                <button
-                  onClick={() => {
-                    if (!active) {
-                      // Activar el día — guardar con slots vacíos pero is_active=true
-                      // El barbero luego selecciona los slots
-                      supabase.from("working_hours").upsert({
-                        shop_id: shopId, barber_id: barberId, day,
-                        start_time: "09:00", end_time: "18:00",
-                        is_active: true, available_slots: null,
-                      }, { onConflict: "barber_id,day" }).then(({ error }) => {
-                        if (error) toast.error("Error: " + error.message);
-                        else { qc.invalidateQueries(["wh", barberId]); setOpenDay(day); toast.success("Día activado"); }
-                      });
-                    } else {
-                      mut.mutate({ day, slots: [], is_active: false });
-                      setOpenDay(null);
-                    }
-                  }}
-                  style={{ width: 40, height: 22, borderRadius: 11, background: active ? "var(--brand, #FF6B2C)" : "var(--border)", border: "none", cursor: "pointer", position: "relative", flexShrink: 0, transition: "background 0.2s" }}
-                >
-                  <div style={{ position: "absolute", top: 2, width: 18, height: 18, borderRadius: "50%", background: "#fff", left: active ? 20 : 2, transition: "left 0.2s" }} />
-                </button>
-
-                <div
-                  style={{ flex: 1, cursor: active ? "pointer" : "default" }}
-                  onClick={() => active && setOpenDay(isOpen ? null : day)}
-                >
-                  <p style={{ fontSize: 13, fontWeight: active ? 700 : 400, color: active ? "var(--text)" : "var(--text-faint)" }}>
-                    {DAY_LABEL[day]}
-                  </p>
-                  {active && (
-                    <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 1 }}>
-                      {slots.length > 0 ? `${slots.length} horario${slots.length > 1 ? "s" : ""}` : "Sin horas seleccionadas"}
-                    </p>
-                  )}
-                </div>
-
-                {active && (
-                  <span style={{ fontSize: 11, color: "var(--brand)", fontWeight: 600, cursor: "pointer" }} onClick={() => setOpenDay(isOpen ? null : day)}>
-                    {isOpen ? "Cerrar ↑" : "Editar →"}
-                  </span>
-                )}
-              </div>
-
-              {/* SlotPicker expandible */}
-              {active && isOpen && (
-                <div style={{ padding: "4px 14px 14px", borderTop: "1px solid var(--border)" }}>
-                  <p style={{ fontSize: 11, color: "var(--text-faint)", marginBottom: 10, marginTop: 10 }}>
-                    Toca las horas en que estarás disponible:
-                  </p>
-                  <SlotPicker
-                    selected={slots}
-                    onChange={newSlots => mut.mutate({ day, slots: newSlots, is_active: true })}
-                  />
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 function Toggle({ label, desc, active, onChange, color }) {
   return (

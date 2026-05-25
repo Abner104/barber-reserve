@@ -11,9 +11,8 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { getMyAgenda, getMyBarberProfile, getMyUpcomingBookings } from "../services/barberService";
 import { getBarberWorkingHours } from "../../admin/services/adminService";
-import SlotPicker from "../../../components/shared/SlotPicker";
 import { updateBookingStatus } from "../../admin/services/adminService";
-import { BOOKING_STATUS_LABEL, BOOKING_STATUS_COLOR, PAYMENT_METHOD_LABEL } from "../../../lib/constants";
+import { BOOKING_STATUS_LABEL, BOOKING_STATUS_COLOR } from "../../../lib/constants";
 import { formatCurrency } from "../../../lib/utils";
 import { supabase } from "../../../lib/supabase";
 
