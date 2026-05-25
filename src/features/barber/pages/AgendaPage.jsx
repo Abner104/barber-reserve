@@ -110,27 +110,22 @@ export default function AgendaPage() {
     if (!profile?.id)      { toast.error("Tu cuenta no está vinculada a un barbero."); return; }
     if (!profile?.shop_id) { toast.error("Sin shop_id — contacta al administrador."); return; }
 
-    // Si se llama con start_time/end_time nuevos (desde el input de hora), mantener is_active
-    const keepActive = currentHour?.is_active !== undefined && (currentHour.start_time || currentHour.end_time);
-    const isActive   = keepActive ? currentHour.is_active : !(currentHour?.is_active ?? false);
+    const isActive = !(currentHour?.is_active ?? false);
 
     const payload = {
       shop_id:         profile.shop_id,
       barber_id:       profile.id,
       day,
-      start_time:      currentHour?.start_time ?? "09:00",
-      end_time:        currentHour?.end_time   ?? "18:00",
+      start_time:      currentHour?.start_time      ?? "09:00",
+      end_time:        currentHour?.end_time         ?? "18:00",
       is_active:       isActive,
-      available_slots: null,
+      available_slots: currentHour?.available_slots  ?? null,
     };
     const { error } = await supabase.from("working_hours")
       .upsert(payload, { onConflict: "barber_id,day" })
       .select();
     if (error) toast.error("Error: " + error.message);
-    else {
-      refetchHours();
-      if (!keepActive) toast.success(isActive ? "Día activado ✅" : "Día desactivado");
-    }
+    else { refetchHours(); toast.success(isActive ? "Día activado ✅" : "Día desactivado"); }
   }
 
   async function saveSlots(day, slots) {
