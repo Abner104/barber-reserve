@@ -258,6 +258,18 @@ function BarberModal({ barber, onClose, onSave, loading }) {
     day_rate_amount: barber.day_rate_amount ?? 0,
   } : EMPTY_BARBER);
 
+  const [formErrors, setFormErrors] = useState({});
+
+  function handleSave() {
+    const e = {};
+    if (!form.full_name.trim()) e.full_name = "El nombre es obligatorio";
+    if (form.phone && !/^\+?\d{7,15}$/.test(form.phone.replace(/\s/g, ""))) e.phone = "Teléfono inválido (solo números, 7-15 dígitos)";
+    if (!barber && form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Email inválido";
+    if (Object.keys(e).length) { setFormErrors(e); return; }
+    setFormErrors({});
+    onSave(form);
+  }
+
   const inp = { background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", color: "var(--text)", fontSize: 14, width: "100%", boxSizing: "border-box", outline: "none" };
 
   return (
@@ -270,19 +282,36 @@ function BarberModal({ barber, onClose, onSave, loading }) {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <Field label="Nombre completo *">
-            <input style={inp} value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} placeholder="Carlos Rodríguez" />
+            <input
+              style={{ ...inp, borderColor: formErrors.full_name ? "#ef4444" : "var(--border)" }}
+              value={form.full_name}
+              onChange={e => { setForm({ ...form, full_name: e.target.value }); setFormErrors(p => ({ ...p, full_name: "" })); }}
+              placeholder="Carlos Rodríguez"
+            />
+            {formErrors.full_name && <p style={{ color: "#ef4444", fontSize: 12, marginTop: 5 }}>{formErrors.full_name}</p>}
           </Field>
           {!barber && (
             <Field label="Email del barbero (para su acceso al panel)">
-              <input style={inp} type="email" value={form.email ?? ""} onChange={e => setForm({ ...form, email: e.target.value })}
-                placeholder="jordan@noblecut.com" />
-              <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 4 }}>
-                Se enviará un email de activación. El admin recibirá la contraseña temporal para compartirla.
-              </p>
+              <input
+                style={{ ...inp, borderColor: formErrors.email ? "#ef4444" : "var(--border)" }}
+                type="email" value={form.email ?? ""}
+                onChange={e => { setForm({ ...form, email: e.target.value }); setFormErrors(p => ({ ...p, email: "" })); }}
+                placeholder="jordan@noblecut.com"
+              />
+              {formErrors.email
+                ? <p style={{ color: "#ef4444", fontSize: 12, marginTop: 5 }}>{formErrors.email}</p>
+                : <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 4 }}>Se enviará un email de activación. El admin recibirá la contraseña temporal para compartirla.</p>
+              }
             </Field>
           )}
           <Field label="Teléfono / WhatsApp">
-            <input style={inp} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="3001234567" />
+            <input
+              style={{ ...inp, borderColor: formErrors.phone ? "#ef4444" : "var(--border)" }}
+              value={form.phone}
+              onChange={e => { setForm({ ...form, phone: e.target.value }); setFormErrors(p => ({ ...p, phone: "" })); }}
+              placeholder="+56912345678"
+            />
+            {formErrors.phone && <p style={{ color: "#ef4444", fontSize: 12, marginTop: 5 }}>{formErrors.phone}</p>}
           </Field>
           <Field label="Especialidad">
             <input style={inp} value={form.specialty} onChange={e => setForm({ ...form, specialty: e.target.value })} placeholder="Fades, Barbas, Diseños" />
@@ -399,9 +428,9 @@ function BarberModal({ barber, onClose, onSave, loading }) {
             Cancelar
           </button>
           <button
-            onClick={() => { if (form.full_name.trim()) onSave(form); }}
-            disabled={loading || !form.full_name.trim()}
-            style={{ flex: 1, padding: "12px", borderRadius: 10, background: "var(--brand)", border: "none", color: "var(--text)", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: loading ? 0.7 : 1 }}
+            onClick={handleSave}
+            disabled={loading}
+            style={{ flex: 1, padding: "12px", borderRadius: 10, background: "var(--brand)", border: "none", color: "#fff", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: loading ? 0.7 : 1 }}
           >
             {loading && <Loader2 size={16} />}
             {barber ? "Guardar cambios" : "Crear barbero"}

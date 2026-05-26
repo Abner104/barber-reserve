@@ -218,8 +218,8 @@ export async function createBooking({ type, serviceId, barberId, date, slot, dur
     addressId = addr.id;
   }
 
-  // 3. crear la reserva
-  const scheduledAt = new Date(`${date}T${slot}:00`).toISOString();
+  // 3. crear la reserva — siempre con timezone Chile explícito
+  const scheduledAt = new Date(`${date}T${slot}:00-04:00`).toISOString();
   const payload = {
     shop_id:      shopId,
     client_id:    clientId,
