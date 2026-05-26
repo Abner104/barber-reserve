@@ -76,7 +76,7 @@ async function notifyClient(bookingRecord, clientInfo, serviceInfo, barberName) 
 }
 
 export default function StepConfirm() {
-  const { type, service, people, barber, date, slot, address, clientInfo, setClientInfo, setStep, prevStep, shopConfig } = useBookingStore();
+  const { type, services, people, barber, date, slot, address, clientInfo, setClientInfo, setStep, prevStep, shopConfig, getTotalDuration, getTotal } = useBookingStore();
   const [form, setForm]         = useState(clientInfo);
   const [errors, setErrors]     = useState({});
   const [showPhone, setShowPhone] = useState(false);
@@ -117,18 +117,19 @@ export default function StepConfirm() {
   const distanceKm   = type === "delivery" && address.lat ? getDistanceKm(origin, { lat: address.lat, lng: address.lng }) : null;
   const deliveryFee  = distanceKm != null ? calcDeliveryFee(distanceKm, 0, feePerKm) : 0;
   const peopleCount  = people || 1;
-  const servicePrice = (service?.price ?? 0) * peopleCount;
+  const servicePrice = getTotal();
   const total        = servicePrice + deliveryFee;
   const dateLabel    = date ? format(new Date(date + "T12:00:00"), "EEEE d 'de' MMMM", { locale: es }) : "";
 
   const mutation = useMutation({
-    mutationFn: () => createBooking({ type, serviceId: service.id, barberId: barber.id, date, slot, durationMin: service.duration_min * peopleCount, price: servicePrice, deliveryFee, address, clientInfo: form, proofUrl: proofUrl || null, peopleCount }),
+    mutationFn: () => createBooking({ type, serviceId: services[0]?.id, serviceIds: services.map(s => s.id), barberId: barber.id, date, slot, durationMin: getTotalDuration(), price: servicePrice, deliveryFee, address, clientInfo: form, proofUrl: proofUrl || null, peopleCount }),
     onSuccess: (booking) => {
       setClientInfo(form);
       setStep(7);
       toast.success("¡Reserva creada!");
-      notifyBarber(booking, form, service);
-      notifyClient(booking, form, service, barber?.full_name);
+      const svcInfo = { name: services.map(s => s.name).join(" + ") };
+      notifyBarber(booking, form, svcInfo);
+      notifyClient(booking, form, svcInfo, barber?.full_name);
       // Notificar al barbero del comprobante si es domicilio
       if (type === "delivery" && proofUrl) {
         fetch(`${WA_URL}/notify`, {
@@ -177,7 +178,7 @@ export default function StepConfirm() {
       {/* Resumen */}
       <div style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 20, padding: 20, marginBottom: 24 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <SRow icon={<Scissors size={14} />} label="Servicio" value={service?.name} sub={peopleCount > 1 ? `${peopleCount} personas · ${formatCurrency(servicePrice)}` : formatCurrency(servicePrice)} />
+          <SRow icon={<Scissors size={14} />} label={services?.length > 1 ? "Servicios" : "Servicio"} value={services?.map(s => s.name).join(" + ")} sub={peopleCount > 1 ? `${peopleCount} personas · ${formatCurrency(servicePrice)}` : formatCurrency(servicePrice)} />
           <SRow icon={<User size={14} />} label="Barbero" value={barber?.full_name} />
           <SRow icon={<Calendar size={14} />} label="Fecha" value={<span style={{ textTransform: "capitalize" }}>{dateLabel}</span>} />
           <SRow icon={<Clock size={14} />} label="Hora" value={slot} />

@@ -10,7 +10,7 @@ import { applyTheme } from "../lib/applyTheme";
 async function getShopBySlug(slug) {
   const { data, error } = await supabase
     .from("barbershops")
-    .select("id, name, slug, theme_mode, theme_color, theme_font, logo_url, is_active, lat, lng, delivery_fee_base, delivery_fee_per_km")
+    .select("id, name, slug, theme_mode, theme_color, theme_font, logo_url, is_active, lat, lng, delivery_fee_base, delivery_fee_per_km, allows_delivery")
     .eq("slug", slug)
     .maybeSingle();
   if (error) throw error;
@@ -45,6 +45,7 @@ export default function ShopBookingPage() {
         lng:                activeShop.lng                ?? -70.6693,
         delivery_fee_base:  activeShop.delivery_fee_base  ?? 0,
         delivery_fee_per_km: activeShop.delivery_fee_per_km ?? 650,
+        allows_delivery:    activeShop.allows_delivery    ?? true,
       });
       applyTheme(activeShop);
       document.title = `${activeShop.name} — Reservar`;

@@ -6,7 +6,7 @@ import { useBookingStore } from "../../../store/bookingStore";
 import { getDistanceKm, calcDeliveryFee } from "../../../lib/mapbox";
 
 export default function BookingSummaryPanel() {
-  const { type, service, barber, date, slot, address, shopConfig } = useBookingStore();
+  const { type, services, barber, date, slot, address, shopConfig, getTotal } = useBookingStore();
 
   if (!type) return (
     <div style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 14, padding: 16 }}>
@@ -22,10 +22,10 @@ export default function BookingSummaryPanel() {
     ? { lat: shopConfig.lat, lng: shopConfig.lng }
     : { lat: -33.4489, lng: -70.6693 };
 
-  const feePerKm     = shopConfig?.delivery_fee_per_km ?? 650;
-  const distanceKm   = type === "delivery" && address.lat ? getDistanceKm(origin, { lat: address.lat, lng: address.lng }) : null;
-  const deliveryFee  = distanceKm != null ? calcDeliveryFee(distanceKm, 0, feePerKm) : 0;
-  const servicePrice = service?.price ?? 0;
+  const feePerKm    = shopConfig?.delivery_fee_per_km ?? 650;
+  const distanceKm  = type === "delivery" && address.lat ? getDistanceKm(origin, { lat: address.lat, lng: address.lng }) : null;
+  const deliveryFee = distanceKm != null ? calcDeliveryFee(distanceKm, 0, feePerKm) : 0;
+  const servicePrice = getTotal();
   const total        = servicePrice + deliveryFee;
   const barberName   = barber?.full_name;
   const dateLabel    = date ? format(new Date(date + "T12:00:00"), "EEE d MMM", { locale: es }) : null;
@@ -35,7 +35,9 @@ export default function BookingSummaryPanel() {
       <p style={{ color: "var(--text-faint)", fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", marginBottom: 2 }}>Tu reserva</p>
 
       {type && <Row icon={<MapPin size={13} />} value={type === "delivery" ? "A domicilio" : "En el local"} orange />}
-      {service && <Row icon={<Scissors size={13} />} value={service.name} sub={formatCurrency(servicePrice)} />}
+      {services?.map(s => (
+        <Row key={s.id} icon={<Scissors size={13} />} value={s.name} sub={formatCurrency(s.price)} />
+      ))}
       {barberName && <Row icon={<User size={13} />} value={barberName} />}
       {dateLabel && <Row icon={<Calendar size={13} />} value={<span style={{ textTransform: "capitalize" }}>{dateLabel}</span>} />}
       {slot && <Row icon={<Clock size={13} />} value={slot} />}
@@ -43,7 +45,7 @@ export default function BookingSummaryPanel() {
         <Row icon={<MapPin size={13} />} value={address.line} sub={`Domicilio: ${formatCurrency(deliveryFee)}`} />
       )}
 
-      {service && (
+      {services?.length > 0 && (
         <div style={{ borderTop: "1px solid #2A2A2A", marginTop: 4, paddingTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={{ color: "var(--text-muted)", fontSize: 12 }}>Total estimado</span>
           <span style={{ color: "var(--brand)", fontWeight: 700, fontSize: 14 }}>{formatCurrency(total)}</span>

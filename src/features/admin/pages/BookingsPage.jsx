@@ -184,15 +184,32 @@ export default function BookingsPage() {
         </div>
       </div>
 
+      {/* ── SHIMMER CSS ── */}
+      <style>{`
+        @keyframes shimmer {
+          0%   { background-position: -600px 0; }
+          100% { background-position: 600px 0; }
+        }
+        .shimmer-row {
+          background: linear-gradient(90deg, var(--surface2) 25%, var(--card-border, #2A2A2A) 50%, var(--surface2) 75%);
+          background-size: 1200px 100%;
+          animation: shimmer 1.4s infinite linear;
+          border-radius: 14px;
+        }
+      `}</style>
+
       {/* ── VISTA LISTA ── */}
       {view === "list" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {isLoading && [1,2,3].map(i => <div key={i} style={{ height: 72, borderRadius: 12, background: "var(--card-bg)" }} />)}
+          {isLoading && [1,2,3,4].map(i => <div key={i} className="shimmer-row" style={{ height: 72 }} />)}
 
           {!isLoading && bookings.length === 0 && (
-            <div style={{ textAlign: "center", padding: "60px 0", color: "var(--text-faint)" }}>
-              <Calendar size={36} style={{ marginBottom: 10, opacity: 0.3, margin: "0 auto 12px" }} />
-              <p>No hay reservas para este día.</p>
+            <div style={{ textAlign: "center", padding: "64px 20px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 16 }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>📅</div>
+              <p style={{ fontWeight: 700, fontSize: 16, color: "var(--text)", marginBottom: 6 }}>Sin reservas</p>
+              <p style={{ color: "var(--text-faint)", fontSize: 13 }}>
+                {selectedDate ? "No hay reservas para esta fecha." : "No hay próximas reservas registradas."}
+              </p>
             </div>
           )}
 
@@ -201,9 +218,17 @@ export default function BookingsPage() {
             const waUrl = buildWaLink(b);
             const actions = STATUS_ACTIONS[b.status] ?? [];
             const isOpen  = detailId === b.id;
+            const accentColor = {
+              pending:     "#f59e0b",
+              confirmed:   "#3b82f6",
+              in_progress: O,
+              completed:   "#22c55e",
+              cancelled:   "#ef4444",
+              no_show:     "#6b7280",
+            }[b.status] ?? "var(--border)";
 
             return (
-              <div key={b.id} style={{ background: "var(--card-bg)", border: `1px solid ${isOpen ? O + "44" : "#1E1E1E"}`, borderRadius: 14, overflow: "hidden", transition: "border-color 0.2s" }}>
+              <div key={b.id} style={{ background: "var(--card-bg)", border: `1px solid ${isOpen ? O + "44" : "var(--card-border)"}`, borderRadius: 14, overflow: "hidden", transition: "border-color 0.2s", borderLeft: `4px solid ${accentColor}` }}>
                 {/* fila principal */}
                 <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", cursor: "pointer" }} onClick={() => setDetailId(isOpen ? null : b.id)}>
 

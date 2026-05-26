@@ -1,4 +1,5 @@
-import { MapPin, Scissors, Store, ArrowRight } from "lucide-react";
+import { useEffect } from "react";
+import { MapPin, Store, ArrowRight } from "lucide-react";
 import { useBookingStore } from "../../../../store/bookingStore";
 
 const CSS = `
@@ -8,9 +9,17 @@ const CSS = `
 `;
 
 export default function StepType() {
-  const { setType, step, setStep } = useBookingStore();
+  const { setType, step, setStep, shopConfig } = useBookingStore();
+  const allowsDelivery = shopConfig?.allows_delivery ?? true;
 
   function choose(type) { setType(type); setStep(step + 1); }
+
+  // Si solo hay local, saltar este paso automáticamente
+  useEffect(() => {
+    if (!allowsDelivery) choose("in_store");
+  }, [allowsDelivery]);
+
+  if (!allowsDelivery) return null;
 
   return (
     <div style={{ animation: "fadeUp .4s ease" }}>
@@ -25,8 +34,6 @@ export default function StepType() {
       </p>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-
-        {/* En el local */}
         <button className="type-card" onClick={() => choose("in_store")}
           style={{ display: "flex", alignItems: "center", gap: 20, padding: "22px 22px", borderRadius: 18, background: "var(--card-bg)", cursor: "pointer", textAlign: "left", width: "100%" }}>
           <div style={{ width: 56, height: 56, borderRadius: 16, background: "var(--brand-alpha)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -39,7 +46,6 @@ export default function StepType() {
           <ArrowRight size={18} color="var(--text-faint)" />
         </button>
 
-        {/* A domicilio */}
         <button className="type-card" onClick={() => choose("delivery")}
           style={{ display: "flex", alignItems: "center", gap: 20, padding: "22px 22px", borderRadius: 18, background: "var(--card-bg)", cursor: "pointer", textAlign: "left", width: "100%", position: "relative" }}>
           <div style={{ position: "absolute", top: -10, right: 16, background: "var(--brand)", color: "#fff", fontSize: 10, fontWeight: 800, padding: "3px 12px", borderRadius: 20, letterSpacing: 1 }}>

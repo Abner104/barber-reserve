@@ -213,11 +213,25 @@ export default function SettingsPage() {
           </Section>
 
           {/* Cuenta para transferencias */}
-          <Section title="💸 Cuenta para domicilios">
+          <Section title="💸 Domicilios">
+            <button
+              type="button"
+              onClick={() => setForm({ ...form, allows_delivery: !form.allows_delivery })}
+              style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "12px 14px", borderRadius: 10, cursor: "pointer", textAlign: "left", marginBottom: 14, background: form.allows_delivery ? "var(--brand-alpha)" : "var(--surface2)", border: `1px solid ${form.allows_delivery ? "var(--brand)" : "var(--border)"}` }}
+            >
+              <div style={{ width: 40, height: 22, borderRadius: 11, position: "relative", flexShrink: 0, background: form.allows_delivery ? "var(--brand)" : "var(--border)", transition: "background 0.2s" }}>
+                <div style={{ position: "absolute", top: 2, width: 18, height: 18, borderRadius: "50%", background: "#fff", left: form.allows_delivery ? 20 : 2, transition: "left 0.2s" }} />
+              </div>
+              <div>
+                <p style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>{form.allows_delivery ? "✓ Domicilio activado" : "Domicilio desactivado"}</p>
+                <p style={{ fontSize: 12, color: "var(--text-faint)" }}>{form.allows_delivery ? "Los clientes pueden reservar a domicilio" : "Solo reservas en el local"}</p>
+              </div>
+            </button>
+            {form.allows_delivery && (
             <p style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 12, lineHeight: 1.5 }}>
               Los clientes verán estos datos para pagar el domicilio antes de confirmar la reserva.
-            </p>
-            <Field label="Banco">
+            </p>)}
+            {form.allows_delivery && <><Field label="Banco">
               <input style={inp} value={form.bank_name ?? ""} onChange={e => setForm({ ...form, bank_name: e.target.value })}
                 placeholder="Banco Estado, Santander..."
                 onFocus={f => f.target.style.borderColor = O} onBlur={f => f.target.style.borderColor = "#2A2A2A"} />
@@ -231,7 +245,7 @@ export default function SettingsPage() {
               <input style={inp} value={form.bank_account ?? ""} onChange={e => setForm({ ...form, bank_account: e.target.value })}
                 placeholder="12.345.678-9"
                 onFocus={f => f.target.style.borderColor = O} onBlur={f => f.target.style.borderColor = "#2A2A2A"} />
-            </Field>
+            </Field></>}
           </Section>
 
           {/* Imágenes */}

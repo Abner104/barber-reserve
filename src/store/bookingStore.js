@@ -3,9 +3,9 @@ import { create } from "zustand";
 const INITIAL = {
   step: 1,
   shopId: null,
-  shopConfig: null,  // { lat, lng, delivery_fee_base, delivery_fee_per_km }
+  shopConfig: null,  // { lat, lng, delivery_fee_base, delivery_fee_per_km, allows_delivery }
   type: null,
-  service: null,
+  services: [],      // array de servicios seleccionados
   people: 1,
   barber: null,
   date: null,
@@ -24,7 +24,12 @@ export const useBookingStore = create((set, get) => ({
   prevStep: () => set((s) => ({ step: Math.max(1, s.step - 1) })),
 
   setType: (type) => set({ type, barber: null, slot: null, date: null }),
-  setService: (service) => set({ service, people: 1, barber: null, slot: null, date: null }),
+  setServices: (services) => set({ services, people: 1, barber: null, slot: null, date: null }),
+  toggleService: (svc) => set((s) => {
+    const exists = s.services.some(x => x.id === svc.id);
+    const services = exists ? s.services.filter(x => x.id !== svc.id) : [...s.services, svc];
+    return { services, barber: null, slot: null, date: null };
+  }),
   setPeople: (people) => set({ people, barber: null, slot: null, date: null }),
   setBarber: (barber) => set({ barber, slot: null, date: null }),
   setDate: (date) => set({ date, slot: null }),
@@ -34,13 +39,21 @@ export const useBookingStore = create((set, get) => ({
 
   reset: () => set(INITIAL),
 
-  // precio total incluyendo domicilio si aplica
+  // precio total de todos los servicios × personas
   getTotal: () => {
-    const { service, type, people } = get();
-    if (!service) return 0;
-    const base = type === "delivery" && service.price_delivery != null
-      ? service.price_delivery
-      : service.price;
+    const { services, type, people } = get();
+    if (!services?.length) return 0;
+    const base = services.reduce((sum, svc) => {
+      const price = type === "delivery" && svc.price_delivery != null ? svc.price_delivery : svc.price;
+      return sum + price;
+    }, 0);
     return base * (people || 1);
+  },
+
+  // duración total de todos los servicios × personas
+  getTotalDuration: () => {
+    const { services, people } = get();
+    if (!services?.length) return 30;
+    return services.reduce((sum, svc) => sum + (svc.duration_min || 30), 0) * (people || 1);
   },
 }));

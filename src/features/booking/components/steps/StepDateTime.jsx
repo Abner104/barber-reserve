@@ -9,14 +9,14 @@ import { getAvailableSlots } from "../../services/bookingService";
 const DAY_LABELS = ["Lu","Ma","Mi","Ju","Vi","Sá","Do"];
 
 export default function StepDateTime() {
-  const { barber, service, people, type, date, slot, setDate, setSlot, nextStep, prevStep } = useBookingStore();
+  const { barber, type, date, slot, setDate, setSlot, nextStep, prevStep, getTotalDuration } = useBookingStore();
   const [viewMonth, setViewMonth] = useState(startOfMonth(new Date()));
 
   const today   = startOfDay(new Date());
   const maxDate = addDays(today, 30);
   const days    = eachDayOfInterval({ start: startOfMonth(viewMonth), end: endOfMonth(viewMonth) });
   const padStart = (getDay(startOfMonth(viewMonth)) + 6) % 7;
-  const durationMin = (service?.duration_min ?? 30) * (people || 1);
+  const durationMin = getTotalDuration();
 
   const { data: slots = [], isLoading: loadingSlots } = useQuery({
     queryKey: ["barber-slots", barber?.id, date, durationMin, type],
