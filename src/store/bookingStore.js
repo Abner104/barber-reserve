@@ -37,7 +37,7 @@ export const useBookingStore = create((set, get) => ({
   setAddress: (address) => set({ address }),
   setClientInfo: (clientInfo) => set({ clientInfo }),
 
-  reset: () => set(INITIAL),
+  reset: () => set((s) => ({ ...INITIAL, shopId: s.shopId, shopConfig: s.shopConfig })),
 
   // precio total de todos los servicios × personas
   getTotal: () => {
