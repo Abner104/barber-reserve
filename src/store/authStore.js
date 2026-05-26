@@ -28,7 +28,7 @@ export const useAuthStore = create((set, get) => ({
         resetTheme();
         // Redirigir si está en una ruta protegida
         const path = window.location.pathname;
-        if (path.startsWith("/admin") || path.startsWith("/barber") || path.startsWith("/superadmin")) {
+        if (path.startsWith("/admin") || path.startsWith("/barber") || path.startsWith("/superadmin") || path.startsWith("/supplier")) {
           window.location.href = "/login";
         }
         return;

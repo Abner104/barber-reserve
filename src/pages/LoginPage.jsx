@@ -12,6 +12,7 @@ const O = "#FF6B2C";
 function getRoleRoute(role) {
   if (role === "barber")      return "/barber";
   if (role === "super_admin") return "/superadmin";
+  if (role === "supplier")    return "/supplier";
   return "/admin";
 }
 

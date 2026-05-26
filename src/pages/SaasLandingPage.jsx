@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { applyTheme } from "../lib/applyTheme";
 import { supabase } from "../lib/supabase";
 import { ArrowRight, Check, Scissors, MapPin, Calendar, BarChart3, Users, Zap, Star, ChevronDown, Menu, X } from "lucide-react";
+import SupplierCatalog from "../features/supplier/components/SupplierCatalog";
 
 const O  = "#FF6B2C";
 const O2 = "rgba(255,107,44,0.1)";
@@ -423,6 +424,9 @@ export default function SaasLandingPage() {
           </div>
         </div>
       </section>
+
+      {/* ── CATÁLOGO PROVEEDOR ── */}
+      <SupplierCatalog />
 
       {/* ── CTA ── */}
       <section style={{ padding:"80px 20px 100px", background:"#050505", position:"relative", overflow:"hidden" }}>

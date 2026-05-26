@@ -3,6 +3,7 @@ import { createBrowserRouter } from "react-router-dom";
 import AdminLayout       from "../layouts/AdminLayout";
 import SuperAdminLayout  from "../layouts/SuperAdminLayout";
 import BarberLayout      from "../layouts/BarberLayout";
+import SupplierLayout    from "../layouts/SupplierLayout";
 import SaasLandingPage   from "../pages/SaasLandingPage";
 import NotFoundPage      from "../pages/NotFoundPage";
 import ShopLandingPage  from "../pages/ShopLandingPage";
@@ -21,6 +22,10 @@ import CajaPage      from "../features/admin/pages/CajaPage";
 import OverviewPage  from "../features/superadmin/pages/OverviewPage";
 import ShopsPage     from "../features/superadmin/pages/ShopsPage";
 import PricingPage   from "../features/superadmin/pages/PricingPage";
+
+import SupplierDashboard     from "../features/supplier/pages/SupplierDashboard";
+import SupplierProductsPage  from "../features/supplier/pages/SupplierProductsPage";
+import SupplierOrdersPage    from "../features/supplier/pages/SupplierOrdersPage";
 
 import AgendaPage     from "../features/barber/pages/AgendaPage";
 import BarberCajaPage from "../features/barber/pages/CajaPage";
@@ -59,6 +64,17 @@ export const router = createBrowserRouter([
       { index: true,      element: <OverviewPage /> },
       { path: "shops",    element: <ShopsPage />    },
       { path: "pricing",  element: <PricingPage />  },
+    ],
+  },
+
+  // ── PORTAL DEL PROVEEDOR ──
+  {
+    path: "/supplier",
+    element: <SupplierLayout />,
+    children: [
+      { index: true,         element: <SupplierDashboard />    },
+      { path: "products",    element: <SupplierProductsPage /> },
+      { path: "orders",      element: <SupplierOrdersPage />   },
     ],
   },
 
