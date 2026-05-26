@@ -18,14 +18,16 @@ async function getBarberPortfolio(barberId) {
 }
 
 export default function StepBarber() {
-  const { type, service, barber: selected, setBarber, step, setStep, prevStep } = useBookingStore();
+  const { type, services, barber: selected, setBarber, step, setStep, prevStep } = useBookingStore();
   const shopId = useBookingStore(s => s.shopId);
   const [portfolioBarber, setPortfolioBarber] = useState(null);
 
+  const serviceId = services?.[0]?.id;
+
   const { data: barbers = [], isLoading } = useQuery({
-    queryKey: ["barbers", service?.id, type, shopId],
-    queryFn: () => getBarbers({ serviceId: service?.id, type, shopId }),
-    enabled: !!service && !!shopId,
+    queryKey: ["barbers", serviceId, type, shopId],
+    queryFn: () => getBarbers({ serviceId, type, shopId }),
+    enabled: !!shopId,
   });
 
   const { data: portfolio = [], isLoading: loadingPortfolio } = useQuery({

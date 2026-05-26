@@ -8,32 +8,36 @@ import { Player } from "@lottiefiles/react-lottie-player";
 const SUCCESS_LOTTIE = "/animations/Success Green.json";
 const O = "var(--brand)";
 
-function addToCalendar({ date, slot, service, barber, type }) {
+function addToCalendar({ date, slot, services, barber, type }) {
   if (!date || !slot) return;
+  const totalDuration = services?.reduce((sum, s) => sum + (s.duration_min ?? 30), 0) ?? 60;
   const start    = new Date(`${date}T${slot}:00`);
-  const end      = new Date(start.getTime() + (service?.duration_min ?? 60) * 60000);
+  const end      = new Date(start.getTime() + totalDuration * 60000);
   const pad      = n => String(n).padStart(2, "0");
   const fmt      = d => `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
-  const title    = encodeURIComponent(`${service?.name ?? "Corte"} con ${barber?.full_name ?? "Barbero"}`);
+  const names    = services?.map(s => s.name).join(" + ") ?? "Corte";
+  const title    = encodeURIComponent(`${names} con ${barber?.full_name ?? "Barbero"}`);
   const details  = encodeURIComponent(type === "delivery" ? "Servicio a domicilio" : "En el local");
   const url      = `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${fmt(start)}/${fmt(end)}&details=${details}`;
   window.open(url, "_blank");
 }
 
-function shareWhatsApp({ date, slot, service, barber, shopName }) {
+function shareWhatsApp({ date, slot, services, barber, shopName }) {
   const dateLabel = date ? format(new Date(date + "T12:00:00"), "EEEE d 'de' MMMM", { locale: es }) : "";
+  const names = services?.map(s => s.name).join(", ") ?? "";
   const msg = encodeURIComponent(
     `✂️ Reservé mi cita en *${shopName ?? "la barbería"}*\n\n` +
-    `Servicio: ${service?.name}\nBarbero: ${barber?.full_name}\nFecha: ${dateLabel}\nHora: ${slot}`
+    `Servicio: ${names}\nBarbero: ${barber?.full_name}\nFecha: ${dateLabel}\nHora: ${slot}`
   );
   window.open(`https://wa.me/?text=${msg}`, "_blank");
 }
 
 export default function StepSuccess({ slug, shopName }) {
-  const { reset, type, service, barber, date, slot } = useBookingStore();
+  const { reset, type, services, barber, date, slot } = useBookingStore();
   const backUrl    = slug ? `/${slug}` : "/";
   const barberName = barber?.full_name ?? "tu barbero";
   const dateLabel  = date ? format(new Date(date + "T12:00:00"), "EEEE d 'de' MMMM", { locale: es }) : "";
+  const serviceNames = services?.map(s => s.name).join(" + ") ?? "";
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 20px" }}>
@@ -51,14 +55,14 @@ export default function StepSuccess({ slug, shopName }) {
           ¡Todo listo!
         </h2>
         <p style={{ color: "var(--text-muted)", fontSize: 15, marginBottom: 28, lineHeight: 1.5 }}>
-          Tu cita de <span style={{ color: "var(--text)", fontWeight: 600 }}>{service?.name}</span> con{" "}
+          Tu cita de <span style={{ color: "var(--text)", fontWeight: 600 }}>{serviceNames}</span> con{" "}
           <span style={{ color: "var(--text)", fontWeight: 600 }}>{barberName}</span> está confirmada.
         </p>
 
         {/* Card resumen */}
         <div style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 16, padding: "20px", marginBottom: 20, display: "flex", flexDirection: "column", gap: 12, textAlign: "left" }}>
           {[
-            { icon: <Scissors size={15} color={O} />, label: "Servicio", value: service?.name },
+            { icon: <Scissors size={15} color={O} />, label: "Servicio", value: serviceNames },
             { icon: <Calendar size={15} color={O} />, label: "Fecha",    value: dateLabel, cap: true },
             { icon: <Clock size={15} color={O} />,    label: "Hora",     value: slot },
             ...(type === "delivery" ? [{ icon: <MapPin size={15} color={O} />, label: "Modalidad", value: "A domicilio" }] : []),
