@@ -2,14 +2,15 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Plus, Pencil, Trash2, Package, X, AlertTriangle,
-  TrendingDown, ShoppingCart, History, ChevronDown, Search,
+  TrendingDown, History, Search, ShoppingBag,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { formatCurrency } from "../../../lib/utils";
 import { uploadImage } from "../../../components/shared/ImageUpload";
 import {
   getInventory, upsertInventoryProduct, deleteInventoryProduct,
-  adjustStock, registerSale, getInventorySales, getInventoryMovements,
+  adjustStock, getInventoryMovements,
 } from "../services/inventoryService";
 
 const O = "var(--brand, #FF6B2C)";
@@ -26,21 +27,18 @@ const SHIMMER = `
 
 export default function InventoryPage() {
   const qc = useQueryClient();
-  const [tab, setTab]                 = useState("products"); // products | sales
-  const [search, setSearch]           = useState("");
-  const [catFilter, setCatFilter]     = useState("");
-  const [productModal, setProductModal] = useState(null); // null | "new" | product
-  const [form, setForm]               = useState(EMPTY);
-  const [formErrors, setFormErrors]   = useState({});
+  const [search, setSearch]               = useState("");
+  const [catFilter, setCatFilter]         = useState("");
+  const [productModal, setProductModal]   = useState(null); // null | "new" | product
+  const [form, setForm]                   = useState(EMPTY);
+  const [formErrors, setFormErrors]       = useState({});
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [saleModal, setSaleModal]     = useState(null); // product to sell
-  const [saleQty, setSaleQty]         = useState(1);
-  const [historyModal, setHistoryModal] = useState(null);
-  const [adjModal, setAdjModal]       = useState(null); // stock adjust
-  const [adjDelta, setAdjDelta]       = useState("");
-  const [adjReason, setAdjReason]     = useState("");
-  const [uploading, setUploading]     = useState(false);
-  const [saving, setSaving]           = useState(false);
+  const [historyModal, setHistoryModal]   = useState(null);
+  const [adjModal, setAdjModal]           = useState(null);
+  const [adjDelta, setAdjDelta]           = useState("");
+  const [adjReason, setAdjReason]         = useState("");
+  const [uploading, setUploading]         = useState(false);
+  const [saving, setSaving]               = useState(false);
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["inventory"],
@@ -48,27 +46,10 @@ export default function InventoryPage() {
     refetchInterval: 60000,
   });
 
-  const { data: sales = [], isLoading: salesLoading } = useQuery({
-    queryKey: ["inventory-sales"],
-    queryFn:  getInventorySales,
-    enabled:  tab === "sales",
-  });
-
   const { data: history = [] } = useQuery({
     queryKey: ["inventory-movements", historyModal?.id],
     queryFn:  () => getInventoryMovements(historyModal.id),
     enabled:  !!historyModal?.id,
-  });
-
-  const saleMut = useMutation({
-    mutationFn: ({ productId, qty, price }) => registerSale({ productId, qty, price }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["inventory"] });
-      qc.invalidateQueries({ queryKey: ["inventory-sales"] });
-      toast.success("Venta registrada");
-      setSaleModal(null); setSaleQty(1);
-    },
-    onError: () => toast.error("Error al registrar la venta"),
   });
 
   const adjMut = useMutation({
@@ -83,12 +64,20 @@ export default function InventoryPage() {
 
   const deleteMut = useMutation({
     mutationFn: deleteInventoryProduct,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["inventory"] }); toast.success("Producto eliminado"); setDeleteConfirm(null); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["inventory"] });
+      toast.success("Producto eliminado");
+      setDeleteConfirm(null);
+    },
     onError: () => toast.error("Error al eliminar"),
   });
 
-  function openNew()  { setForm({ ...EMPTY }); setFormErrors({}); setProductModal("new"); }
-  function openEdit(p) { setForm({ ...p, price_cost: String(p.price_cost ?? ""), price_sell: String(p.price_sell), stock: String(p.stock ?? ""), stock_min: String(p.stock_min ?? 3) }); setFormErrors({}); setProductModal(p); }
+  function openNew()   { setForm({ ...EMPTY }); setFormErrors({}); setProductModal("new"); }
+  function openEdit(p) {
+    setForm({ ...p, price_cost: String(p.price_cost ?? ""), price_sell: String(p.price_sell), stock: String(p.stock ?? ""), stock_min: String(p.stock_min ?? 3) });
+    setFormErrors({});
+    setProductModal(p);
+  }
 
   async function handleImageUpload(file) {
     setUploading(true);
@@ -99,7 +88,7 @@ export default function InventoryPage() {
 
   async function handleSave() {
     const errors = {};
-    if (!form.name?.trim())                                              errors.name       = "Nombre obligatorio";
+    if (!form.name?.trim()) errors.name = "Nombre obligatorio";
     if (!form.price_sell || isNaN(Number(form.price_sell)) || Number(form.price_sell) <= 0) errors.price_sell = "Precio de venta requerido";
     if (Object.keys(errors).length) { setFormErrors(errors); return; }
 
@@ -129,10 +118,8 @@ export default function InventoryPage() {
 
   const lowStock = products.filter(p => p.stock != null && p.stock <= (p.stock_min ?? 3) && p.is_active);
 
-  // Stats
-  const totalValue   = products.reduce((s, p) => s + (p.price_sell * (p.stock ?? 0)), 0);
-  const totalCost    = products.reduce((s, p) => s + ((p.price_cost ?? 0) * (p.stock ?? 0)), 0);
-  const salesRevenue = sales.reduce((s, v) => s + (v.total ?? 0), 0);
+  const totalValue = products.reduce((s, p) => s + (p.price_sell * (p.stock ?? 0)), 0);
+  const totalCost  = products.reduce((s, p) => s + ((p.price_cost ?? 0) * (p.stock ?? 0)), 0);
 
   const grouped = filtered.reduce((acc, p) => {
     const cat = p.category || "Sin categoría";
@@ -151,9 +138,15 @@ export default function InventoryPage() {
           <h1 style={{ fontSize: 28, fontWeight: 800, color: "var(--text)" }}>Inventario</h1>
           <p style={{ color: "var(--text-faint)", fontSize: 13, marginTop: 4 }}>{products.length} productos · {products.reduce((s, p) => s + (p.stock ?? 0), 0)} unidades totales</p>
         </div>
-        <button onClick={openNew} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 10, background: O, color: "#fff", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 14 }}>
-          <Plus size={16} /> Nuevo producto
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Link to="/admin/caja"
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", textDecoration: "none", fontWeight: 600, fontSize: 13 }}>
+            <ShoppingBag size={14} /> Ir a Caja para vender
+          </Link>
+          <button onClick={openNew} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 10, background: O, color: "#fff", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 14 }}>
+            <Plus size={16} /> Nuevo producto
+          </button>
+        </div>
       </div>
 
       {/* Alerta stock bajo */}
@@ -170,10 +163,10 @@ export default function InventoryPage() {
       {/* Stats */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, marginBottom: 28 }}>
         {[
-          { label: "Valor en stock",   value: formatCurrency(totalValue),   sub: "precio venta" },
-          { label: "Costo del stock",  value: formatCurrency(totalCost),    sub: "precio costo" },
+          { label: "Valor en stock",   value: formatCurrency(totalValue),           sub: "precio venta" },
+          { label: "Costo del stock",  value: formatCurrency(totalCost),            sub: "precio costo" },
           { label: "Margen estimado",  value: formatCurrency(totalValue - totalCost), sub: "ganancia potencial", accent: true },
-          { label: "Ventas hoy",       value: formatCurrency(salesRevenue), sub: "total registrado" },
+          { label: "Productos activos",value: String(products.filter(p => p.is_active).length), sub: "en catálogo" },
         ].map(({ label, value, sub, accent }) => (
           <div key={label} style={{ background: accent ? "rgba(255,107,44,0.05)" : "var(--card-bg)", border: `1px solid ${accent ? "rgba(255,107,44,0.2)" : "var(--card-border)"}`, borderRadius: 12, padding: "14px 16px" }}>
             <p style={{ fontSize: 20, fontWeight: 800, color: accent ? O : "var(--text)", marginBottom: 2 }}>{value}</p>
@@ -183,139 +176,95 @@ export default function InventoryPage() {
         ))}
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: "flex", gap: 4, background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 10, padding: 4, marginBottom: 20, width: "fit-content" }}>
-        {[["products", "Productos"], ["sales", "Ventas"]].map(([key, label]) => (
-          <button key={key} onClick={() => setTab(key)} style={{
-            padding: "7px 18px", borderRadius: 7, fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer",
-            background: tab === key ? O : "transparent",
-            color: tab === key ? "#fff" : "var(--text-faint)",
-          }}>{label}</button>
-        ))}
+      {/* Filtros */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
+        <div style={{ position: "relative", flex: 1, minWidth: 180 }}>
+          <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--text-faint)" }} />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar producto..."
+            style={{ width: "100%", paddingLeft: 32, padding: "8px 12px 8px 32px", borderRadius: 9, background: "var(--card-bg)", border: "1px solid var(--card-border)", color: "var(--text)", fontSize: 13, outline: "none", boxSizing: "border-box" }} />
+        </div>
+        <select value={catFilter} onChange={e => setCatFilter(e.target.value)}
+          style={{ padding: "8px 12px", borderRadius: 9, background: "var(--card-bg)", border: "1px solid var(--card-border)", color: catFilter ? "var(--text)" : "var(--text-faint)", fontSize: 13, cursor: "pointer" }}>
+          <option value="">Todas las categorías</option>
+          {categories.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
       </div>
 
-      {/* ── TAB PRODUCTOS ── */}
-      {tab === "products" && (
-        <>
-          {/* Filtros */}
-          <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
-            <div style={{ position: "relative", flex: 1, minWidth: 180 }}>
-              <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--text-faint)" }} />
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar producto..."
-                style={{ width: "100%", paddingLeft: 32, padding: "8px 12px 8px 32px", borderRadius: 9, background: "var(--card-bg)", border: "1px solid var(--card-border)", color: "var(--text)", fontSize: 13, outline: "none", boxSizing: "border-box" }} />
-            </div>
-            <select value={catFilter} onChange={e => setCatFilter(e.target.value)}
-              style={{ padding: "8px 12px", borderRadius: 9, background: "var(--card-bg)", border: "1px solid var(--card-border)", color: catFilter ? "var(--text)" : "var(--text-faint)", fontSize: 13, cursor: "pointer" }}>
-              <option value="">Todas las categorías</option>
-              {categories.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-
-          {isLoading && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
-              {[1,2,3,4].map(i => <div key={i} className="inv-shimmer" style={{ height: 200 }} />)}
-            </div>
-          )}
-
-          {!isLoading && filtered.length === 0 && (
-            <div style={{ textAlign: "center", padding: "64px 20px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 16 }}>
-              <div style={{ fontSize: 44, marginBottom: 12 }}>📦</div>
-              <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 16, marginBottom: 8 }}>
-                {products.length === 0 ? "Sin productos aún" : "Sin resultados"}
-              </p>
-              <p style={{ color: "var(--text-faint)", fontSize: 13, marginBottom: 20 }}>
-                {products.length === 0 ? "Agrega los productos que vendes en el local." : "Intenta con otro filtro."}
-              </p>
-              {products.length === 0 && (
-                <button onClick={openNew} style={{ padding: "10px 20px", borderRadius: 10, background: O, color: "#fff", border: "none", cursor: "pointer", fontWeight: 700 }}>
-                  Agregar producto
-                </button>
-              )}
-            </div>
-          )}
-
-          {Object.entries(grouped).map(([cat, items]) => (
-            <div key={cat} style={{ marginBottom: 32 }}>
-              <p style={{ fontSize: 11, letterSpacing: 2, textTransform: "uppercase", color: "var(--text-faint)", fontWeight: 700, marginBottom: 14, paddingLeft: 4 }}>{cat}</p>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
-                {items.map(p => {
-                  const isLow = p.stock != null && p.stock <= (p.stock_min ?? 3);
-                  return (
-                    <div key={p.id} style={{ background: "var(--card-bg)", border: `1px solid ${isLow ? "rgba(239,68,68,0.3)" : "var(--card-border)"}`, borderRadius: 14, overflow: "hidden" }}>
-                      {p.image_url ? (
-                        <img src={p.image_url} alt={p.name} style={{ width: "100%", height: 130, objectFit: "cover" }} />
-                      ) : (
-                        <div style={{ width: "100%", height: 130, background: "var(--surface2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <Package size={32} color="var(--text-faint)" style={{ opacity: 0.3 }} />
-                        </div>
-                      )}
-                      <div style={{ padding: "12px 14px" }}>
-                        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
-                          <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 14, lineHeight: 1.3 }}>{p.name}</p>
-                          <span style={{ padding: "2px 7px", borderRadius: 20, fontSize: 10, fontWeight: 700, flexShrink: 0, background: isLow ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)", color: isLow ? "#ef4444" : "#22c55e" }}>
-                            {p.stock ?? 0} {p.unit}
-                          </span>
-                        </div>
-                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-                          <p style={{ fontWeight: 800, color: O, fontSize: 15 }}>{formatCurrency(p.price_sell)}</p>
-                          {p.price_cost && <p style={{ fontSize: 11, color: "var(--text-faint)" }}>costo {formatCurrency(p.price_cost)}</p>}
-                        </div>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
-                          <button onClick={() => { setSaleModal(p); setSaleQty(1); }}
-                            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "7px 4px", borderRadius: 8, background: "rgba(255,107,44,0.1)", border: "1px solid rgba(255,107,44,0.2)", color: O, cursor: "pointer", fontSize: 12, fontWeight: 700 }}>
-                            <ShoppingCart size={12} /> Vender
-                          </button>
-                          <button onClick={() => { setAdjModal(p); setAdjDelta(""); setAdjReason(""); }}
-                            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "7px 4px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", cursor: "pointer", fontSize: 12 }}>
-                            <TrendingDown size={12} /> Stock
-                          </button>
-                          <button onClick={() => setHistoryModal(p)}
-                            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "7px 4px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", cursor: "pointer", fontSize: 12 }}>
-                            <History size={12} /> Log
-                          </button>
-                        </div>
-                        <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-                          <button onClick={() => openEdit(p)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "7px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", cursor: "pointer", fontSize: 12 }}>
-                            <Pencil size={12} /> Editar
-                          </button>
-                          <button onClick={() => setDeleteConfirm(p)} style={{ padding: "7px 10px", borderRadius: 8, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", color: "#ef4444", cursor: "pointer" }}>
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </>
-      )}
-
-      {/* ── TAB VENTAS ── */}
-      {tab === "sales" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {salesLoading && [1,2,3].map(i => <div key={i} className="inv-shimmer" style={{ height: 64 }} />)}
-          {!salesLoading && sales.length === 0 && (
-            <div style={{ textAlign: "center", padding: "64px 20px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 16 }}>
-              <div style={{ fontSize: 44, marginBottom: 12 }}>🛍️</div>
-              <p style={{ fontWeight: 700, color: "var(--text)", marginBottom: 6 }}>Sin ventas registradas</p>
-              <p style={{ color: "var(--text-faint)", fontSize: 13 }}>Registra ventas desde la tarjeta de cada producto.</p>
-            </div>
-          )}
-          {sales.map(s => (
-            <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 12 }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontWeight: 600, color: "var(--text)", fontSize: 14 }}>{s.inventory_products?.name ?? "Producto"}</p>
-                <p style={{ color: "var(--text-faint)", fontSize: 12 }}>
-                  {s.qty} {s.inventory_products?.category ?? "unidad"} · {new Date(s.created_at).toLocaleString("es-CL", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-                </p>
-              </div>
-              <p style={{ fontWeight: 700, color: O, fontSize: 14 }}>{formatCurrency(s.total)}</p>
-            </div>
-          ))}
+      {/* Grid productos */}
+      {isLoading && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
+          {[1,2,3,4].map(i => <div key={i} className="inv-shimmer" style={{ height: 200 }} />)}
         </div>
       )}
+
+      {!isLoading && filtered.length === 0 && (
+        <div style={{ textAlign: "center", padding: "64px 20px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 16 }}>
+          <div style={{ fontSize: 44, marginBottom: 12 }}>📦</div>
+          <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 16, marginBottom: 8 }}>
+            {products.length === 0 ? "Sin productos aún" : "Sin resultados"}
+          </p>
+          <p style={{ color: "var(--text-faint)", fontSize: 13, marginBottom: 20 }}>
+            {products.length === 0 ? "Agrega los productos que vendes en el local." : "Intenta con otro filtro."}
+          </p>
+          {products.length === 0 && (
+            <button onClick={openNew} style={{ padding: "10px 20px", borderRadius: 10, background: O, color: "#fff", border: "none", cursor: "pointer", fontWeight: 700 }}>
+              Agregar producto
+            </button>
+          )}
+        </div>
+      )}
+
+      {Object.entries(grouped).map(([cat, items]) => (
+        <div key={cat} style={{ marginBottom: 32 }}>
+          <p style={{ fontSize: 11, letterSpacing: 2, textTransform: "uppercase", color: "var(--text-faint)", fontWeight: 700, marginBottom: 14, paddingLeft: 4 }}>{cat}</p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
+            {items.map(p => {
+              const isLow = p.stock != null && p.stock <= (p.stock_min ?? 3);
+              return (
+                <div key={p.id} style={{ background: "var(--card-bg)", border: `1px solid ${isLow ? "rgba(239,68,68,0.3)" : "var(--card-border)"}`, borderRadius: 14, overflow: "hidden" }}>
+                  {p.image_url ? (
+                    <img src={p.image_url} alt={p.name} style={{ width: "100%", height: 130, objectFit: "cover" }} />
+                  ) : (
+                    <div style={{ width: "100%", height: 130, background: "var(--surface2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Package size={32} color="var(--text-faint)" style={{ opacity: 0.3 }} />
+                    </div>
+                  )}
+                  <div style={{ padding: "12px 14px" }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
+                      <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 14, lineHeight: 1.3 }}>{p.name}</p>
+                      <span style={{ padding: "2px 7px", borderRadius: 20, fontSize: 10, fontWeight: 700, flexShrink: 0, background: isLow ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)", color: isLow ? "#ef4444" : "#22c55e" }}>
+                        {p.stock ?? 0} {p.unit}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+                      <p style={{ fontWeight: 800, color: O, fontSize: 15 }}>{formatCurrency(p.price_sell)}</p>
+                      {p.price_cost && <p style={{ fontSize: 11, color: "var(--text-faint)" }}>costo {formatCurrency(p.price_cost)}</p>}
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 6 }}>
+                      <button onClick={() => { setAdjModal(p); setAdjDelta(""); setAdjReason(""); }}
+                        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "7px 4px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", cursor: "pointer", fontSize: 12 }}>
+                        <TrendingDown size={12} /> Ajustar stock
+                      </button>
+                      <button onClick={() => setHistoryModal(p)}
+                        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "7px 4px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", cursor: "pointer", fontSize: 12 }}>
+                        <History size={12} /> Historial
+                      </button>
+                    </div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button onClick={() => openEdit(p)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "7px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", cursor: "pointer", fontSize: 12 }}>
+                        <Pencil size={12} /> Editar
+                      </button>
+                      <button onClick={() => setDeleteConfirm(p)} style={{ padding: "7px 10px", borderRadius: 8, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", color: "#ef4444", cursor: "pointer" }}>
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
 
       {/* ── MODAL CREAR/EDITAR ── */}
       {productModal && (
@@ -344,15 +293,14 @@ export default function InventoryPage() {
               )}
             </div>
 
-            {/* Campos */}
             {[
-              { key: "name",       label: "Nombre *",          placeholder: "Ej: Pomada Matte", type: "text" },
-              { key: "category",   label: "Categoría",         placeholder: "Pomadas, Shampoo, Accesorios...", type: "text" },
-              { key: "price_sell", label: "Precio de venta *", placeholder: "0", type: "number" },
-              { key: "price_cost", label: "Precio de costo",   placeholder: "0 (opcional)", type: "number" },
-              { key: "stock",      label: "Stock inicial",     placeholder: "0", type: "number" },
-              { key: "stock_min",  label: "Alerta stock mínimo", placeholder: "3", type: "number" },
-              { key: "unit",       label: "Unidad",            placeholder: "unidad, caja, ml...", type: "text" },
+              { key: "name",       label: "Nombre *",            placeholder: "Ej: Pomada Matte",          type: "text"   },
+              { key: "category",   label: "Categoría",           placeholder: "Pomadas, Shampoo...",       type: "text"   },
+              { key: "price_sell", label: "Precio de venta *",   placeholder: "0",                         type: "number" },
+              { key: "price_cost", label: "Precio de costo",     placeholder: "0 (opcional)",              type: "number" },
+              { key: "stock",      label: "Stock inicial",       placeholder: "0",                         type: "number" },
+              { key: "stock_min",  label: "Alerta stock mínimo", placeholder: "3",                         type: "number" },
+              { key: "unit",       label: "Unidad",              placeholder: "unidad, caja, ml...",       type: "text"   },
             ].map(({ key, label, placeholder, type }) => (
               <div key={key} style={{ marginBottom: 14 }}>
                 <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>{label.toUpperCase()}</label>
@@ -380,40 +328,6 @@ export default function InventoryPage() {
         </div>
       )}
 
-      {/* ── MODAL VENTA ── */}
-      {saleModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
-          onClick={() => setSaleModal(null)}>
-          <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 20, padding: 28, width: "100%", maxWidth: 380 }}
-            onClick={e => e.stopPropagation()}>
-            <p style={{ fontWeight: 800, fontSize: 18, color: "var(--text)", marginBottom: 6 }}>Registrar venta</p>
-            <p style={{ color: "var(--text-faint)", fontSize: 13, marginBottom: 20 }}>{saleModal.name} · {formatCurrency(saleModal.price_sell)} c/u</p>
-
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 8 }}>CANTIDAD</label>
-              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                <button onClick={() => setSaleQty(q => Math.max(1, q - 1))} style={{ width: 36, height: 36, borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", cursor: "pointer", color: "var(--text)", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-                <span style={{ fontWeight: 800, fontSize: 22, color: "var(--text)", minWidth: 32, textAlign: "center" }}>{saleQty}</span>
-                <button onClick={() => setSaleQty(q => Math.min(saleModal.stock ?? 99, q + 1))} style={{ width: 36, height: 36, borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", cursor: "pointer", color: "var(--text)", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
-              </div>
-            </div>
-
-            <div style={{ background: "var(--surface2)", borderRadius: 10, padding: "10px 14px", marginBottom: 20, display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "var(--text-faint)", fontSize: 14 }}>Total</span>
-              <span style={{ fontWeight: 800, color: O, fontSize: 16 }}>{formatCurrency(saleModal.price_sell * saleQty)}</span>
-            </div>
-
-            <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setSaleModal(null)} style={{ flex: 1, padding: 12, borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-faint)", cursor: "pointer", fontWeight: 600 }}>Cancelar</button>
-              <button onClick={() => saleMut.mutate({ productId: saleModal.id, qty: saleQty, price: saleModal.price_sell })} disabled={saleMut.isPending}
-                style={{ flex: 1, padding: 12, borderRadius: 10, background: O, color: "#fff", fontWeight: 800, border: "none", cursor: saleMut.isPending ? "not-allowed" : "pointer", opacity: saleMut.isPending ? 0.7 : 1 }}>
-                Confirmar venta
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ── MODAL AJUSTE STOCK ── */}
       {adjModal && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
@@ -425,7 +339,7 @@ export default function InventoryPage() {
 
             <div style={{ marginBottom: 14 }}>
               <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>CANTIDAD (+ entrada / − salida)</label>
-              <input type="number" value={adjDelta} onChange={e => setAdjDelta(e.target.value)} placeholder="Ej: +10 o -3"
+              <input type="number" value={adjDelta} onChange={e => setAdjDelta(e.target.value)} placeholder="Ej: 10 o -3"
                 style={{ width: "100%", padding: "10px 12px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14, outline: "none", boxSizing: "border-box" }} />
             </div>
             <div style={{ marginBottom: 20 }}>
@@ -436,7 +350,12 @@ export default function InventoryPage() {
 
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setAdjModal(null)} style={{ flex: 1, padding: 12, borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-faint)", cursor: "pointer", fontWeight: 600 }}>Cancelar</button>
-              <button onClick={() => { const d = Number(adjDelta); if (!adjDelta || isNaN(d)) { toast.error("Ingresa una cantidad"); return; } adjMut.mutate({ id: adjModal.id, delta: d, reason: adjReason }); }}
+              <button
+                onClick={() => {
+                  const d = Number(adjDelta);
+                  if (!adjDelta || isNaN(d)) { toast.error("Ingresa una cantidad"); return; }
+                  adjMut.mutate({ id: adjModal.id, delta: d, reason: adjReason });
+                }}
                 disabled={adjMut.isPending}
                 style={{ flex: 1, padding: 12, borderRadius: 10, background: O, color: "#fff", fontWeight: 800, border: "none", cursor: adjMut.isPending ? "not-allowed" : "pointer", opacity: adjMut.isPending ? 0.7 : 1 }}>
                 Ajustar
