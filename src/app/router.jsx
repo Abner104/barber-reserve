@@ -19,9 +19,10 @@ import BookingsPage  from "../features/admin/pages/BookingsPage";
 import SettingsPage  from "../features/admin/pages/SettingsPage";
 import CajaPage      from "../features/admin/pages/CajaPage";
 
-import OverviewPage  from "../features/superadmin/pages/OverviewPage";
-import ShopsPage     from "../features/superadmin/pages/ShopsPage";
-import PricingPage   from "../features/superadmin/pages/PricingPage";
+import OverviewPage    from "../features/superadmin/pages/OverviewPage";
+import ShopsPage       from "../features/superadmin/pages/ShopsPage";
+import PricingPage     from "../features/superadmin/pages/PricingPage";
+import SuppliersPage   from "../features/superadmin/pages/SuppliersPage";
 
 import SupplierDashboard     from "../features/supplier/pages/SupplierDashboard";
 import SupplierProductsPage  from "../features/supplier/pages/SupplierProductsPage";
@@ -61,9 +62,10 @@ export const router = createBrowserRouter([
     path: "/superadmin",
     element: <SuperAdminLayout />,
     children: [
-      { index: true,      element: <OverviewPage /> },
-      { path: "shops",    element: <ShopsPage />    },
-      { path: "pricing",  element: <PricingPage />  },
+      { index: true,          element: <OverviewPage />   },
+      { path: "shops",        element: <ShopsPage />     },
+      { path: "suppliers",    element: <SuppliersPage /> },
+      { path: "pricing",      element: <PricingPage />   },
     ],
   },
 
