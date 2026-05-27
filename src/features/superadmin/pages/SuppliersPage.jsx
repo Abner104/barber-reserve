@@ -15,6 +15,13 @@ async function getSuppliers() {
   return data ?? [];
 }
 
+function toSlug(str) {
+  return str.toLowerCase().trim()
+    .replace(/[áàä]/g, "a").replace(/[éèë]/g, "e").replace(/[íìï]/g, "i")
+    .replace(/[óòö]/g, "o").replace(/[úùü]/g, "u").replace(/ñ/g, "n")
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
 async function createSupplierWithUser({ email, password, fullName, supplierName, description, whatsapp }) {
   // 1. Crear usuario en Auth
   const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
@@ -25,6 +32,7 @@ async function createSupplierWithUser({ email, password, fullName, supplierName,
   if (authErr) throw authErr;
 
   const userId = authData.user.id;
+  const slug   = toSlug(supplierName);
 
   // 2. Crear/actualizar profile con rol supplier
   const { error: profileErr } = await supabase
@@ -35,7 +43,7 @@ async function createSupplierWithUser({ email, password, fullName, supplierName,
   // 3. Crear registro en suppliers
   const { data: supplier, error: supplierErr } = await supabase
     .from("suppliers")
-    .insert({ profile_id: userId, name: supplierName, description, whatsapp, is_active: true })
+    .insert({ profile_id: userId, name: supplierName, slug, description, whatsapp, is_active: true })
     .select()
     .single();
   if (supplierErr) throw supplierErr;

@@ -5,9 +5,35 @@ import { toast } from "sonner";
 import { getPublicProducts, createOrder, getFirstSupplier } from "../services/supplierService";
 import { formatCurrency } from "../../../lib/utils";
 
+const WA_URL    = import.meta.env.VITE_WA_SERVICE_URL ?? "http://localhost:3001";
+const WA_SECRET = import.meta.env.VITE_WA_SECRET ?? "barberos2026secret";
+
+async function notifySupplierWA(supplierId, order, items) {
+  try {
+    const lines = items.map(i => `• ${i.name} × ${i.qty} = ${formatCurrency(i.price * i.qty)}`).join("\n");
+    const msg = [
+      `🛍️ *Nuevo pedido recibido*`,
+      ``,
+      `👤 Cliente: ${order.contact_name}`,
+      `📱 Teléfono: ${order.contact_phone}`,
+      ``,
+      lines,
+      ``,
+      `💰 Total: ${formatCurrency(order.total)}`,
+      order.note ? `📝 Nota: ${order.note}` : "",
+    ].filter(Boolean).join("\n");
+
+    await fetch(`${WA_URL}/notify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${WA_SECRET}` },
+      body: JSON.stringify({ barberId: `supplier_${supplierId}`, message: msg }),
+    });
+  } catch { /* silencioso — no romper el flujo si WA no está conectado */ }
+}
+
 const O = "#FF6B2C";
 
-export default function SupplierCatalog() {
+export default function SupplierCatalog({ supplierOverride } = {}) {
   const [cart, setCart]         = useState({}); // { [productId]: qty }
   const [cartOpen, setCartOpen] = useState(false);
   const [orderOpen, setOrderOpen] = useState(false);
@@ -15,21 +41,26 @@ export default function SupplierCatalog() {
   const [formErrors, setFormErrors] = useState({});
   const [success, setSuccess]   = useState(false);
 
-  const { data: supplier } = useQuery({
+  const { data: supplierFetched } = useQuery({
     queryKey: ["public-supplier"],
     queryFn:  getFirstSupplier,
+    enabled:  !supplierOverride,
   });
+  const supplier = supplierOverride ?? supplierFetched;
 
   const { data: products = [], isLoading } = useQuery({
-    queryKey: ["public-products"],
-    queryFn:  getPublicProducts,
+    queryKey: ["public-products", supplier?.id],
+    queryFn:  () => getPublicProducts(supplier?.id),
+    enabled:  !!supplier?.id,
   });
 
   const orderMut = useMutation({
     mutationFn: createOrder,
-    onSuccess: () => {
+    onSuccess: (savedOrder) => {
       setSuccess(true);
       setCart({});
+      // Notificar al proveedor por WA si tiene sesión activa
+      if (supplier?.id) notifySupplierWA(supplier.id, savedOrder, savedOrder.items ?? []);
     },
     onError: () => toast.error("Error al enviar el pedido. Intenta de nuevo."),
   });

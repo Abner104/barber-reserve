@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Outlet, Link, useLocation, useNavigate, Navigate } from "react-router-dom";
-import { Package, ShoppingBag, LogOut, Menu, X, ChevronRight, LayoutDashboard } from "lucide-react";
+import { Package, ShoppingBag, LogOut, Menu, X, ChevronRight, LayoutDashboard, Settings } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 
 const O = "#FF6B2C";
@@ -9,6 +9,7 @@ const NAV = [
   { to: "/supplier",          icon: LayoutDashboard, label: "Panel",    exact: true },
   { to: "/supplier/products", icon: Package,         label: "Productos" },
   { to: "/supplier/orders",   icon: ShoppingBag,     label: "Pedidos"   },
+  { to: "/supplier/settings", icon: Settings,        label: "Config"    },
 ];
 
 export default function SupplierLayout() {

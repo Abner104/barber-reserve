@@ -27,6 +27,8 @@ import SuppliersPage   from "../features/superadmin/pages/SuppliersPage";
 import SupplierDashboard     from "../features/supplier/pages/SupplierDashboard";
 import SupplierProductsPage  from "../features/supplier/pages/SupplierProductsPage";
 import SupplierOrdersPage    from "../features/supplier/pages/SupplierOrdersPage";
+import SupplierSettingsPage  from "../features/supplier/pages/SupplierSettingsPage";
+import SupplierCatalogPage   from "../pages/SupplierCatalogPage";
 
 import AgendaPage     from "../features/barber/pages/AgendaPage";
 import BarberCajaPage from "../features/barber/pages/CajaPage";
@@ -74,9 +76,10 @@ export const router = createBrowserRouter([
     path: "/supplier",
     element: <SupplierLayout />,
     children: [
-      { index: true,         element: <SupplierDashboard />    },
-      { path: "products",    element: <SupplierProductsPage /> },
-      { path: "orders",      element: <SupplierOrdersPage />   },
+      { index: true,         element: <SupplierDashboard />     },
+      { path: "products",    element: <SupplierProductsPage />  },
+      { path: "orders",      element: <SupplierOrdersPage />    },
+      { path: "settings",    element: <SupplierSettingsPage />  },
     ],
   },
 
@@ -92,6 +95,9 @@ export const router = createBrowserRouter([
       { path: "perfil",      element: <PerfilPage />    },
     ],
   },
+
+  // ── CATÁLOGO PÚBLICO DEL PROVEEDOR ── (antes de /:slug)
+  { path: "/catalogo/:slug", element: <SupplierCatalogPage /> },
 
   // ── BARBERÍAS por slug — AL FINAL para no interceptar rutas fijas ──
   { path: "/:slug",         element: <ShopLandingPage /> },

@@ -12,13 +12,15 @@ export async function getSupplierProducts(supplierId) {
   return data ?? [];
 }
 
-export async function getPublicProducts() {
-  const { data, error } = await supabase
+export async function getPublicProducts(supplierId) {
+  let query = supabase
     .from("supplier_products")
     .select("*, suppliers(id, name, logo_url, whatsapp, description)")
     .eq("is_available", true)
     .order("category")
     .order("name");
+  if (supplierId) query = query.eq("supplier_id", supplierId);
+  const { data, error } = await query;
   if (error) throw error;
   return data ?? [];
 }
