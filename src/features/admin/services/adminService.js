@@ -241,6 +241,22 @@ export async function getAdminCategories() {
   return data;
 }
 
+export async function createCategory(name) {
+  const sid = resolveShopId();
+  const { data, error } = await supabase
+    .from("service_categories")
+    .insert({ shop_id: sid, name: name.trim() })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteCategory(id) {
+  const { error } = await supabase.from("service_categories").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function createService(service) {
   const sid = resolveShopId();
   const { data, error } = await supabase

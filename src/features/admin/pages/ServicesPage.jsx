@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, Pencil, Power, X, Loader2, Clock, Trash2, AlertTriangle } from "lucide-react";
 import ImageUpload from "../../../components/shared/ImageUpload";
-import { getAdminServices, getAdminCategories, createService, updateService, toggleServiceAvailable, deleteService } from "../services/adminService";
+import { getAdminServices, getAdminCategories, createService, updateService, toggleServiceAvailable, deleteService, createCategory, deleteCategory } from "../services/adminService";
 
 const B = "var(--brand, #FF6B2C)";
 const EMPTY_SVC = { name: "", description: "", duration_min: 30, price: 0, allows_local: true, allows_delivery: true, is_available: true, category_id: "", sort_order: 0, image_url: "" };
@@ -44,6 +44,18 @@ export default function ServicesPage() {
     mutationFn: (id) => deleteService(id),
     onSuccess: () => { qc.invalidateQueries(["admin-services"]); setDeleteConfirm(null); toast.success("Servicio eliminado"); },
     onError: () => { setDeleteConfirm(null); toast.error("No se puede eliminar: tiene reservas asociadas"); },
+  });
+
+  const createCatMut = useMutation({
+    mutationFn: (name) => createCategory(name),
+    onSuccess: () => { qc.invalidateQueries(["admin-categories"]); toast.success("Categoría creada"); },
+    onError: () => toast.error("Error al crear la categoría"),
+  });
+
+  const deleteCatMut = useMutation({
+    mutationFn: (id) => deleteCategory(id),
+    onSuccess: () => { qc.invalidateQueries(["admin-categories"]); toast.success("Categoría eliminada"); },
+    onError: () => toast.error("No se puede eliminar: tiene servicios asociados"),
   });
 
   return (
@@ -124,6 +136,8 @@ export default function ServicesPage() {
             if (modal === "create") createMut.mutate(data);
             else updateMut.mutate({ id: modal.id, updates: data });
           }}
+          onCreateCategory={(name) => createCatMut.mutateAsync(name)}
+          onDeleteCategory={(id) => deleteCatMut.mutate(id)}
           loading={createMut.isPending || updateMut.isPending}
         />
       )}
@@ -157,7 +171,7 @@ export default function ServicesPage() {
   );
 }
 
-function ServiceModal({ service, categories, onClose, onSave, loading }) {
+function ServiceModal({ service, categories, onClose, onSave, onCreateCategory, onDeleteCategory, loading }) {
   const [form, setForm] = useState(service ? {
     name: service.name, description: service.description ?? "", duration_min: service.duration_min,
     price: service.price, allows_local: service.allows_local ?? true, allows_delivery: service.allows_delivery ?? true,
@@ -171,6 +185,22 @@ function ServiceModal({ service, categories, onClose, onSave, loading }) {
   };
 
   const [formErrors, setFormErrors] = useState({});
+  const [newCatName, setNewCatName] = useState("");
+  const [showNewCat, setShowNewCat] = useState(false);
+  const [savingCat, setSavingCat]   = useState(false);
+
+  async function handleCreateCat() {
+    if (!newCatName.trim()) return;
+    setSavingCat(true);
+    try {
+      const cat = await onCreateCategory(newCatName);
+      setForm(f => ({ ...f, category_id: cat.id }));
+      setNewCatName("");
+      setShowNewCat(false);
+    } finally {
+      setSavingCat(false);
+    }
+  }
 
   function handleSave() {
     const e = {};
@@ -213,10 +243,51 @@ function ServiceModal({ service, categories, onClose, onSave, loading }) {
 
           <Field label="Descripción"><textarea style={{ ...inp, resize: "none" }} rows={2} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Describe brevemente el servicio..." /></Field>
           <Field label="Categoría">
-            <select style={{ ...inp, cursor: "pointer" }} value={form.category_id} onChange={e => setForm({ ...form, category_id: e.target.value })}>
-              <option value="">Sin categoría</option>
-              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            <div style={{ display: "flex", gap: 8 }}>
+              <select style={{ ...inp, cursor: "pointer", flex: 1 }} value={form.category_id} onChange={e => setForm({ ...form, category_id: e.target.value })}>
+                <option value="">Sin categoría</option>
+                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <button
+                type="button"
+                onClick={() => setShowNewCat(v => !v)}
+                title="Nueva categoría"
+                style={{ padding: "0 12px", borderRadius: 10, background: showNewCat ? "var(--brand-alpha)" : "var(--surface2)", border: `1px solid ${showNewCat ? "var(--brand,#FF6B2C)" : "var(--border)"}`, color: showNewCat ? "var(--brand,#FF6B2C)" : "var(--text-muted)", cursor: "pointer", fontWeight: 700, fontSize: 18, flexShrink: 0 }}
+              >+</button>
+            </div>
+            {showNewCat && (
+              <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
+                <input
+                  autoFocus
+                  value={newCatName}
+                  onChange={e => setNewCatName(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") handleCreateCat(); if (e.key === "Escape") setShowNewCat(false); }}
+                  placeholder="Nombre de la categoría..."
+                  style={{ ...inp, flex: 1, padding: "8px 12px" }}
+                />
+                <button
+                  type="button"
+                  onClick={handleCreateCat}
+                  disabled={savingCat || !newCatName.trim()}
+                  style={{ padding: "8px 14px", borderRadius: 10, background: "var(--brand,#FF6B2C)", border: "none", color: "#fff", fontWeight: 700, cursor: "pointer", fontSize: 13, opacity: savingCat ? 0.7 : 1, flexShrink: 0 }}
+                >{savingCat ? "..." : "Crear"}</button>
+              </div>
+            )}
+            {categories.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                {categories.map(c => (
+                  <span key={c.id} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, padding: "3px 10px 3px 10px", borderRadius: 20, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>
+                    {c.name}
+                    <button
+                      type="button"
+                      onClick={() => onDeleteCategory(c.id)}
+                      title="Eliminar categoría"
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", padding: 0, lineHeight: 1, fontSize: 13, marginLeft: 2 }}
+                    >×</button>
+                  </span>
+                ))}
+              </div>
+            )}
           </Field>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <Field label="Duración (min)"><input style={inp} type="number" min={5} value={form.duration_min} onChange={e => setForm({ ...form, duration_min: Number(e.target.value) })} /></Field>
