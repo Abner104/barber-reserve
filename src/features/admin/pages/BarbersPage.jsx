@@ -404,10 +404,10 @@ function BarberModal({ barber, onClose, onSave, loading }) {
             <Field label="Radio domicilio (km)">
               <input style={inp} type="number" min={1} value={form.delivery_radius} onChange={e => setForm({ ...form, delivery_radius: Number(e.target.value) })} />
             </Field>
-            <Field label="Intervalo de slots (min)">
+            <Field label="Cada cuánto aparece un turno" hint="Cada X minutos el cliente puede reservar un horario nuevo">
               <select style={{ ...inp, cursor: "pointer" }} value={form.slot_duration_min ?? 30} onChange={e => setForm({ ...form, slot_duration_min: Number(e.target.value) })}>
                 {[15, 20, 30, 45, 60, 90].map(v => (
-                  <option key={v} value={v}>{v} min</option>
+                  <option key={v} value={v}>Cada {v} min</option>
                 ))}
               </select>
             </Field>
@@ -515,10 +515,11 @@ function PortfolioEditor({ barberId }) {
   );
 }
 
-function Field({ label, children }) {
+function Field({ label, hint, children }) {
   return (
     <div>
-      <label style={{ display: "block", fontSize: 12, color: "var(--text-muted)", marginBottom: 6, fontWeight: 600 }}>{label}</label>
+      <label style={{ display: "block", fontSize: 12, color: "var(--text-muted)", marginBottom: hint ? 2 : 6, fontWeight: 600 }}>{label}</label>
+      {hint && <p style={{ fontSize: 11, color: "var(--text-faint)", marginBottom: 6, lineHeight: 1.4 }}>{hint}</p>}
       {children}
     </div>
   );
