@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Plus, X, Loader2, Lock, Unlock, DollarSign, TrendingDown, ShoppingBag } from "lucide-react";
+import { Plus, X, Loader2, Lock, Unlock, DollarSign, TrendingDown, ShoppingBag, Package, Scissors } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { resolveShopId } from "../services/adminService";
 import { formatCurrency } from "../../../lib/utils";
@@ -79,7 +79,8 @@ export default function CajaPage() {
   const [cajaChica, setCajaChica]     = useState("");
   const [egresoDesc, setEgresoDesc]   = useState("");
   const [egresoMonto, setEgresoMonto] = useState("");
-  const [ventaForm, setVentaForm]     = useState({ clientName: "", service: "", price: "", payMethod: "cash", barbero: "", proofUrl: "" });
+  const [ventaForm, setVentaForm]     = useState({ clientName: "", serviceId: "", price: "", payMethod: "cash", barbero: "", proofUrl: "" });
+  const [ventaItems, setVentaItems]   = useState([]); // productos inventario {id, name, qty, price_sell}
 
   const { data: turno, isLoading: loadingTurno } = useQuery({
     queryKey: ["caja-turno-abierto"],
@@ -161,13 +162,36 @@ export default function CajaPage() {
     },
   });
 
+  // Servicios del catálogo para venta directa
+  const { data: catalogServices = [] } = useQuery({
+    queryKey: ["admin-services-caja"],
+    queryFn: async () => {
+      const sid = resolveShopId();
+      const { data } = await supabase.from("services").select("id, name, price").eq("shop_id", sid).eq("is_available", true).order("name");
+      return data ?? [];
+    },
+    enabled: showVentaModal,
+  });
+
+  // Productos de inventario para venta directa
+  const { data: inventoryProducts = [] } = useQuery({
+    queryKey: ["inventory-caja"],
+    queryFn: async () => {
+      const sid = resolveShopId();
+      const { data } = await supabase.from("inventory_products").select("id, name, price_sell, stock, unit").eq("shop_id", sid).eq("is_active", true).gt("stock", 0).order("name");
+      return data ?? [];
+    },
+    enabled: showVentaModal,
+  });
+
   const ventaMut = useMutation({
     mutationFn: async () => {
       const sid = resolveShopId();
+
       // Buscar o crear cliente
-      let clientId;
       const clientName = ventaForm.clientName.trim() || "Cliente walk-in";
       const { data: existing } = await supabase.from("clients").select("id").eq("shop_id", sid).ilike("full_name", clientName).maybeSingle();
+      let clientId;
       if (existing) {
         clientId = existing.id;
       } else {
@@ -175,35 +199,47 @@ export default function CajaPage() {
         if (ce) throw ce;
         clientId = nc.id;
       }
-      // Barbero seleccionado o primero activo
+
       const barberId = ventaForm.barbero || barbers[0]?.id;
       if (!barberId) throw new Error("No hay barberos disponibles");
 
-      // Buscar servicio del catálogo si coincide
-      let serviceId = null;
-      if (ventaForm.service) {
-        const { data: svc } = await supabase.from("services")
-          .select("id").eq("shop_id", sid)
-          .ilike("name", `%${ventaForm.service}%`).maybeSingle();
-        serviceId = svc?.id ?? null;
-      }
+      // Calcular precio total: servicio + productos
+      const servicePrice  = Number(ventaForm.price) || 0;
+      const productsTotal = ventaItems.reduce((s, i) => s + i.price_sell * i.qty, 0);
+      const totalPrice    = servicePrice + productsTotal;
+
+      const serviceSel = catalogServices.find(s => s.id === ventaForm.serviceId);
+      const notes      = ventaItems.length
+        ? ventaItems.map(i => `${i.name} x${i.qty}`).join(", ")
+        : null;
 
       const { error } = await supabase.from("bookings").insert({
         shop_id: sid, client_id: clientId, barber_id: barberId,
-        service_id: serviceId,
+        service_id: ventaForm.serviceId || null,
         type: "in_store", status: "completed",
         payment_status: "paid", payment_method: ventaForm.payMethod,
         payment_proof_url: ventaForm.proofUrl || null,
-        price: Number(ventaForm.price), price_final: Number(ventaForm.price),
-        duration_min: 30, scheduled_at: new Date().toISOString(),
-        client_notes: ventaForm.service || null,
+        price: totalPrice, price_final: totalPrice,
+        duration_min: serviceSel ? (serviceSel.duration_min ?? 30) : 30,
+        scheduled_at: new Date().toISOString(),
+        client_notes: notes,
       });
       if (error) throw error;
+
+      // Descontar stock de cada producto vendido
+      if (ventaItems.length) {
+        const { adjustStock, registerSale } = await import("../services/inventoryService");
+        await Promise.all(ventaItems.map(item =>
+          registerSale({ productId: item.id, qty: item.qty, price: item.price_sell })
+        ));
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["caja-turno-data"], exact: false, refetchType: "all" });
+      qc.invalidateQueries({ queryKey: ["inventory"] });
       setShowVentaModal(false);
-      setVentaForm({ clientName: "", service: "", price: "", payMethod: "cash", barbero: "", proofUrl: "" });
+      setVentaForm({ clientName: "", serviceId: "", price: "", payMethod: "cash", barbero: "", proofUrl: "" });
+      setVentaItems([]);
       toast.success("Venta registrada ✅");
     },
     onError: (e) => toast.error("Error: " + e.message),
@@ -649,46 +685,114 @@ export default function CajaPage() {
       {/* ── MODAL VENTA DIRECTA ── */}
       {showVentaModal && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-          <div style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 20, padding: 28, width: "100%", maxWidth: 480, maxHeight: "90vh", overflowY: "auto" }}>
+          <div style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 20, padding: 28, width: "100%", maxWidth: 520, maxHeight: "92vh", overflowY: "auto" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <div>
                 <h2 style={{ fontSize: 20, fontWeight: 800, color: "var(--text)", lineHeight: 1 }}>Venta directa</h2>
                 <p style={{ fontSize: 12, color: "var(--text-faint)", marginTop: 4 }}>Cliente en el local sin reserva previa</p>
               </div>
-              <button onClick={() => setShowVentaModal(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-faint)" }}><X size={20} /></button>
+              <button onClick={() => { setShowVentaModal(false); setVentaItems([]); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-faint)" }}><X size={20} /></button>
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 20 }}>
+
+              {/* Cliente */}
               <div>
-                <label style={{ fontSize: 12, color: "var(--text-faint)", fontWeight: 600, display: "block", marginBottom: 6 }}>Nombre del cliente</label>
+                <label style={{ fontSize: 12, color: "var(--text-faint)", fontWeight: 600, display: "block", marginBottom: 6 }}>NOMBRE DEL CLIENTE</label>
                 <input value={ventaForm.clientName} onChange={e => setVentaForm({ ...ventaForm, clientName: e.target.value })}
                   placeholder="Cliente walk-in"
                   style={{ width: "100%", padding: "11px 13px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14, outline: "none", boxSizing: "border-box" }} />
               </div>
+
+              {/* Barbero */}
               <div>
-                <label style={{ fontSize: 12, color: "var(--text-faint)", fontWeight: 600, display: "block", marginBottom: 6 }}>Servicio</label>
-                <input value={ventaForm.service} onChange={e => setVentaForm({ ...ventaForm, service: e.target.value })}
-                  placeholder="Ej: Fade, Corte clásico..."
-                  style={{ width: "100%", padding: "11px 13px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14, outline: "none", boxSizing: "border-box" }} />
-              </div>
-              <div>
-                <label style={{ fontSize: 12, color: "var(--text-faint)", fontWeight: 600, display: "block", marginBottom: 6 }}>Barbero</label>
+                <label style={{ fontSize: 12, color: "var(--text-faint)", fontWeight: 600, display: "block", marginBottom: 6 }}>BARBERO</label>
                 <select value={ventaForm.barbero} onChange={e => setVentaForm({ ...ventaForm, barbero: e.target.value })}
                   style={{ width: "100%", padding: "11px 13px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14, outline: "none", boxSizing: "border-box", cursor: "pointer" }}>
                   {barbers.map(b => <option key={b.id} value={b.id}>{b.full_name}</option>)}
                 </select>
               </div>
-              <div>
-                <label style={{ fontSize: 12, color: "var(--text-faint)", fontWeight: 600, display: "block", marginBottom: 6 }}>Monto *</label>
+
+              {/* Servicio del catálogo */}
+              <div style={{ background: "var(--surface2)", borderRadius: 12, padding: 14, border: "1px solid var(--border)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+                  <Scissors size={13} color="var(--brand,#FF6B2C)" />
+                  <label style={{ fontSize: 12, color: "var(--text-faint)", fontWeight: 700 }}>SERVICIO</label>
+                </div>
+                <select
+                  value={ventaForm.serviceId}
+                  onChange={e => {
+                    const svc = catalogServices.find(s => s.id === e.target.value);
+                    setVentaForm(f => ({ ...f, serviceId: e.target.value, price: svc ? String(svc.price) : f.price }));
+                  }}
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 10, background: "var(--card-bg)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14, outline: "none", boxSizing: "border-box", cursor: "pointer", marginBottom: 10 }}
+                >
+                  <option value="">Sin servicio / solo producto</option>
+                  {catalogServices.map(s => <option key={s.id} value={s.id}>{s.name} — ${Number(s.price).toLocaleString("es-CL")}</option>)}
+                </select>
+                {/* Precio editable (se autocompleta con el servicio pero es modificable) */}
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ color: "var(--text-faint)", fontSize: 20 }}>$</span>
+                  <span style={{ color: "var(--text-faint)", fontSize: 16 }}>$</span>
                   <input type="number" value={ventaForm.price} onChange={e => setVentaForm({ ...ventaForm, price: e.target.value })}
-                    placeholder="0"
-                    style={{ flex: 1, padding: "11px 13px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 22, fontWeight: 700, outline: "none", boxSizing: "border-box" }} />
+                    placeholder="Precio del servicio"
+                    style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: "var(--card-bg)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 18, fontWeight: 700, outline: "none", boxSizing: "border-box" }} />
                 </div>
               </div>
+
+              {/* Productos del inventario */}
+              {inventoryProducts.length > 0 && (
+                <div style={{ background: "var(--surface2)", borderRadius: 12, padding: 14, border: "1px solid var(--border)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+                    <Package size={13} color="var(--brand,#FF6B2C)" />
+                    <label style={{ fontSize: 12, color: "var(--text-faint)", fontWeight: 700 }}>PRODUCTOS (opcional)</label>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 180, overflowY: "auto" }}>
+                    {inventoryProducts.map(p => {
+                      const item = ventaItems.find(i => i.id === p.id);
+                      const qty  = item?.qty ?? 0;
+                      return (
+                        <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", background: qty > 0 ? "rgba(255,107,44,0.06)" : "var(--card-bg)", border: `1px solid ${qty > 0 ? "rgba(255,107,44,0.3)" : "var(--border)"}`, borderRadius: 8 }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", marginBottom: 1 }}>{p.name}</p>
+                            <p style={{ fontSize: 11, color: "var(--text-faint)" }}>${Number(p.price_sell).toLocaleString("es-CL")} · stock: {p.stock}</p>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                            <button type="button" onClick={() => {
+                              if (qty <= 0) return;
+                              setVentaItems(items => qty === 1
+                                ? items.filter(i => i.id !== p.id)
+                                : items.map(i => i.id === p.id ? { ...i, qty: i.qty - 1 } : i)
+                              );
+                            }} style={{ width: 26, height: 26, borderRadius: 6, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontWeight: 700, fontSize: 16, cursor: qty > 0 ? "pointer" : "not-allowed", opacity: qty > 0 ? 1 : 0.3, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                            <span style={{ fontSize: 14, fontWeight: 700, color: qty > 0 ? "var(--brand,#FF6B2C)" : "var(--text-faint)", minWidth: 16, textAlign: "center" }}>{qty}</span>
+                            <button type="button" onClick={() => {
+                              if (qty >= p.stock) return;
+                              setVentaItems(items => item
+                                ? items.map(i => i.id === p.id ? { ...i, qty: i.qty + 1 } : i)
+                                : [...items, { id: p.id, name: p.name, price_sell: p.price_sell, qty: 1 }]
+                              );
+                            }} style={{ width: 26, height: 26, borderRadius: 6, background: "var(--brand,#FF6B2C)", border: "none", color: "#fff", fontWeight: 700, fontSize: 16, cursor: qty < p.stock ? "pointer" : "not-allowed", opacity: qty < p.stock ? 1 : 0.3, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Resumen total */}
+              {(Number(ventaForm.price) > 0 || ventaItems.length > 0) && (
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "rgba(255,107,44,0.06)", border: "1px solid rgba(255,107,44,0.2)", borderRadius: 10 }}>
+                  <span style={{ fontSize: 13, color: "var(--text-faint)", fontWeight: 600 }}>Total a cobrar</span>
+                  <span style={{ fontSize: 20, fontWeight: 800, color: "var(--brand,#FF6B2C)" }}>
+                    ${(Number(ventaForm.price || 0) + ventaItems.reduce((s, i) => s + i.price_sell * i.qty, 0)).toLocaleString("es-CL")}
+                  </span>
+                </div>
+              )}
+
+              {/* Método de pago */}
               <div>
-                <label style={{ fontSize: 12, color: "var(--text-faint)", fontWeight: 600, display: "block", marginBottom: 8 }}>Método de pago</label>
+                <label style={{ fontSize: 12, color: "var(--text-faint)", fontWeight: 600, display: "block", marginBottom: 8 }}>MÉTODO DE PAGO</label>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                   {PAYMENT_METHODS.map(m => (
                     <button key={m.key} onClick={() => setVentaForm({ ...ventaForm, payMethod: m.key })}
@@ -701,6 +805,7 @@ export default function CajaPage() {
                   ))}
                 </div>
               </div>
+
               {ventaForm.payMethod === "transfer" && (
                 <div>
                   <label style={{ fontSize: 12, color: "var(--text-faint)", fontWeight: 600, display: "block", marginBottom: 6 }}>📸 Foto del comprobante</label>
@@ -711,12 +816,12 @@ export default function CajaPage() {
             </div>
 
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setShowVentaModal(false)}
+              <button onClick={() => { setShowVentaModal(false); setVentaItems([]); }}
                 style={{ flex: 1, padding: "12px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", fontWeight: 600, cursor: "pointer" }}>
                 Cancelar
               </button>
               <button onClick={() => ventaMut.mutate()}
-                disabled={ventaMut.isPending || !ventaForm.price || (ventaForm.payMethod === "transfer" && !ventaForm.proofUrl)}
+                disabled={ventaMut.isPending || (!ventaForm.price && ventaItems.length === 0) || (ventaForm.payMethod === "transfer" && !ventaForm.proofUrl)}
                 style={{ flex: 2, padding: "12px", borderRadius: 10, background: O, border: "none", color: "#fff", fontWeight: 700, cursor: "pointer", opacity: ventaMut.isPending ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                 {ventaMut.isPending ? <Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} /> : <ShoppingBag size={15} />}
                 {ventaMut.isPending ? "Registrando..." : "Registrar venta"}

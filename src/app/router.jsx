@@ -20,10 +20,11 @@ import SettingsPage  from "../features/admin/pages/SettingsPage";
 import CajaPage      from "../features/admin/pages/CajaPage";
 import InventoryPage from "../features/admin/pages/InventoryPage";
 
-import OverviewPage    from "../features/superadmin/pages/OverviewPage";
-import ShopsPage       from "../features/superadmin/pages/ShopsPage";
-import PricingPage     from "../features/superadmin/pages/PricingPage";
-import SuppliersPage   from "../features/superadmin/pages/SuppliersPage";
+import OverviewPage            from "../features/superadmin/pages/OverviewPage";
+import ShopsPage               from "../features/superadmin/pages/ShopsPage";
+import PricingPage             from "../features/superadmin/pages/PricingPage";
+import SuppliersPage           from "../features/superadmin/pages/SuppliersPage";
+import SuperAdminSettingsPage  from "../features/superadmin/pages/SuperAdminSettingsPage";
 
 import SupplierDashboard     from "../features/supplier/pages/SupplierDashboard";
 import SupplierProductsPage  from "../features/supplier/pages/SupplierProductsPage";
@@ -67,9 +68,10 @@ export const router = createBrowserRouter([
     element: <SuperAdminLayout />,
     children: [
       { index: true,          element: <OverviewPage />   },
-      { path: "shops",        element: <ShopsPage />     },
-      { path: "suppliers",    element: <SuppliersPage /> },
-      { path: "pricing",      element: <PricingPage />   },
+      { path: "shops",        element: <ShopsPage />              },
+      { path: "suppliers",    element: <SuppliersPage />          },
+      { path: "pricing",      element: <PricingPage />            },
+      { path: "settings",     element: <SuperAdminSettingsPage /> },
     ],
   },
 

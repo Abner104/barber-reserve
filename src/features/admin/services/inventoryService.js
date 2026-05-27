@@ -1,6 +1,39 @@
 import { supabase } from "../../../lib/supabase";
 import { resolveShopId } from "./adminService";
 
+const WA_URL    = import.meta.env.VITE_WA_SERVICE_URL ?? "http://localhost:3001";
+const WA_SECRET = import.meta.env.VITE_WA_SECRET      ?? "barberos2026secret";
+
+async function notifyLowStock(product, newStock) {
+  try {
+    // Buscar el barberId del owner de esta shop para notificar por WA
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("shop_id", product.shop_id)
+      .eq("role", "owner")
+      .maybeSingle();
+    if (!profile) return;
+
+    const { data: barber } = await supabase
+      .from("barbers")
+      .select("id")
+      .eq("profile_id", profile.id)
+      .maybeSingle();
+    if (!barber) return;
+
+    const emoji  = newStock === 0 ? "🚨" : "⚠️";
+    const nivel  = newStock === 0 ? "SIN STOCK" : "Stock bajo";
+    const msg    = `${emoji} *${nivel}: ${product.name}*\n\nQuedan *${newStock} ${product.unit ?? "unidades"}* en inventario.\nMínimo configurado: ${product.stock_min ?? 3}\n\n💡 Recordá reponer antes de que se agote.`;
+
+    await fetch(`${WA_URL}/notify`, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${WA_SECRET}` },
+      body:    JSON.stringify({ barberId: barber.id, message: msg }),
+    });
+  } catch {}
+}
+
 // ── Productos ──────────────────────────────────────────────
 export async function getInventory() {
   const shopId = resolveShopId();
@@ -22,6 +55,11 @@ export async function upsertInventoryProduct(product) {
     .select()
     .single();
   if (error) throw error;
+  // Alerta si el stock inicial ya está bajo el mínimo
+  const min = data.stock_min ?? 3;
+  if (data.stock <= min && data.stock >= 0) {
+    await notifyLowStock(data, data.stock);
+  }
   return data;
 }
 
@@ -39,10 +77,12 @@ export async function adjustStock(id, delta, reason = "") {
   if (fetchErr) throw fetchErr;
 
   const newStock = Math.max(0, (product.stock ?? 0) + delta);
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("inventory_products")
     .update({ stock: newStock })
-    .eq("id", id);
+    .eq("id", id)
+    .select()
+    .single();
   if (error) throw error;
 
   // Registrar movimiento
@@ -53,6 +93,13 @@ export async function adjustStock(id, delta, reason = "") {
     delta,
     reason:     reason || (delta > 0 ? "Entrada manual" : "Salida manual"),
   });
+
+  // Alerta WA si el stock queda bajo el mínimo
+  const min = updated?.stock_min ?? 3;
+  if (delta < 0 && newStock <= min) {
+    await notifyLowStock(updated, newStock);
+  }
+
   return newStock;
 }
 

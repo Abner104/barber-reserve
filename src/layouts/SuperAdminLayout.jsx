@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Outlet, Link, useLocation, useNavigate, Navigate } from "react-router-dom";
-import { Scissors, LayoutDashboard, Building2, LogOut, Menu, X, ChevronRight, Zap, Tag, Package } from "lucide-react";
+import { Scissors, LayoutDashboard, Building2, LogOut, Menu, X, ChevronRight, Zap, Tag, Package, Settings } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 
 const NAV = [
@@ -8,6 +8,7 @@ const NAV = [
   { to: "/superadmin/shops",     icon: Building2,       label: "Barberías"   },
   { to: "/superadmin/suppliers", icon: Package,         label: "Proveedores" },
   { to: "/superadmin/pricing",   icon: Tag,             label: "Precios"     },
+  { to: "/superadmin/settings", icon: Settings,        label: "Config"      },
 ];
 
 export default function SuperAdminLayout() {

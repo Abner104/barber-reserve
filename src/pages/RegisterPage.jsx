@@ -102,6 +102,20 @@ export default function RegisterPage() {
         { shop_id: shopData.id, name: "Adicionales", sort_order: 4 },
       ]);
 
+      // Notificar al super admin por WA
+      try {
+        const WA_URL    = import.meta.env.VITE_WA_SERVICE_URL ?? "http://localhost:3001";
+        const WA_SECRET = import.meta.env.VITE_WA_SECRET      ?? "barberos2026secret";
+        await fetch(`${WA_URL}/notify`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${WA_SECRET}` },
+          body: JSON.stringify({
+            barberId: "superadmin",
+            message: `🎉 *Nueva barbería registrada*\n\n📍 *${shop.name}*\n👤 Owner: ${account.full_name}\n📧 ${account.email}\n🏙️ ${shop.city || "Sin ciudad"}\n\nYa está en trial de ${trialDays} días.`,
+          }),
+        });
+      } catch {}
+
       toast.success(`¡Bienvenido! Tu barbería ${shop.name} está lista 🎉`);
       // Forzar recarga del perfil en el authStore antes de redirigir
       const { loadProfile } = await import("../store/authStore").then(m => m.useAuthStore.getState());
