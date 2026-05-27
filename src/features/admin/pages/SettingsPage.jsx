@@ -7,6 +7,7 @@ import { supabase } from "../../../lib/supabase";
 import { SHOP_ID } from "../../../lib/constants";
 import ThemeProvider from "../../../components/shared/ThemeProvider";
 import ImageUpload from "../../../components/shared/ImageUpload";
+import WhatsAppQR from "../components/WhatsAppQR";
 
 const O = "var(--brand, #FF6B2C)";
 
@@ -395,6 +396,20 @@ export default function SettingsPage() {
                 ))}
               </div>
             </Field>
+          </Section>
+
+          {/* WhatsApp del negocio — alertas de inventario y notificaciones */}
+          <Section title="WhatsApp del negocio">
+            <p style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 12, lineHeight: 1.5 }}>
+              Conecta el WhatsApp del negocio para recibir alertas automáticas de <strong style={{ color: "var(--text)" }}>stock bajo</strong> en el inventario.
+              Es una sesión independiente de la de cada barbero.
+            </p>
+            {shop?.id && (
+              <WhatsAppQR
+                barberId={`shop_${shop.id}`}
+                barberName="Negocio"
+              />
+            )}
           </Section>
 
           {/* Link a la página pública */}

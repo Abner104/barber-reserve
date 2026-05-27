@@ -6,30 +6,15 @@ const WA_SECRET = import.meta.env.VITE_WA_SECRET      ?? "barberos2026secret";
 
 async function notifyLowStock(product, newStock) {
   try {
-    // Buscar el barberId del owner de esta shop para notificar por WA
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("shop_id", product.shop_id)
-      .eq("role", "owner")
-      .maybeSingle();
-    if (!profile) return;
+    const emoji = newStock === 0 ? "🚨" : "⚠️";
+    const nivel = newStock === 0 ? "SIN STOCK" : "Stock bajo";
+    const msg   = `${emoji} *${nivel}: ${product.name}*\n\nQuedan *${newStock} ${product.unit ?? "unidades"}* en inventario.\nMínimo configurado: ${product.stock_min ?? 3}\n\n💡 Recordá reponer antes de que se agote.`;
 
-    const { data: barber } = await supabase
-      .from("barbers")
-      .select("id")
-      .eq("profile_id", profile.id)
-      .maybeSingle();
-    if (!barber) return;
-
-    const emoji  = newStock === 0 ? "🚨" : "⚠️";
-    const nivel  = newStock === 0 ? "SIN STOCK" : "Stock bajo";
-    const msg    = `${emoji} *${nivel}: ${product.name}*\n\nQuedan *${newStock} ${product.unit ?? "unidades"}* en inventario.\nMínimo configurado: ${product.stock_min ?? 3}\n\n💡 Recordá reponer antes de que se agote.`;
-
+    // Usar la sesión del negocio (shop_${shopId}) — se escanea en Config del admin
     await fetch(`${WA_URL}/notify`, {
       method:  "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${WA_SECRET}` },
-      body:    JSON.stringify({ barberId: barber.id, message: msg }),
+      body:    JSON.stringify({ barberId: `shop_${product.shop_id}`, message: msg }),
     });
   } catch {}
 }
