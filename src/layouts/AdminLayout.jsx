@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Outlet, Link, useLocation, useNavigate, Navigate } from "react-router-dom";
 import {
   Scissors, Calendar, Users, LayoutDashboard,
-  Settings, LogOut, Menu, X, ChevronRight, Zap, DollarSign,
+  Settings, LogOut, Menu, X, ChevronRight, Zap, DollarSign, Package,
 } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 import { useRealtimeBookings } from "../features/admin/hooks/useRealtimeBookings";
@@ -20,6 +20,7 @@ const NAV = [
   { to: "/admin/caja",     icon: DollarSign,    label: "Caja"      },
   { to: "/admin/barbers",  icon: Users,         label: "Barberos"  },
   { to: "/admin/services", icon: Scissors,         label: "Servicios" },
+  { to: "/admin/inventory",icon: Package,        label: "Inventario"},
   { to: "/admin/settings", icon: Settings,         label: "Config"    },
 ];
 

@@ -18,6 +18,7 @@ import ServicesPage  from "../features/admin/pages/ServicesPage";
 import BookingsPage  from "../features/admin/pages/BookingsPage";
 import SettingsPage  from "../features/admin/pages/SettingsPage";
 import CajaPage      from "../features/admin/pages/CajaPage";
+import InventoryPage from "../features/admin/pages/InventoryPage";
 
 import OverviewPage    from "../features/superadmin/pages/OverviewPage";
 import ShopsPage       from "../features/superadmin/pages/ShopsPage";
@@ -56,6 +57,7 @@ export const router = createBrowserRouter([
       { path: "services",  element: <ServicesPage />  },
       { path: "settings",  element: <SettingsPage />  },
       { path: "caja",      element: <CajaPage />      },
+      { path: "inventory", element: <InventoryPage /> },
     ],
   },
 
