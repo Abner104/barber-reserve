@@ -37,7 +37,8 @@ export function useRealtimeBookings() {
           qc.invalidateQueries({ queryKey: ["admin-stats"],       exact: false, refetchType: "all" });
           qc.invalidateQueries({ queryKey: ["admin-bookings"],    exact: false, refetchType: "all" });
 
-          if (payload.eventType === "INSERT") {
+          // Solo notificar reservas nuevas pendientes — ignorar ventas directas (ya completadas)
+          if (payload.eventType === "INSERT" && payload.new?.status === "pending") {
             const b = payload.new;
             playBookingSound();
             toast.success(

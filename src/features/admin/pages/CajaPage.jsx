@@ -273,7 +273,8 @@ export default function CajaPage() {
   // Compensación por barbero según su modelo de pago
   const PERIOD_LABEL = { daily: "por día", weekly: "por semana", monthly: "por mes" };
 
-  const byBarber = bookings.reduce((acc, b) => {
+  // Solo calcular compensación sobre reservas reales (no ventas directas walk-in sin servicio)
+  const byBarber = bookings.filter(b => b.service_id != null).reduce((acc, b) => {
     const barber = b.barbers;
     if (!barber) return acc;
     const name  = barber.full_name ?? "Sin asignar";
