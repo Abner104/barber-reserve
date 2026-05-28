@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, X, Package, AlertTriangle, ExternalLink, Power } from "lucide-react";
+import { Plus, X, Package, AlertTriangle, ExternalLink, Power, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../../../lib/supabase";
 
@@ -42,6 +42,11 @@ async function toggleSupplierActive(id, is_active) {
   if (error) throw error;
 }
 
+async function deleteSupplier(id) {
+  const { error } = await supabase.from("suppliers").delete().eq("id", id);
+  if (error) throw error;
+}
+
 const EMPTY_FORM = { email: "", password: "", fullName: "", supplierName: "", description: "", whatsapp: "" };
 
 export default function SuppliersPage() {
@@ -60,6 +65,12 @@ export default function SuppliersPage() {
     mutationFn: ({ id, is_active }) => toggleSupplierActive(id, is_active),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["sa-suppliers"] }); toast.success("Estado actualizado"); },
     onError:   () => toast.error("Error al actualizar"),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (id) => deleteSupplier(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["sa-suppliers"] }); toast.success("Proveedor eliminado"); },
+    onError:   () => toast.error("Error al eliminar"),
   });
 
   function openModal() { setForm(EMPTY_FORM); setFormErrors({}); setModal(true); }
@@ -158,6 +169,14 @@ export default function SuppliersPage() {
               title={s.is_active ? "Desactivar" : "Activar"}
               style={{ padding: "8px", borderRadius: 8, background: s.is_active ? "rgba(239,68,68,0.08)" : "rgba(34,197,94,0.08)", border: `1px solid ${s.is_active ? "rgba(239,68,68,0.2)" : "rgba(34,197,94,0.2)"}`, color: s.is_active ? "#f87171" : "#4ade80", cursor: "pointer", display: "flex" }}>
               <Power size={14} />
+            </button>
+
+            <button
+              onClick={() => { if (window.confirm(`¿Eliminar a ${s.name}? Esta acción no se puede deshacer.`)) deleteMut.mutate(s.id); }}
+              disabled={deleteMut.isPending}
+              title="Eliminar proveedor"
+              style={{ padding: "8px", borderRadius: 8, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171", cursor: "pointer", display: "flex" }}>
+              <Trash2 size={14} />
             </button>
           </div>
         ))}
