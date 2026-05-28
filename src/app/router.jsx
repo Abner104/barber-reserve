@@ -11,6 +11,7 @@ import ShopBookingPage  from "../pages/ShopBookingPage";
 import LoginPage          from "../pages/LoginPage";
 import RegisterPage       from "../pages/RegisterPage";
 import SubscriptionPage   from "../pages/SubscriptionPage";
+import ResetPasswordPage  from "../pages/ResetPasswordPage";
 
 import DashboardPage from "../features/admin/pages/DashboardPage";
 import BarbersPage   from "../features/admin/pages/BarbersPage";
@@ -43,9 +44,10 @@ export const router = createBrowserRouter([
   { path: "/", element: <SaasLandingPage /> },
 
   // ── AUTH ── (rutas fijas ANTES de /:slug)
-  { path: "/login",        element: <LoginPage />        },
-  { path: "/register",     element: <RegisterPage />     },
-  { path: "/subscription", element: <SubscriptionPage /> },
+  { path: "/login",          element: <LoginPage />          },
+  { path: "/register",       element: <RegisterPage />       },
+  { path: "/subscription",   element: <SubscriptionPage />   },
+  { path: "/reset-password", element: <ResetPasswordPage />  },
 
   // ── ADMIN ── (ruta fija ANTES de /:slug)
   {

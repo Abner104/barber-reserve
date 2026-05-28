@@ -32,6 +32,10 @@ export default function LoginPage() {
   const [passkeyLoading, setPasskeyLoading]     = useState(false);
   const [showPrompt, setShowPrompt]             = useState(false);
   const [loggedUser, setLoggedUser]             = useState(null);
+  const [showForgot, setShowForgot]             = useState(false);
+  const [forgotEmail, setForgotEmail]           = useState("");
+  const [forgotSending, setForgotSending]       = useState(false);
+  const [forgotSent, setForgotSent]             = useState(false);
 
   // Verificar si hay passkey guardada y el dispositivo la soporta
   useEffect(() => {
@@ -137,6 +141,23 @@ export default function LoginPage() {
     }
   }
 
+  async function handleForgot(e) {
+    e.preventDefault();
+    if (!forgotEmail.trim()) return;
+    setForgotSending(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      setForgotSent(true);
+    } catch {
+      toast.error("No se pudo enviar el email. Verifica que el correo sea correcto.");
+    } finally {
+      setForgotSending(false);
+    }
+  }
+
   function handlePromptClose() {
     setShowPrompt(false);
     if (loggedUser) navigate(getRoleRoute(loggedUser.role), { replace: true });
@@ -230,9 +251,61 @@ export default function LoginPage() {
               {submitting && <Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} />}
               {submitting ? "Ingresando..." : "Ingresar"}
             </button>
+
+            <button type="button" onClick={() => { setShowForgot(true); setForgotEmail(form.email); setForgotSent(false); }}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "#555", fontSize: 13, marginTop: 8, width: "100%", textAlign: "center" }}>
+              ¿Olvidaste tu contraseña?
+            </button>
           </form>
         </div>
       </div>
+
+      {/* Modal recuperar contraseña */}
+      {showForgot && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+          onClick={() => setShowForgot(false)}>
+          <div style={{ background: "#141414", border: "1px solid #2A2A2A", borderRadius: 20, padding: 28, width: "100%", maxWidth: 380 }}
+            onClick={e => e.stopPropagation()}>
+            {forgotSent ? (
+              <div style={{ textAlign: "center", padding: "8px 0" }}>
+                <div style={{ fontSize: 44, marginBottom: 12 }}>📧</div>
+                <p style={{ fontWeight: 800, fontSize: 18, color: "#fff", marginBottom: 8 }}>Email enviado</p>
+                <p style={{ color: "#555", fontSize: 13, lineHeight: 1.6, marginBottom: 20 }}>
+                  Revisá tu bandeja de entrada y seguí el link para crear una nueva contraseña.
+                </p>
+                <button onClick={() => setShowForgot(false)}
+                  style={{ width: "100%", padding: 12, borderRadius: 10, background: O, color: "#fff", fontWeight: 700, fontSize: 14, border: "none", cursor: "pointer" }}>
+                  Listo
+                </button>
+              </div>
+            ) : (
+              <>
+                <p style={{ fontWeight: 800, fontSize: 18, color: "#fff", marginBottom: 6 }}>Recuperar contraseña</p>
+                <p style={{ color: "#555", fontSize: 13, marginBottom: 20, lineHeight: 1.5 }}>
+                  Ingresá tu email y te enviamos un link para crear una nueva contraseña.
+                </p>
+                <form onSubmit={handleForgot} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  <input
+                    type="email" placeholder="tu@email.com" value={forgotEmail}
+                    onChange={e => setForgotEmail(e.target.value)}
+                    required
+                    style={{ width: "100%", padding: "12px 14px", borderRadius: 10, background: "#0A0A0A", border: "1px solid #2A2A2A", color: "#fff", fontSize: 14, outline: "none", boxSizing: "border-box" }}
+                  />
+                  <button type="submit" disabled={forgotSending}
+                    style={{ width: "100%", padding: 13, borderRadius: 10, background: O, color: "#fff", fontWeight: 700, fontSize: 14, border: "none", cursor: forgotSending ? "not-allowed" : "pointer", opacity: forgotSending ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                    {forgotSending && <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />}
+                    {forgotSending ? "Enviando..." : "Enviar link"}
+                  </button>
+                  <button type="button" onClick={() => setShowForgot(false)}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "#555", fontSize: 13, textAlign: "center" }}>
+                    Cancelar
+                  </button>
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Prompt post-login para registrar passkey */}
       {showPrompt && loggedUser && (
