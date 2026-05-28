@@ -138,7 +138,7 @@ export default function SuppliersPage() {
               <p style={{ fontWeight: 700, color: "#fff", fontSize: 15, marginBottom: 2 }}>{s.name}</p>
               <p style={{ color: "#555", fontSize: 12 }}>
                 {s.whatsapp && <span style={{ marginRight: 12 }}>📱 {s.whatsapp}</span>}
-                {s.description && <span>{s.description.slice(0, 60)}{s.description.length > 60 ? "..." : ""}</span>}
+                {s.description && <span>{s.description.slice(0, 60)}{(s.description?.length ?? 0) > 60 ? "..." : ""}</span>}
               </p>
             </div>
 
