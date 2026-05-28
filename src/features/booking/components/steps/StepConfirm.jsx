@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronLeft, MapPin, User, Scissors, Calendar, Clock, Loader2, Eye, EyeOff, Upload } from "lucide-react";
+import { ChevronLeft, MapPin, User, Scissors, Calendar, Clock, Loader2, Eye, EyeOff, Upload, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useBookingStore } from "../../../../store/bookingStore";
 import { createBooking } from "../../services/bookingService";
@@ -83,6 +83,7 @@ export default function StepConfirm() {
   const [proofUrl, setProofUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const [shopBank, setShopBank] = useState(null);
+  const [copiedBank, setCopiedBank] = useState(false);
   const proofInputRef           = useRef(null);
 
   // Cargar datos bancarios del shop para domicilios
@@ -256,6 +257,23 @@ export default function StepConfirm() {
                 <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 12, color: "var(--text-faint)" }}>Cuenta / RUT</span><span style={{ fontSize: 13, fontWeight: 700, color: "var(--brand)" }}>{shopBank.bank_account}</span></div>
                 <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 12, color: "var(--text-faint)" }}>Monto</span><span style={{ fontSize: 15, fontWeight: 800, color: "var(--brand)" }}>{formatCurrency(deliveryFee)}</span></div>
               </div>
+              <button
+                onClick={() => {
+                  const lines = [
+                    shopBank.bank_name   ? `Banco: ${shopBank.bank_name}`     : null,
+                    shopBank.bank_holder ? `Titular: ${shopBank.bank_holder}` : null,
+                    `Cuenta/RUT: ${shopBank.bank_account}`,
+                    `Monto: ${formatCurrency(deliveryFee)}`,
+                  ].filter(Boolean).join("\n");
+                  navigator.clipboard.writeText(lines);
+                  setCopiedBank(true);
+                  setTimeout(() => setCopiedBank(false), 2500);
+                }}
+                style={{ width: "100%", marginTop: 10, padding: "10px", borderRadius: 10, background: copiedBank ? "rgba(34,197,94,0.1)" : "var(--brand-alpha)", border: `1px solid ${copiedBank ? "rgba(34,197,94,0.4)" : "var(--brand)"}`, color: copiedBank ? "#22c55e" : "var(--brand)", fontWeight: 700, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+              >
+                {copiedBank ? <Check size={15} /> : <Copy size={15} />}
+                {copiedBank ? "¡Copiado!" : "Copiar datos de transferencia"}
+              </button>
             </div>
           ) : (
             <div style={{ background: "var(--surface2)", borderRadius: 12, padding: 14, marginBottom: 14 }}>
