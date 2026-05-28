@@ -6,6 +6,7 @@ import { useAuthStore } from "../store/authStore";
 import { supabase } from "../lib/supabase";
 import { isPlatformAuthAvailable, hasPasskeys, authenticatePasskey, registerPasskey } from "../lib/passkey";
 import PasskeyPrompt from "../components/shared/PasskeyPrompt";
+import BarberLoader from "../components/shared/BarberLoader";
 
 const O = "#FF6B2C";
 
@@ -147,11 +148,7 @@ export default function LoginPage() {
     outline: "none", boxSizing: "border-box",
   };
 
-  if (loading) return (
-    <div style={{ minHeight: "100vh", background: "#0A0A0A", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ width: 28, height: 28, border: "3px solid #2A2A2A", borderTopColor: O, borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-    </div>
-  );
+  if (loading) return <BarberLoader />;
 
   return (
     <div style={{ minHeight: "100vh", background: "#0A0A0A", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>

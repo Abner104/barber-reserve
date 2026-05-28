@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Outlet, Link, useLocation, useNavigate, Navigate } from "react-router-dom";
 import { Calendar, User, LogOut, Menu, X, Scissors, ChevronRight, Images, Clock } from "lucide-react";
+import BarberLoader from "../components/shared/BarberLoader";
 import { useAuthStore } from "../store/authStore";
 import { useRealtimeBarberBookings } from "../features/barber/hooks/useRealtimeBarberBookings";
 import { BarberOnboardingTour, useBarberTour } from "../components/shared/OnboardingTour";
@@ -22,11 +23,7 @@ export default function BarberLayout() {
   useRealtimeBarberBookings();
   const { show: showTour, close: closeTour } = useBarberTour();
 
-  if (loading) return (
-    <div style={{ minHeight: "100vh", background: "var(--bg, #0A0A0A)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ width: 28, height: 28, border: "3px solid var(--border, #2A2A2A)", borderTopColor: "var(--brand, #FF6B2C)", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-    </div>
-  );
+  if (loading) return <BarberLoader />;
 
   if (!user) return <Navigate to="/login" replace />;
   if (profile?.role !== "barber" && profile?.role !== "owner" && profile?.role !== "super_admin") {

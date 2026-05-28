@@ -13,12 +13,12 @@ const LOTTIE_URL = "/animations/Scissors Cutting Animation.json";
 export default function BarberLoader({
   message  = "Cargando...",
   shopName = null,
-  color    = "#FF6B2C",
+  color    = "var(--brand, #FF6B2C)",
 }) {
   return (
     <div style={{
       minHeight: "100vh",
-      background: "#0A0A0A",
+      background: "var(--bg, #0A0A0A)",
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
@@ -42,23 +42,22 @@ export default function BarberLoader({
 
       {/* Nombre */}
       {shopName ? (
-        <p style={{ fontSize: 20, fontWeight: 900, color: "#fff", letterSpacing: -0.5 }}>
+        <p style={{ fontSize: 20, fontWeight: 900, color: "var(--text, #fff)", letterSpacing: -0.5 }}>
           {shopName}
         </p>
       ) : (
         <p style={{ fontSize: 20, fontWeight: 900, letterSpacing: -0.5 }}>
-          <span style={{ color: "#fff" }}>Barber</span>
-          <span style={{ color }}>OS</span>
+          <span style={{ color: "var(--text, #fff)" }}>Clippr</span>
         </p>
       )}
 
       {/* Mensaje */}
-      <p className="lb-txt" style={{ color: "#444", fontSize: 11, letterSpacing: 2.5, textTransform: "uppercase" }}>
+      <p className="lb-txt" style={{ color: "var(--text-faint, #444)", fontSize: 11, letterSpacing: 2.5, textTransform: "uppercase" }}>
         {message}
       </p>
 
       {/* Barra de progreso */}
-      <div style={{ width: 100, height: 2, background: "#1a1a1a", borderRadius: 1, overflow: "hidden" }}>
+      <div style={{ width: 100, height: 2, background: "var(--surface2, #1a1a1a)", borderRadius: 1, overflow: "hidden" }}>
         <div className="lb-bar" style={{ width: "28%", height: "100%", background: color, borderRadius: 1 }} />
       </div>
     </div>

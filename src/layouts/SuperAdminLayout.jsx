@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Outlet, Link, useLocation, useNavigate, Navigate } from "react-router-dom";
 import { Scissors, LayoutDashboard, Building2, LogOut, Menu, X, ChevronRight, Zap, Tag, Package, Settings } from "lucide-react";
+import BarberLoader from "../components/shared/BarberLoader";
 import { useAuthStore } from "../store/authStore";
 
 const NAV = [
@@ -17,11 +18,7 @@ export default function SuperAdminLayout() {
   const { signOut, profile, loading, user } = useAuthStore();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  if (loading) return (
-    <div style={{ minHeight: "100vh", background: "#0A0A0A", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ width: 32, height: 32, border: "3px solid #2A2A2A", borderTopColor: "#FF6B2C", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-    </div>
-  );
+  if (loading) return <BarberLoader />;
 
   if (!user) return <Navigate to="/login" replace />;
   if (profile?.role !== "super_admin") return <Navigate to="/admin" replace />;
