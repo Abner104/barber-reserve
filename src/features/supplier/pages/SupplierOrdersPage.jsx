@@ -8,7 +8,7 @@ import { useAuthStore } from "../../../store/authStore";
 import { getSupplierByProfileId, getSupplierOrders, updateOrderStatus } from "../services/supplierService";
 import { formatCurrency } from "../../../lib/utils";
 
-const O = "#FF6B2C";
+const O = "var(--brand, #FF6B2C)";
 
 const STATUS_LABEL = { pending: "Pendiente", processing: "En proceso", shipped: "Enviado", delivered: "Entregado", cancelled: "Cancelado" };
 const STATUS_COLOR = {
@@ -62,11 +62,11 @@ export default function SupplierOrdersPage() {
     <div className="sup-page" style={{ maxWidth: "min(1100px, 100%)" }}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28, flexWrap: "wrap", gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 28, fontWeight: 800, color: "#fff" }}>Pedidos</h1>
-          <p style={{ color: "#555", fontSize: 13, marginTop: 4 }}>{orders.length} pedidos en total</p>
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: "var(--text)" }}>Pedidos</h1>
+          <p style={{ color: "var(--text-faint)", fontSize: 13, marginTop: 4 }}>{orders.length} pedidos en total</p>
         </div>
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-          style={{ padding: "8px 12px", borderRadius: 9, background: "#111", border: "1px solid #1E1E1E", color: filterStatus ? "#fff" : "#555", fontSize: 13, cursor: "pointer" }}>
+          style={{ padding: "8px 12px", borderRadius: 9, background: "var(--surface)", border: "1px solid var(--border)", color: filterStatus ? "#fff" : "#555", fontSize: 13, cursor: "pointer" }}>
           <option value="">Todos los estados</option>
           {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
@@ -74,36 +74,36 @@ export default function SupplierOrdersPage() {
 
       {isLoading && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {[1,2,3].map(i => <div key={i} style={{ height: 72, borderRadius: 12, background: "#111" }} />)}
+          {[1,2,3].map(i => <div key={i} style={{ height: 72, borderRadius: 12, background: "var(--surface)" }} />)}
         </div>
       )}
 
       {!isLoading && filtered.length === 0 && (
-        <div style={{ textAlign: "center", padding: "64px 20px", background: "#111", border: "1px solid #1E1E1E", borderRadius: 16 }}>
+        <div style={{ textAlign: "center", padding: "64px 20px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16 }}>
           <div style={{ fontSize: 44, marginBottom: 12 }}>📋</div>
-          <p style={{ fontWeight: 700, color: "#fff", marginBottom: 6 }}>Sin pedidos</p>
-          <p style={{ color: "#555", fontSize: 13 }}>{filterStatus ? "No hay pedidos con ese estado." : "Los pedidos de los barberos aparecerán aquí."}</p>
+          <p style={{ fontWeight: 700, color: "var(--text)", marginBottom: 6 }}>Sin pedidos</p>
+          <p style={{ color: "var(--text-faint)", fontSize: 13 }}>{filterStatus ? "No hay pedidos con ese estado." : "Los pedidos de los barberos aparecerán aquí."}</p>
         </div>
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {filtered.map(o => {
-          const sc     = STATUS_COLOR[o.status] ?? { bg: "#1E1E1E", text: "#555" };
+          const sc     = STATUS_COLOR[o.status] ?? { bg: "var(--surface2)", text: "#555" };
           const accent = ACCENT_COLOR[o.status] ?? "#555";
           const isOpen = openId === o.id;
           const next   = NEXT_STATUS[o.status];
           const waUrl  = buildWA(o);
 
           return (
-            <div key={o.id} style={{ background: "#111", border: `1px solid ${isOpen ? O + "44" : "#1E1E1E"}`, borderRadius: 14, overflow: "hidden", borderLeft: `4px solid ${accent}` }}>
+            <div key={o.id} style={{ background: "var(--surface)", border: `1px solid ${isOpen ? O + "44" : "var(--surface2)"}`, borderRadius: 14, overflow: "hidden", borderLeft: `4px solid ${accent}` }}>
               <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", cursor: "pointer" }}
                 onClick={() => setOpenId(isOpen ? null : o.id)}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontWeight: 700, color: "#fff", fontSize: 14, marginBottom: 2 }}>
+                  <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 14, marginBottom: 2 }}>
                     {o.contact_name ?? "Barbería"}
-                    {o.barbershops?.name && <span style={{ fontSize: 12, color: "#555", fontWeight: 400, marginLeft: 8 }}>{o.barbershops.name}</span>}
+                    {o.barbershops?.name && <span style={{ fontSize: 12, color: "var(--text-faint)", fontWeight: 400, marginLeft: 8 }}>{o.barbershops.name}</span>}
                   </p>
-                  <p style={{ color: "#555", fontSize: 12 }}>
+                  <p style={{ color: "var(--text-faint)", fontSize: 12 }}>
                     {o.items?.length ?? 0} producto(s) · {format(new Date(o.created_at), "d MMM HH:mm", { locale: es })}
                   </p>
                 </div>
@@ -115,24 +115,24 @@ export default function SupplierOrdersPage() {
               </div>
 
               {isOpen && (
-                <div style={{ borderTop: "1px solid #1E1E1E", padding: "16px 18px", display: "flex", flexDirection: "column", gap: 14 }}>
+                <div style={{ borderTop: "1px solid var(--border)", padding: "16px 18px", display: "flex", flexDirection: "column", gap: 14 }}>
                   {/* Ítems */}
-                  <div style={{ background: "#0A0A0A", borderRadius: 10, padding: "12px 14px" }}>
-                    <p style={{ fontSize: 11, color: "#555", fontWeight: 700, marginBottom: 10, textTransform: "uppercase", letterSpacing: 1.5 }}>Productos</p>
+                  <div style={{ background: "var(--bg)", borderRadius: 10, padding: "12px 14px" }}>
+                    <p style={{ fontSize: 11, color: "var(--text-faint)", fontWeight: 700, marginBottom: 10, textTransform: "uppercase", letterSpacing: 1.5 }}>Productos</p>
                     {(o.items ?? []).map((item, i) => (
                       <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 6 }}>
-                        <span style={{ color: "#ccc" }}>{item.name} <span style={{ color: "#555" }}>× {item.qty} {item.unit ?? ""}</span></span>
-                        <span style={{ color: "#fff", fontWeight: 600 }}>{formatCurrency(item.price * item.qty)}</span>
+                        <span style={{ color: "#ccc" }}>{item.name} <span style={{ color: "var(--text-faint)" }}>× {item.qty} {item.unit ?? ""}</span></span>
+                        <span style={{ color: "var(--text)", fontWeight: 600 }}>{formatCurrency(item.price * item.qty)}</span>
                       </div>
                     ))}
-                    <div style={{ borderTop: "1px solid #1E1E1E", marginTop: 8, paddingTop: 8, display: "flex", justifyContent: "space-between" }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: "#aaa" }}>Total</span>
+                    <div style={{ borderTop: "1px solid var(--border)", marginTop: 8, paddingTop: 8, display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-muted)" }}>Total</span>
                       <span style={{ fontSize: 14, fontWeight: 800, color: O }}>{formatCurrency(o.total ?? 0)}</span>
                     </div>
                   </div>
 
                   {/* Contacto */}
-                  <div style={{ fontSize: 13, color: "#777", display: "flex", flexDirection: "column", gap: 4 }}>
+                  <div style={{ fontSize: 13, color: "var(--text-muted)", display: "flex", flexDirection: "column", gap: 4 }}>
                     {o.contact_phone && <p>📱 {o.contact_phone}</p>}
                     {o.note && <p>📝 {o.note}</p>}
                   </div>

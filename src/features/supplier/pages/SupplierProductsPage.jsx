@@ -7,7 +7,7 @@ import { getSupplierByProfileId, getSupplierProducts, upsertProduct, deleteProdu
 import { uploadImage } from "../../../components/shared/ImageUpload";
 import { formatCurrency } from "../../../lib/utils";
 
-const O = "#FF6B2C";
+const O = "var(--brand, #FF6B2C)";
 
 const EMPTY = { name: "", description: "", price: "", stock: "", category: "", image_url: "", unit: "unidad", is_available: true };
 
@@ -90,26 +90,26 @@ export default function SupplierProductsPage() {
     <div className="sup-page" style={{ maxWidth: "min(1100px, 100%)" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 32, flexWrap: "wrap", gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 28, fontWeight: 800, color: "#fff" }}>Productos</h1>
-          <p style={{ color: "#555", fontSize: 13, marginTop: 4 }}>{products.length} productos en tu catálogo</p>
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: "var(--text)" }}>Productos</h1>
+          <p style={{ color: "var(--text-faint)", fontSize: 13, marginTop: 4 }}>{products.length} productos en tu catálogo</p>
         </div>
-        <button onClick={openNew} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 10, background: O, color: "#fff", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 14 }}>
+        <button onClick={openNew} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 10, background: O, color: "var(--text)", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 14 }}>
           <Plus size={16} /> Nuevo producto
         </button>
       </div>
 
       {isLoading && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
-          {[1,2,3,4].map(i => <div key={i} style={{ height: 200, borderRadius: 14, background: "#111" }} />)}
+          {[1,2,3,4].map(i => <div key={i} style={{ height: 200, borderRadius: 14, background: "var(--surface)" }} />)}
         </div>
       )}
 
       {!isLoading && products.length === 0 && (
-        <div style={{ textAlign: "center", padding: "64px 20px", background: "#111", border: "1px solid #1E1E1E", borderRadius: 16 }}>
+        <div style={{ textAlign: "center", padding: "64px 20px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16 }}>
           <div style={{ fontSize: 44, marginBottom: 12 }}>📦</div>
-          <p style={{ fontWeight: 700, color: "#fff", fontSize: 16, marginBottom: 8 }}>Sin productos aún</p>
-          <p style={{ color: "#555", fontSize: 13, marginBottom: 20 }}>Empieza subiendo tu primer producto al catálogo.</p>
-          <button onClick={openNew} style={{ padding: "10px 20px", borderRadius: 10, background: O, color: "#fff", border: "none", cursor: "pointer", fontWeight: 700 }}>
+          <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 16, marginBottom: 8 }}>Sin productos aún</p>
+          <p style={{ color: "var(--text-faint)", fontSize: 13, marginBottom: 20 }}>Empieza subiendo tu primer producto al catálogo.</p>
+          <button onClick={openNew} style={{ padding: "10px 20px", borderRadius: 10, background: O, color: "var(--text)", border: "none", cursor: "pointer", fontWeight: 700 }}>
             Agregar producto
           </button>
         </div>
@@ -117,31 +117,31 @@ export default function SupplierProductsPage() {
 
       {Object.entries(grouped).map(([cat, items]) => (
         <div key={cat} style={{ marginBottom: 32 }}>
-          <p style={{ fontSize: 11, letterSpacing: 2, textTransform: "uppercase", color: "#555", fontWeight: 700, marginBottom: 14 }}>{cat}</p>
+          <p style={{ fontSize: 11, letterSpacing: 2, textTransform: "uppercase", color: "var(--text-faint)", fontWeight: 700, marginBottom: 14 }}>{cat}</p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
             {items.map(p => (
-              <div key={p.id} style={{ background: "#111", border: "1px solid #1E1E1E", borderRadius: 14, overflow: "hidden" }}>
+              <div key={p.id} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 14, overflow: "hidden" }}>
                 {p.image_url ? (
                   <img src={p.image_url} alt={p.name} style={{ width: "100%", height: 140, objectFit: "cover" }} />
                 ) : (
-                  <div style={{ width: "100%", height: 140, background: "#1A1A1A", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <div style={{ width: "100%", height: 140, background: "var(--surface2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <Package size={36} color="#333" />
                   </div>
                 )}
                 <div style={{ padding: "14px" }}>
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
-                    <p style={{ fontWeight: 700, color: "#fff", fontSize: 14, lineHeight: 1.3 }}>{p.name}</p>
+                    <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 14, lineHeight: 1.3 }}>{p.name}</p>
                     <span style={{ padding: "2px 8px", borderRadius: 20, fontSize: 10, fontWeight: 700, flexShrink: 0, background: p.is_available ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.1)", color: p.is_available ? "#4ade80" : "#f87171" }}>
                       {p.is_available ? "Activo" : "Pausado"}
                     </span>
                   </div>
-                  {p.description && <p style={{ color: "#555", fontSize: 12, marginBottom: 8, lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{p.description}</p>}
+                  {p.description && <p style={{ color: "var(--text-faint)", fontSize: 12, marginBottom: 8, lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{p.description}</p>}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                     <p style={{ fontWeight: 800, color: O, fontSize: 16 }}>{formatCurrency(p.price)}</p>
                     {p.stock != null && <p style={{ fontSize: 12, color: p.stock <= 5 ? "#f87171" : "#555" }}>Stock: {p.stock} {p.unit}</p>}
                   </div>
                   <div style={{ display: "flex", gap: 8 }}>
-                    <button onClick={() => openEdit(p)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px", borderRadius: 8, background: "#1A1A1A", border: "1px solid #2A2A2A", color: "#aaa", cursor: "pointer", fontSize: 13 }}>
+                    <button onClick={() => openEdit(p)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", cursor: "pointer", fontSize: 13 }}>
                       <Pencil size={13} /> Editar
                     </button>
                     <button onClick={() => setDeleteConfirm(p)} style={{ padding: "8px 12px", borderRadius: 8, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171", cursor: "pointer" }}>
@@ -159,11 +159,11 @@ export default function SupplierProductsPage() {
       {modal && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
           onClick={closeModal}>
-          <div style={{ background: "#111", border: "1px solid #1E1E1E", borderRadius: 20, padding: 28, width: "100%", maxWidth: 480, maxHeight: "90vh", overflowY: "auto" }}
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 20, padding: 28, width: "100%", maxWidth: 480, maxHeight: "90vh", overflowY: "auto" }}
             onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-              <p style={{ fontWeight: 800, fontSize: 18, color: "#fff" }}>{modal === "new" ? "Nuevo producto" : "Editar producto"}</p>
-              <button onClick={closeModal} style={{ background: "#1A1A1A", border: "1px solid #2A2A2A", borderRadius: 8, padding: 6, cursor: "pointer", color: "#aaa", display: "flex" }}>
+              <p style={{ fontWeight: 800, fontSize: 18, color: "var(--text)" }}>{modal === "new" ? "Nuevo producto" : "Editar producto"}</p>
+              <button onClick={closeModal} style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 8, padding: 6, cursor: "pointer", color: "var(--text-muted)", display: "flex" }}>
                 <X size={16} />
               </button>
             </div>
@@ -173,12 +173,12 @@ export default function SupplierProductsPage() {
               {form.image_url ? (
                 <div style={{ position: "relative", marginBottom: 8 }}>
                   <img src={form.image_url} alt="preview" style={{ width: "100%", height: 160, objectFit: "cover", borderRadius: 12 }} />
-                  <button onClick={() => setForm(f => ({ ...f, image_url: "" }))} style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.7)", border: "none", borderRadius: 6, padding: "4px 8px", cursor: "pointer", color: "#fff", fontSize: 12 }}>
+                  <button onClick={() => setForm(f => ({ ...f, image_url: "" }))} style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.7)", border: "none", borderRadius: 6, padding: "4px 8px", cursor: "pointer", color: "var(--text)", fontSize: 12 }}>
                     Quitar
                   </button>
                 </div>
               ) : (
-                <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, height: 120, borderRadius: 12, border: "2px dashed #2A2A2A", cursor: "pointer", color: "#555" }}>
+                <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, height: 120, borderRadius: 12, border: "2px dashed var(--border)", cursor: "pointer", color: "var(--text-faint)" }}>
                   <Package size={28} />
                   <span style={{ fontSize: 13 }}>{uploading ? "Subiendo..." : "Agregar foto del producto"}</span>
                   <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => e.target.files?.[0] && handleImageUpload(e.target.files[0])} />
@@ -194,35 +194,35 @@ export default function SupplierProductsPage() {
               { key: "unit",        label: "Unidad",       placeholder: "unidad, caja, litro...", type: "text" },
             ].map(({ key, label, placeholder, type }) => (
               <div key={key} style={{ marginBottom: 14 }}>
-                <label style={{ display: "block", fontSize: 12, color: "#777", fontWeight: 600, marginBottom: 6 }}>{label.toUpperCase()}</label>
+                <label style={{ display: "block", fontSize: 12, color: "var(--text-muted)", fontWeight: 600, marginBottom: 6 }}>{label.toUpperCase()}</label>
                 <input
                   type={type}
                   value={form[key] ?? ""}
                   onChange={e => { setForm(f => ({ ...f, [key]: e.target.value })); setFormErrors(fe => ({ ...fe, [key]: null })); }}
                   placeholder={placeholder}
-                  style={{ width: "100%", padding: "10px 12px", borderRadius: 10, background: "#0A0A0A", border: `1px solid ${formErrors[key] ? "#ef4444" : "#2A2A2A"}`, color: "#fff", fontSize: 14, outline: "none", boxSizing: "border-box" }}
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 10, background: "var(--bg)", border: `1px solid ${formErrors[key] ? "#ef4444" : "var(--border)"}`, color: "var(--text)", fontSize: 14, outline: "none", boxSizing: "border-box" }}
                 />
                 {formErrors[key] && <p style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{formErrors[key]}</p>}
               </div>
             ))}
 
             <div style={{ marginBottom: 14 }}>
-              <label style={{ display: "block", fontSize: 12, color: "#777", fontWeight: 600, marginBottom: 6 }}>DESCRIPCIÓN</label>
+              <label style={{ display: "block", fontSize: 12, color: "var(--text-muted)", fontWeight: 600, marginBottom: 6 }}>DESCRIPCIÓN</label>
               <textarea
                 value={form.description ?? ""}
                 onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                 placeholder="Descripción del producto..."
                 rows={3}
-                style={{ width: "100%", padding: "10px 12px", borderRadius: 10, background: "#0A0A0A", border: "1px solid #2A2A2A", color: "#fff", fontSize: 14, outline: "none", resize: "none", boxSizing: "border-box" }}
+                style={{ width: "100%", padding: "10px 12px", borderRadius: 10, background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14, outline: "none", resize: "none", boxSizing: "border-box" }}
               />
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
               <input type="checkbox" id="available" checked={form.is_available} onChange={e => setForm(f => ({ ...f, is_available: e.target.checked }))} />
-              <label htmlFor="available" style={{ fontSize: 14, color: "#aaa", cursor: "pointer" }}>Producto disponible</label>
+              <label htmlFor="available" style={{ fontSize: 14, color: "var(--text-muted)", cursor: "pointer" }}>Producto disponible</label>
             </div>
 
-            <button onClick={handleSave} disabled={saving} style={{ width: "100%", padding: 14, borderRadius: 12, background: O, color: "#fff", fontWeight: 800, fontSize: 15, border: "none", cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.7 : 1 }}>
+            <button onClick={handleSave} disabled={saving} style={{ width: "100%", padding: 14, borderRadius: 12, background: O, color: "var(--text)", fontWeight: 800, fontSize: 15, border: "none", cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.7 : 1 }}>
               {saving ? "Guardando..." : modal === "new" ? "Crear producto" : "Guardar cambios"}
             </button>
           </div>
@@ -233,17 +233,17 @@ export default function SupplierProductsPage() {
       {deleteConfirm && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
           onClick={() => setDeleteConfirm(null)}>
-          <div style={{ background: "#111", border: "1px solid #2A2A2A", borderRadius: 20, padding: 28, width: "100%", maxWidth: 400 }}
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 20, padding: 28, width: "100%", maxWidth: 400 }}
             onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
               <AlertTriangle size={22} color="#f87171" />
-              <p style={{ fontWeight: 800, fontSize: 17, color: "#fff" }}>Eliminar producto</p>
+              <p style={{ fontWeight: 800, fontSize: 17, color: "var(--text)" }}>Eliminar producto</p>
             </div>
-            <p style={{ color: "#777", fontSize: 14, marginBottom: 24 }}>
-              ¿Eliminar <strong style={{ color: "#fff" }}>{deleteConfirm.name}</strong>? Esta acción no se puede deshacer.
+            <p style={{ color: "var(--text-muted)", fontSize: 14, marginBottom: 24 }}>
+              ¿Eliminar <strong style={{ color: "var(--text)" }}>{deleteConfirm.name}</strong>? Esta acción no se puede deshacer.
             </p>
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setDeleteConfirm(null)} style={{ flex: 1, padding: 12, borderRadius: 10, background: "#1A1A1A", border: "1px solid #2A2A2A", color: "#777", cursor: "pointer", fontWeight: 600 }}>
+              <button onClick={() => setDeleteConfirm(null)} style={{ flex: 1, padding: 12, borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", cursor: "pointer", fontWeight: 600 }}>
                 Cancelar
               </button>
               <button onClick={() => deleteMut.mutate(deleteConfirm.id)} disabled={deleteMut.isPending} style={{ flex: 1, padding: 12, borderRadius: 10, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171", cursor: "pointer", fontWeight: 700 }}>

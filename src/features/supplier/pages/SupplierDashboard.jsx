@@ -6,7 +6,7 @@ import { formatCurrency } from "../../../lib/utils";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
-const O = "#FF6B2C";
+const O = "var(--brand, #FF6B2C)";
 
 const STATUS_LABEL = { pending: "Pendiente", processing: "En proceso", shipped: "Enviado", delivered: "Entregado", cancelled: "Cancelado" };
 const STATUS_COLOR = {
@@ -47,8 +47,8 @@ export default function SupplierDashboard() {
   return (
     <div className="sup-page" style={{ maxWidth: "min(1100px, 100%)" }}>
       <div style={{ marginBottom: 32 }}>
-        <p style={{ color: "#555", fontSize: 13 }}>{format(new Date(), "EEEE d 'de' MMMM", { locale: es })}</p>
-        <h1 style={{ fontSize: 28, fontWeight: 800, color: "#fff", marginTop: 4 }}>
+        <p style={{ color: "var(--text-faint)", fontSize: 13 }}>{format(new Date(), "EEEE d 'de' MMMM", { locale: es })}</p>
+        <h1 style={{ fontSize: 28, fontWeight: 800, color: "var(--text)", marginTop: 4 }}>
           Bienvenido{supplier?.name ? `, ${supplier.name}` : ""} 👋
         </h1>
       </div>
@@ -62,24 +62,24 @@ export default function SupplierDashboard() {
       </div>
 
       {/* Últimos pedidos */}
-      <h2 style={{ fontSize: 18, fontWeight: 700, color: "#fff", marginBottom: 16 }}>Pedidos recientes</h2>
+      <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text)", marginBottom: 16 }}>Pedidos recientes</h2>
       {recent.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "56px 20px", background: "#111", border: "1px solid #1E1E1E", borderRadius: 16 }}>
+        <div style={{ textAlign: "center", padding: "56px 20px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16 }}>
           <div style={{ fontSize: 44, marginBottom: 12 }}>📦</div>
-          <p style={{ fontWeight: 700, color: "#fff", marginBottom: 6 }}>Sin pedidos aún</p>
-          <p style={{ color: "#555", fontSize: 13 }}>Cuando los barberos hagan pedidos aparecerán aquí.</p>
+          <p style={{ fontWeight: 700, color: "var(--text)", marginBottom: 6 }}>Sin pedidos aún</p>
+          <p style={{ color: "var(--text-faint)", fontSize: 13 }}>Cuando los barberos hagan pedidos aparecerán aquí.</p>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {recent.map(o => {
-            const sc = STATUS_COLOR[o.status] ?? { bg: "#1E1E1E", text: "#555" };
+            const sc = STATUS_COLOR[o.status] ?? { bg: "var(--surface2)", text: "#555" };
             return (
-              <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 18px", background: "#111", border: "1px solid #1E1E1E", borderRadius: 12, borderLeft: `4px solid ${sc.text}` }}>
+              <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 18px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, borderLeft: `4px solid ${sc.text}` }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontWeight: 700, color: "#fff", fontSize: 14, marginBottom: 2 }}>
+                  <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 14, marginBottom: 2 }}>
                     {o.contact_name ?? o.barbershops?.name ?? "Barbería"}
                   </p>
-                  <p style={{ color: "#555", fontSize: 12 }}>
+                  <p style={{ color: "var(--text-faint)", fontSize: 12 }}>
                     {o.items?.length ?? 0} producto(s) · {format(new Date(o.created_at), "d MMM HH:mm", { locale: es })}
                   </p>
                 </div>
@@ -99,13 +99,13 @@ export default function SupplierDashboard() {
 function StatCard({ icon, label, value, accent }) {
   return (
     <div style={{
-      background: accent ? "rgba(255,107,44,0.06)" : "#111",
-      border: `1px solid ${accent ? "rgba(255,107,44,0.25)" : "#1E1E1E"}`,
+      background: accent ? "rgba(255,107,44,0.06)" : "var(--surface)",
+      border: `1px solid ${accent ? "rgba(255,107,44,0.25)" : "var(--surface2)"}`,
       borderRadius: 14, padding: 20,
     }}>
       <span style={{ color: accent ? O : "#555" }}>{icon}</span>
       <p style={{ fontSize: 26, fontWeight: 800, color: accent ? O : "#fff", margin: "10px 0 4px" }}>{value}</p>
-      <p style={{ fontSize: 13, color: "#555" }}>{label}</p>
+      <p style={{ fontSize: 13, color: "var(--text-faint)" }}>{label}</p>
     </div>
   );
 }
