@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Outlet, Link, useLocation, useNavigate, Navigate } from "react-router-dom";
 import { Package, ShoppingBag, LogOut, Menu, X, ChevronRight, LayoutDashboard, Settings } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
+import { getSupplierByProfileId } from "../features/supplier/services/supplierService";
+import { applyTheme, resetTheme } from "../lib/applyTheme";
 
-const O = "#FF6B2C";
+const DEFAULT_COLOR = "#FF6B2C";
 
 const NAV = [
   { to: "/supplier",          icon: LayoutDashboard, label: "Panel",    exact: true },
@@ -17,10 +19,29 @@ export default function SupplierLayout() {
   const navigate = useNavigate();
   const { signOut, profile, loading, user } = useAuthStore();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [supplier, setSupplier]     = useState(null);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    getSupplierByProfileId(user.id).then(s => {
+      if (!s) return;
+      setSupplier(s);
+      applyTheme({
+        theme_mode:  s.theme_mode  || "dark",
+        theme_color: s.theme_color || DEFAULT_COLOR,
+        theme_font:  s.theme_font  || "Inter",
+      });
+    }).catch(() => {});
+    return () => { resetTheme(); };
+  }, [user?.id]);
+
+  const brand = supplier?.theme_color || DEFAULT_COLOR;
+  const logo  = supplier?.logo_url    || null;
+  const name  = supplier?.name        || "Proveedor";
 
   if (loading) return (
     <div style={{ minHeight: "100vh", background: "#0A0A0A", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ width: 28, height: 28, border: "3px solid #2A2A2A", borderTopColor: O, borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+      <div style={{ width: 28, height: 28, border: "3px solid #2A2A2A", borderTopColor: brand, borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
@@ -44,11 +65,15 @@ export default function SupplierLayout() {
       {/* Logo */}
       <div style={{ padding: "20px 16px", borderBottom: "1px solid #1E1E1E", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 36, height: 36, background: O, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Package size={18} color="#fff" />
-          </div>
-          <div>
-            <p style={{ fontWeight: 800, fontSize: 14, color: "#fff" }}>Proveedor</p>
+          {logo ? (
+            <img src={logo} alt={name} style={{ width: 36, height: 36, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
+          ) : (
+            <div style={{ width: 36, height: 36, background: brand, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <span style={{ fontWeight: 900, fontSize: 16, color: "#fff" }}>{name[0].toUpperCase()}</span>
+            </div>
+          )}
+          <div style={{ minWidth: 0 }}>
+            <p style={{ fontWeight: 800, fontSize: 14, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</p>
             <p style={{ fontSize: 10, color: "#555" }}>Panel de gestión</p>
           </div>
         </div>
@@ -64,8 +89,8 @@ export default function SupplierLayout() {
               style={{
                 display: "flex", alignItems: "center", gap: 10,
                 padding: "10px 12px", borderRadius: 10, textDecoration: "none",
-                background: active ? `rgba(255,107,44,0.12)` : "transparent",
-                color: active ? O : "#666",
+                background: active ? `${brand}20` : "transparent",
+                color: active ? brand : "#666",
                 fontWeight: active ? 600 : 400, fontSize: 14,
               }}
             >
@@ -81,7 +106,7 @@ export default function SupplierLayout() {
       <div style={{ padding: "12px 10px", borderTop: "1px solid #1E1E1E", flexShrink: 0 }}>
         {profile && (
           <div style={{ padding: "8px 12px", marginBottom: 4 }}>
-            <p style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{profile.full_name || "Proveedor"}</p>
+            <p style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{profile.full_name || name}</p>
             <p style={{ fontSize: 11, color: "#555" }}>supplier</p>
           </div>
         )}
@@ -117,10 +142,14 @@ export default function SupplierLayout() {
         <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
           <div className="sup-topbar">
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 28, height: 28, background: O, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Package size={13} color="#fff" />
-              </div>
-              <span style={{ fontWeight: 800, color: "#fff", fontSize: 14 }}>Proveedor</span>
+              {logo ? (
+                <img src={logo} alt={name} style={{ width: 28, height: 28, borderRadius: 8, objectFit: "cover" }} />
+              ) : (
+                <div style={{ width: 28, height: 28, background: brand, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <span style={{ fontWeight: 900, fontSize: 13, color: "#fff" }}>{name[0].toUpperCase()}</span>
+                </div>
+              )}
+              <span style={{ fontWeight: 800, color: "#fff", fontSize: 14 }}>{name}</span>
             </div>
             <button onClick={() => setDrawerOpen(true)} style={{ background: "#1E1E1E", border: "1px solid #2A2A2A", borderRadius: 8, padding: "6px 8px", cursor: "pointer", color: "#fff", display: "flex" }}>
               <Menu size={18} />

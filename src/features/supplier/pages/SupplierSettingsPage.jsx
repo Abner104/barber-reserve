@@ -7,10 +7,11 @@ import { getSupplierByProfileId } from "../services/supplierService";
 import { supabase } from "../../../lib/supabase";
 import WhatsAppQR from "../../admin/components/WhatsAppQR";
 import ImageUpload from "../../../components/shared/ImageUpload";
+import { applyTheme } from "../../../lib/applyTheme";
 
 const O = "#FF6B2C";
 
-const FONTS = ["Inter", "Poppins", "Montserrat", "Raleway", "Oswald"];
+const FONTS  = ["Inter", "Poppins", "Montserrat", "Raleway", "Oswald"];
 const COLORS = ["#FF6B2C", "#6366F1", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#14B8A6"];
 
 async function uploadSupplierImage(file, supplierId, folder) {
@@ -46,6 +47,7 @@ export default function SupplierSettingsPage() {
         banner_url:  data.banner_url  ?? "",
         theme_color: data.theme_color ?? O,
         theme_font:  data.theme_font  ?? "Inter",
+        theme_mode:  data.theme_mode  ?? "dark",
       });
     },
   });
@@ -59,6 +61,7 @@ export default function SupplierSettingsPage() {
       banner_url:  supplier.banner_url  ?? "",
       theme_color: supplier.theme_color ?? O,
       theme_font:  supplier.theme_font  ?? "Inter",
+      theme_mode:  supplier.theme_mode  ?? "dark",
     });
   }
 
@@ -109,9 +112,11 @@ export default function SupplierSettingsPage() {
           banner_url:  form.banner_url  || null,
           theme_color: form.theme_color,
           theme_font:  form.theme_font,
+          theme_mode:  form.theme_mode,
         })
         .eq("id", supplier.id);
       if (error) throw error;
+      applyTheme({ theme_mode: form.theme_mode, theme_color: form.theme_color, theme_font: form.theme_font });
       qc.invalidateQueries({ queryKey: ["supplier-profile"] });
       qc.invalidateQueries({ queryKey: ["public-supplier"] });
       toast.success("Perfil actualizado");
@@ -242,6 +247,19 @@ export default function SupplierSettingsPage() {
                 </label>
               )}
               <p style={{ fontSize: 12, color: "#555", lineHeight: 1.5 }}>Imagen cuadrada recomendada.<br />JPG, PNG, WEBP · máx 5MB</p>
+            </div>
+          </div>
+
+          {/* Modo oscuro / claro */}
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: "block", fontSize: 12, color: "#777", fontWeight: 600, marginBottom: 10 }}>MODO</label>
+            <div style={{ display: "flex", gap: 10 }}>
+              {[{ val: "dark", label: "🌙 Oscuro" }, { val: "light", label: "☀️ Claro" }].map(({ val, label }) => (
+                <button key={val} onClick={() => setForm(f => ({ ...f, theme_mode: val }))}
+                  style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: `1px solid ${form.theme_mode === val ? brand : "#2A2A2A"}`, background: form.theme_mode === val ? `${brand}18` : "#1A1A1A", color: form.theme_mode === val ? brand : "#777", fontWeight: form.theme_mode === val ? 700 : 400, fontSize: 14, cursor: "pointer" }}>
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
 

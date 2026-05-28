@@ -31,7 +31,7 @@ async function notifySupplierWA(supplierId, order, items) {
   } catch { /* silencioso — no romper el flujo si WA no está conectado */ }
 }
 
-const O = "#FF6B2C";
+const DEFAULT_COLOR = "#FF6B2C";
 
 export default function SupplierCatalog({ supplierOverride } = {}) {
   const [cart, setCart]         = useState({}); // { [productId]: qty }
@@ -47,6 +47,8 @@ export default function SupplierCatalog({ supplierOverride } = {}) {
     enabled:  !supplierOverride,
   });
   const supplier = supplierOverride ?? supplierFetched;
+  const O = supplier?.theme_color || DEFAULT_COLOR;
+  const font = supplier?.theme_font || "Inter";
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["public-products", supplier?.id],
@@ -125,7 +127,7 @@ export default function SupplierCatalog({ supplierOverride } = {}) {
   if (!supplier && !isLoading) return null;
 
   return (
-    <section id="proveedor" style={{ padding: "80px 0", background: "#0D0D0D" }}>
+    <section id="proveedor" style={{ padding: "80px 0", background: "#0D0D0D", fontFamily: `'${font}', system-ui, sans-serif` }}>
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px" }}>
 
         {/* Header */}
