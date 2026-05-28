@@ -9,7 +9,7 @@ const O = "#FF6B2C";
 async function getSuppliers() {
   const { data, error } = await supabase
     .from("suppliers")
-    .select("*, profiles(full_name, email:id)")
+    .select("*, profiles(full_name)")
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data ?? [];
@@ -23,32 +23,18 @@ function toSlug(str) {
 }
 
 async function createSupplierWithUser({ email, password, fullName, supplierName, description, whatsapp }) {
-  // 1. Crear usuario en Auth
-  const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
+  const WA_URL    = import.meta.env.VITE_WA_SERVICE_URL ?? "http://localhost:3001";
+  const WA_SECRET = import.meta.env.VITE_WA_SECRET      ?? "barberos2026secret";
+
+  const res = await fetch(`${WA_URL}/create-supplier`, {
+    method:  "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${WA_SECRET}` },
+    body:    JSON.stringify({ email, password, fullName, supplierName, description, whatsapp }),
   });
-  if (authErr) throw authErr;
 
-  const userId = authData.user.id;
-  const slug   = toSlug(supplierName);
-
-  // 2. Crear/actualizar profile con rol supplier
-  const { error: profileErr } = await supabase
-    .from("profiles")
-    .upsert({ id: userId, full_name: fullName, role: "supplier" });
-  if (profileErr) throw profileErr;
-
-  // 3. Crear registro en suppliers
-  const { data: supplier, error: supplierErr } = await supabase
-    .from("suppliers")
-    .insert({ profile_id: userId, name: supplierName, slug, description, whatsapp, is_active: true })
-    .select()
-    .single();
-  if (supplierErr) throw supplierErr;
-
-  return supplier;
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Error al crear el proveedor");
+  return data.supplier;
 }
 
 async function toggleSupplierActive(id, is_active) {
