@@ -9,7 +9,7 @@ const O = "#FF6B2C";
 async function getSuppliers() {
   const { data, error } = await supabase
     .from("suppliers")
-    .select("*, profiles(full_name)")
+    .select("*")
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data ?? [];

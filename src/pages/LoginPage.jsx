@@ -99,8 +99,19 @@ export default function LoginPage() {
         localStorage.setItem("clippr_passkey_user", lu.id);
       }
 
-      const { data: prof } = await supabase
-        .from("profiles").select("role").eq("id", lu.id).maybeSingle();
+      // Fetch role directly — no RLS ambiguity since user just authenticated
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("role, shop_id")
+        .eq("id", lu.id)
+        .maybeSingle();
+
+      const role = profileData?.role ?? null;
+      console.log("[Login] user id:", lu.id, "role:", role, "profile:", profileData);
+
+      // Load into store for the rest of the app
+      const { loadProfile } = useAuthStore.getState();
+      loadProfile(lu); // fire-and-forget, store will hydrate
 
       // Mostrar prompt de passkey si no lo ha visto y el dispositivo lo soporta
       const skipped    = localStorage.getItem("clippr_passkey_skipped");
@@ -108,7 +119,7 @@ export default function LoginPage() {
       if (!skipped && !registered) {
         const avail = await isPlatformAuthAvailable();
         if (avail) {
-          setLoggedUser({ id: lu.id, email: form.email, role: prof?.role });
+          setLoggedUser({ id: lu.id, email: form.email, role });
           setShowPrompt(true);
           setSubmitting(false);
           return;
@@ -116,7 +127,7 @@ export default function LoginPage() {
       }
 
       toast.success("¡Bienvenido!");
-      navigate(getRoleRoute(prof?.role), { replace: true });
+      navigate(getRoleRoute(role), { replace: true });
     } catch (err) {
       setError("Email o contraseña incorrectos.");
       toast.error("Email o contraseña incorrectos.");
