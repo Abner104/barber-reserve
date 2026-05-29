@@ -4,6 +4,7 @@ import {
   Plus, Pencil, Trash2, Package, X, AlertTriangle,
   TrendingDown, History, Search, ShoppingBag, ScanLine,
 } from "lucide-react";
+import { BrowserMultiFormatReader } from "@zxing/browser";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { formatCurrency } from "../../../lib/utils";
@@ -43,11 +44,9 @@ export default function InventoryPage() {
   const [skuScanning, setSkuScanning]     = useState(false);       // scanner dentro del modal SKU
 
   const videoRef        = useRef(null);
-  const streamRef       = useRef(null);
-  const scanIntervalRef = useRef(null);
-  const skuVideoRef        = useRef(null);
-  const skuStreamRef       = useRef(null);
-  const skuScanIntervalRef = useRef(null);
+  const skuVideoRef     = useRef(null);
+  const readerRef       = useRef(null); // ZXing header scanner
+  const skuReaderRef    = useRef(null); // ZXing SKU modal scanner
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["inventory"],
@@ -82,74 +81,54 @@ export default function InventoryPage() {
   });
 
   const stopCamera = useCallback(() => {
-    clearInterval(scanIntervalRef.current);
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop());
-      streamRef.current = null;
-    }
+    if (readerRef.current) { readerRef.current.reset(); readerRef.current = null; }
     setScanning(false);
   }, []);
 
   const stopSkuCamera = useCallback(() => {
-    clearInterval(skuScanIntervalRef.current);
-    if (skuStreamRef.current) {
-      skuStreamRef.current.getTracks().forEach(t => t.stop());
-      skuStreamRef.current = null;
-    }
+    if (skuReaderRef.current) { skuReaderRef.current.reset(); skuReaderRef.current = null; }
     setSkuScanning(false);
   }, []);
 
   useEffect(() => () => { stopCamera(); stopSkuCamera(); }, [stopCamera, stopSkuCamera]);
 
-  const startSkuCamera = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: { ideal: 1280 } },
-      });
-      skuStreamRef.current = stream;
-      if (skuVideoRef.current) skuVideoRef.current.srcObject = stream;
-      setSkuScanning(true);
-      if ("BarcodeDetector" in window) {
-        const detector = new window.BarcodeDetector({
-          formats: ["ean_13", "ean_8", "code_128", "qr_code", "upc_a", "upc_e", "code_39"],
-        });
-        skuScanIntervalRef.current = setInterval(async () => {
-          if (!skuVideoRef.current) return;
-          try {
-            const barcodes = await detector.detect(skuVideoRef.current);
-            if (barcodes.length > 0) {
-              setForm(f => ({ ...f, sku: barcodes[0].rawValue }));
-              toast.success(`SKU capturado: ${barcodes[0].rawValue}`);
-              stopSkuCamera();
-            }
-          } catch {}
-        }, 600);
+  // Header scanner: abre modal de edición o de nuevo producto
+  useEffect(() => {
+    if (!scanning || !videoRef.current) return;
+    const reader = new BrowserMultiFormatReader();
+    readerRef.current = reader;
+    reader.decodeFromConstraints(
+      { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } } },
+      videoRef.current,
+      (result) => {
+        if (!result) return;
+        handleSkuScan(result.getText());
       }
-    } catch { toast.error("No se pudo acceder a la cámara"); }
-  }, [stopSkuCamera]);
+    ).catch(() => {});
+    return () => reader.reset();
+  }, [scanning]);
 
-  const startCamera = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: { ideal: 1280 } },
-      });
-      streamRef.current = stream;
-      if (videoRef.current) videoRef.current.srcObject = stream;
-      setScanning(true);
-      if ("BarcodeDetector" in window) {
-        const detector = new window.BarcodeDetector({
-          formats: ["ean_13", "ean_8", "code_128", "qr_code", "upc_a", "upc_e", "code_39"],
-        });
-        scanIntervalRef.current = setInterval(async () => {
-          if (!videoRef.current) return;
-          try {
-            const barcodes = await detector.detect(videoRef.current);
-            if (barcodes.length > 0) handleSkuScan(barcodes[0].rawValue);
-          } catch {}
-        }, 600);
+  // SKU modal scanner: captura el código y lo pone en el campo SKU
+  useEffect(() => {
+    if (!skuScanning || !skuVideoRef.current) return;
+    const reader = new BrowserMultiFormatReader();
+    skuReaderRef.current = reader;
+    reader.decodeFromConstraints(
+      { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } } },
+      skuVideoRef.current,
+      (result) => {
+        if (!result) return;
+        const raw = result.getText();
+        setForm(f => ({ ...f, sku: raw }));
+        toast.success(`SKU capturado: ${raw}`);
+        stopSkuCamera();
       }
-    } catch { toast.error("No se pudo acceder a la cámara"); }
-  }, []);
+    ).catch(() => {});
+    return () => reader.reset();
+  }, [skuScanning, stopSkuCamera]);
+
+  const startCamera    = useCallback(() => setScanning(true),    []);
+  const startSkuCamera = useCallback(() => setSkuScanning(true), []);
 
   function handleSkuScan(sku) {
     if (!sku?.trim()) return;
