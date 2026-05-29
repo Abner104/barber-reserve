@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { applyTheme, AVAILABLE_FONTS } from "../../../lib/applyTheme";
-import { Loader2, ExternalLink, Palette, Type, Sun, Moon } from "lucide-react";
+import { Loader2, ExternalLink, Palette, Type, Sun, Moon, MapPin, Check } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { SHOP_ID } from "../../../lib/constants";
 import ThemeProvider from "../../../components/shared/ThemeProvider";
@@ -60,6 +60,8 @@ async function updateShopSettings(shopId, updates) {
     delivery_fee_per_km: updates.delivery_fee_per_km,
     booking_lead_time_min: updates.booking_lead_time_min,
     booking_window_days:   updates.booking_window_days,
+    ...(updates.lat  != null && { lat:  updates.lat  }),
+    ...(updates.lng  != null && { lng:  updates.lng  }),
     // theming — pueden no existir en DBs viejas, se agregan con fix_barbershops_columns.sql
     ...(updates.tagline     !== undefined && { tagline:     updates.tagline }),
     ...(updates.theme_mode  !== undefined && { theme_mode:  updates.theme_mode }),
@@ -82,6 +84,122 @@ async function updateShopSettings(shopId, updates) {
   }
 }
 
+const GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY;
+let _googleLoaded = false, _googleLoading = false;
+const _cbs = [];
+function loadGoogleOnce() {
+  return new Promise((res, rej) => {
+    if (_googleLoaded && window.google?.maps?.places) { res(); return; }
+    _cbs.push({ res, rej });
+    if (_googleLoading) return;
+    _googleLoading = true;
+    const s = document.createElement("script");
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_KEY}&libraries=places&language=es&region=CL`;
+    s.async = true; s.defer = true;
+    s.onload  = () => { _googleLoaded = true; _cbs.forEach(c => c.res()); _cbs.length = 0; };
+    s.onerror = () => { _cbs.forEach(c => c.rej()); _cbs.length = 0; _googleLoading = false; };
+    document.head.appendChild(s);
+  });
+}
+
+function AddressAutocomplete({ value, lat, lng, onChange, style }) {
+  const [input, setInput]         = useState(value || "");
+  const [suggestions, setSugg]    = useState([]);
+  const [show, setShow]           = useState(false);
+  const [loading, setLoading]     = useState(false);
+  const [ready, setReady]         = useState(false);
+  const svcRef   = useRef(null);
+  const geocRef  = useRef(null);
+  const tokenRef = useRef(null);
+  const debRef   = useRef(null);
+  const confirmed = !!lat;
+
+  useEffect(() => {
+    if (!GOOGLE_KEY) return;
+    loadGoogleOnce().then(() => {
+      svcRef.current   = new window.google.maps.places.AutocompleteService();
+      geocRef.current  = new window.google.maps.Geocoder();
+      tokenRef.current = new window.google.maps.places.AutocompleteSessionToken();
+      setReady(true);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    clearTimeout(debRef.current);
+    if (!input.trim() || input === value) { setSugg([]); return; }
+    debRef.current = setTimeout(() => {
+      if (!ready || !svcRef.current) return;
+      setLoading(true);
+      svcRef.current.getPlacePredictions(
+        { input, sessionToken: tokenRef.current, componentRestrictions: { country: "cl" }, types: ["address"] },
+        (preds, status) => {
+          setLoading(false);
+          if (status !== window.google.maps.places.PlacesServiceStatus.OK || !preds) { setSugg([]); return; }
+          setSugg(preds.map(p => ({ display: p.structured_formatting.main_text, full: p.description, placeId: p.place_id })));
+          setShow(true);
+        }
+      );
+    }, 350);
+    return () => clearTimeout(debRef.current);
+  }, [input, ready]);
+
+  function select(s) {
+    setSugg([]); setShow(false); setInput(s.full);
+    tokenRef.current = new window.google.maps.places.AutocompleteSessionToken();
+    geocRef.current.geocode({ placeId: s.placeId, language: "es" }, (results, status) => {
+      if (status === "OK" && results[0]) {
+        const loc = results[0].geometry.location;
+        onChange({ address: s.full, lat: loc.lat(), lng: loc.lng() });
+        toast.success("Dirección del local guardada con coordenadas ✓");
+      }
+    });
+  }
+
+  function clear() { setInput(""); onChange({ address: "", lat: null, lng: null }); }
+
+  return (
+    <div style={{ position: "relative" }}>
+      <div style={{ display: "flex", alignItems: "center", background: "var(--input-bg, #1E1E1E)", border: `1px solid ${confirmed ? "var(--brand)" : "var(--border, #2A2A2A)"}`, borderRadius: 10, overflow: "hidden", ...style }}>
+        <div style={{ padding: "0 11px", color: confirmed ? "var(--brand)" : "var(--text-faint)" }}><MapPin size={15} /></div>
+        <input
+          value={input}
+          onChange={e => { setInput(e.target.value); if (confirmed) clear(); }}
+          onFocus={() => suggestions.length > 0 && setShow(true)}
+          onBlur={() => setTimeout(() => setShow(false), 180)}
+          placeholder="Av. Providencia 1234, Santiago"
+          autoComplete="off"
+          style={{ flex: 1, padding: "11px 0", background: "transparent", border: "none", outline: "none", fontSize: 14, color: "var(--text)", fontFamily: "inherit" }}
+        />
+        {loading && <div style={{ padding: "0 10px" }}><Loader2 size={13} style={{ animation: "spin 1s linear infinite", color: "var(--text-faint)" }} /></div>}
+        {confirmed && !loading && <div style={{ padding: "0 10px", color: "var(--brand)" }}><Check size={13} /></div>}
+      </div>
+      {show && suggestions.length > 0 && (
+        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 200, background: "var(--card-bg, #141414)", border: "1px solid var(--border)", borderRadius: 10, marginTop: 4, overflow: "hidden", boxShadow: "0 8px 24px rgba(0,0,0,0.5)" }}>
+          {suggestions.map((s, i) => (
+            <button key={i} onMouseDown={() => select(s)}
+              style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "10px 14px", width: "100%", background: "none", border: "none", borderBottom: i < suggestions.length - 1 ? "1px solid var(--border)" : "none", cursor: "pointer", textAlign: "left" }}
+              onMouseEnter={e => e.currentTarget.style.background = "var(--surface2)"}
+              onMouseLeave={e => e.currentTarget.style.background = "none"}
+            >
+              <MapPin size={13} color="var(--brand)" style={{ marginTop: 2, flexShrink: 0 }} />
+              <div>
+                <p style={{ fontSize: 13, color: "var(--text)", fontWeight: 600 }}>{s.display}</p>
+                <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 1 }}>{s.full}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+      {confirmed && lat && lng && (
+        <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 5 }}>📍 Coordenadas guardadas ({lat.toFixed(5)}, {lng.toFixed(5)})</p>
+      )}
+      {!GOOGLE_KEY && (
+        <p style={{ fontSize: 11, color: "#888", marginTop: 4 }}>Sin Google Maps key — ingresá la dirección manualmente.</p>
+      )}
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const qc = useQueryClient();
   const { data: shop, isLoading } = useQuery({ queryKey: ["shop-settings"], queryFn: getShopSettings });
@@ -97,6 +215,8 @@ export default function SettingsPage() {
         phone:       shop.phone       ?? "",
         address:     shop.address     ?? "",
         city:        shop.city        ?? "",
+        lat:         shop.lat         ?? null,
+        lng:         shop.lng         ?? null,
         whatsapp_number: shop.whatsapp_number ?? "",
         instagram_url:   shop.instagram_url   ?? "",
         bank_account:    shop.bank_account    ?? "",
@@ -195,9 +315,13 @@ export default function SettingsPage() {
               <input style={inp} value={form.city} onChange={e => setForm({ ...form, city: e.target.value })}
                 onFocus={f => f.target.style.borderColor = O} onBlur={f => f.target.style.borderColor = "#2A2A2A"} />
             </Field>
-            <Field label="Dirección">
-              <input style={inp} value={form.address} onChange={e => setForm({ ...form, address: e.target.value })}
-                onFocus={f => f.target.style.borderColor = O} onBlur={f => f.target.style.borderColor = "#2A2A2A"} />
+            <Field label="Dirección del local">
+              <AddressAutocomplete
+                value={form.address}
+                lat={form.lat}
+                lng={form.lng}
+                onChange={({ address, lat, lng }) => setForm(f => ({ ...f, address, lat, lng }))}
+              />
             </Field>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <Field label="WhatsApp">
