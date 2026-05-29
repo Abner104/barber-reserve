@@ -1,8 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Plus, Pencil, Trash2, Package, X, AlertTriangle,
-  TrendingDown, History, Search, ShoppingBag,
+  TrendingDown, History, Search, ShoppingBag, ScanLine,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -17,7 +17,7 @@ const O = "var(--brand, #FF6B2C)";
 
 const EMPTY = {
   name: "", description: "", category: "", price_cost: "", price_sell: "",
-  stock: "", stock_min: "3", unit: "unidad", image_url: "", is_active: true,
+  stock: "", stock_min: "3", unit: "unidad", image_url: "", is_active: true, sku: "",
 };
 
 const SHIMMER = `
@@ -39,6 +39,11 @@ export default function InventoryPage() {
   const [adjReason, setAdjReason]         = useState("");
   const [uploading, setUploading]         = useState(false);
   const [saving, setSaving]               = useState(false);
+  const [scanning, setScanning]           = useState(false);
+
+  const videoRef        = useRef(null);
+  const streamRef       = useRef(null);
+  const scanIntervalRef = useRef(null);
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["inventory"],
@@ -72,9 +77,59 @@ export default function InventoryPage() {
     onError: () => toast.error("Error al eliminar"),
   });
 
+  const stopCamera = useCallback(() => {
+    clearInterval(scanIntervalRef.current);
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+    setScanning(false);
+  }, []);
+
+  useEffect(() => () => stopCamera(), [stopCamera]);
+
+  const startCamera = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment", width: { ideal: 1280 } },
+      });
+      streamRef.current = stream;
+      if (videoRef.current) videoRef.current.srcObject = stream;
+      setScanning(true);
+      if ("BarcodeDetector" in window) {
+        const detector = new window.BarcodeDetector({
+          formats: ["ean_13", "ean_8", "code_128", "qr_code", "upc_a", "upc_e", "code_39"],
+        });
+        scanIntervalRef.current = setInterval(async () => {
+          if (!videoRef.current) return;
+          try {
+            const barcodes = await detector.detect(videoRef.current);
+            if (barcodes.length > 0) handleSkuScan(barcodes[0].rawValue);
+          } catch {}
+        }, 600);
+      }
+    } catch { toast.error("No se pudo acceder a la cámara"); }
+  }, []);
+
+  function handleSkuScan(sku) {
+    if (!sku?.trim()) return;
+    const found = products.find(p => p.sku?.toLowerCase() === sku.trim().toLowerCase());
+    stopCamera();
+    if (found) {
+      openEdit(found);
+      toast.success(`Producto encontrado: ${found.name}`);
+    } else {
+      // Abrir modal nuevo con SKU precargado
+      setForm({ ...EMPTY, sku: sku.trim() });
+      setFormErrors({});
+      setProductModal("new");
+      toast.info(`SKU "${sku}" — completá los datos del nuevo producto`);
+    }
+  }
+
   function openNew()   { setForm({ ...EMPTY }); setFormErrors({}); setProductModal("new"); }
   function openEdit(p) {
-    setForm({ ...p, price_cost: String(p.price_cost ?? ""), price_sell: String(p.price_sell), stock: String(p.stock ?? ""), stock_min: String(p.stock_min ?? 3) });
+    setForm({ ...p, price_cost: String(p.price_cost ?? ""), price_sell: String(p.price_sell), stock: String(p.stock ?? ""), stock_min: String(p.stock_min ?? 3), sku: p.sku ?? "" });
     setFormErrors({});
     setProductModal(p);
   }
@@ -138,16 +193,36 @@ export default function InventoryPage() {
           <h1 style={{ fontSize: 28, fontWeight: 800, color: "var(--text)" }}>Inventario</h1>
           <p style={{ color: "var(--text-faint)", fontSize: 13, marginTop: 4 }}>{products.length} productos · {products.reduce((s, p) => s + (p.stock ?? 0), 0)} unidades totales</p>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Link to="/admin/caja"
             style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", textDecoration: "none", fontWeight: 600, fontSize: 13 }}>
             <ShoppingBag size={14} /> Ir a Caja para vender
           </Link>
+          <button onClick={scanning ? stopCamera : startCamera}
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", borderRadius: 10, background: scanning ? "rgba(239,68,68,0.08)" : "var(--surface2)", border: `1px solid ${scanning ? "rgba(239,68,68,0.3)" : "var(--border)"}`, color: scanning ? "#ef4444" : "var(--text-muted)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
+            <ScanLine size={14} /> {scanning ? "Detener" : "Escanear SKU"}
+          </button>
           <button onClick={openNew} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 10, background: O, color: "#fff", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 14 }}>
             <Plus size={16} /> Nuevo producto
           </button>
         </div>
       </div>
+
+      {/* Visor de cámara para escanear SKU */}
+      {scanning && (
+        <div style={{ marginBottom: 20, borderRadius: 16, overflow: "hidden", border: "1px solid var(--border)", position: "relative" }}>
+          <video ref={videoRef} autoPlay playsInline muted style={{ width: "100%", maxHeight: 260, objectFit: "cover", display: "block" }} />
+          <div style={{ position: "absolute", inset: 0, border: "2px solid", borderColor: O, borderRadius: 16, pointerEvents: "none" }}>
+            <div style={{ position: "absolute", top: "50%", left: "10%", right: "10%", height: 2, background: O, opacity: 0.7, transform: "translateY(-50%)" }} />
+          </div>
+          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "8px 12px", background: "rgba(0,0,0,0.6)", textAlign: "center" }}>
+            {"BarcodeDetector" in window
+              ? <p style={{ color: "#fff", fontSize: 13 }}>Apuntá el código de barras — se detecta automático</p>
+              : <p style={{ color: "#f87171", fontSize: 13 }}>Tu navegador no soporta detección automática — ingresá el SKU en el buscador</p>
+            }
+          </div>
+        </div>
+      )}
 
       {/* Alerta stock bajo */}
       {lowStock.length > 0 && (
@@ -177,7 +252,7 @@ export default function InventoryPage() {
       </div>
 
       {/* Filtros */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 10, marginBottom: scanning ? 10 : 20, flexWrap: "wrap" }}>
         <div style={{ position: "relative", flex: 1, minWidth: 180 }}>
           <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--text-faint)" }} />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar producto..."
@@ -189,6 +264,19 @@ export default function InventoryPage() {
           {categories.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
+
+      {/* Input manual SKU (visible cuando cámara activa o siempre como fallback) */}
+      {scanning && (
+        <form onSubmit={e => { e.preventDefault(); const v = e.target.sku.value.trim(); if (v) handleSkuScan(v); e.target.reset(); }}
+          style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+          <input name="sku" placeholder="O ingresá el SKU manualmente aquí..."
+            autoFocus
+            style={{ flex: 1, padding: "9px 12px", borderRadius: 9, background: "var(--card-bg)", border: "1px solid var(--card-border)", color: "var(--text)", fontSize: 13, outline: "none" }} />
+          <button type="submit" style={{ padding: "9px 16px", borderRadius: 9, background: O, color: "#fff", fontWeight: 700, border: "none", cursor: "pointer", fontSize: 13 }}>
+            Buscar
+          </button>
+        </form>
+      )}
 
       {/* Grid productos */}
       {isLoading && (
@@ -231,7 +319,10 @@ export default function InventoryPage() {
                   )}
                   <div style={{ padding: "12px 14px" }}>
                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
-                      <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 14, lineHeight: 1.3 }}>{p.name}</p>
+                      <div>
+                        <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 14, lineHeight: 1.3 }}>{p.name}</p>
+                        {p.sku && <p style={{ fontSize: 10, color: "var(--text-faint)", marginTop: 2 }}>SKU: {p.sku}</p>}
+                      </div>
                       <span style={{ padding: "2px 7px", borderRadius: 20, fontSize: 10, fontWeight: 700, flexShrink: 0, background: isLow ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)", color: isLow ? "#ef4444" : "#22c55e" }}>
                         {p.stock ?? 0} {p.unit}
                       </span>
@@ -295,6 +386,7 @@ export default function InventoryPage() {
 
             {[
               { key: "name",       label: "Nombre *",            placeholder: "Ej: Pomada Matte",          type: "text"   },
+              { key: "sku",        label: "SKU / Código",        placeholder: "Ej: PM-001 (opcional)",     type: "text"   },
               { key: "category",   label: "Categoría",           placeholder: "Pomadas, Shampoo...",       type: "text"   },
               { key: "price_sell", label: "Precio de venta *",   placeholder: "0",                         type: "number" },
               { key: "price_cost", label: "Precio de costo",     placeholder: "0 (opcional)",              type: "number" },

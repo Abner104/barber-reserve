@@ -1,15 +1,18 @@
 import { useState, useEffect } from "react";
 import { Outlet, Link, useLocation, useNavigate, Navigate } from "react-router-dom";
-import { Package, ShoppingBag, LogOut, Menu, X, ChevronRight, LayoutDashboard, Settings } from "lucide-react";
+import { Package, ShoppingBag, LogOut, Menu, X, ChevronRight, LayoutDashboard, Settings, ScanLine, Clock } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 import { getSupplierByProfileId } from "../features/supplier/services/supplierService";
 import { applyTheme, resetTheme } from "../lib/applyTheme";
+import BarberLoader from "../components/shared/BarberLoader";
 
 const DEFAULT_COLOR = "#FF6B2C";
 
 const NAV = [
   { to: "/supplier",          icon: LayoutDashboard, label: "Panel",    exact: true },
   { to: "/supplier/products", icon: Package,         label: "Productos" },
+  { to: "/supplier/sales",    icon: ScanLine,        label: "Ventas"    },
+  { to: "/supplier/credits",  icon: Clock,           label: "Créditos"  },
   { to: "/supplier/orders",   icon: ShoppingBag,     label: "Pedidos"   },
   { to: "/supplier/settings", icon: Settings,        label: "Config"    },
 ];

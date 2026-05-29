@@ -9,7 +9,7 @@ import { formatCurrency } from "../../../lib/utils";
 
 const O = "var(--brand, #FF6B2C)";
 
-const EMPTY = { name: "", description: "", price: "", stock: "", category: "", image_url: "", unit: "unidad", is_available: true };
+const EMPTY = { name: "", description: "", price: "", stock: "", category: "", image_url: "", unit: "unidad", is_available: true, sku: "" };
 
 export default function SupplierProductsPage() {
   const qc = useQueryClient();
@@ -44,7 +44,7 @@ export default function SupplierProductsPage() {
   });
 
   function openNew() { setForm({ ...EMPTY, supplier_id: supplier.id }); setFormErrors({}); setModal("new"); }
-  function openEdit(p) { setForm({ ...p, price: String(p.price), stock: String(p.stock ?? "") }); setFormErrors({}); setModal(p); }
+  function openEdit(p) { setForm({ ...p, price: String(p.price), stock: String(p.stock ?? ""), sku: p.sku ?? "" }); setFormErrors({}); setModal(p); }
   function closeModal() { setModal(null); setFormErrors({}); }
 
   async function handleImageUpload(file) {
@@ -130,7 +130,10 @@ export default function SupplierProductsPage() {
                 )}
                 <div style={{ padding: "14px" }}>
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
-                    <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 14, lineHeight: 1.3 }}>{p.name}</p>
+                    <div>
+                      <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 14, lineHeight: 1.3 }}>{p.name}</p>
+                      {p.sku && <p style={{ fontSize: 10, color: "var(--text-faint)", marginTop: 2 }}>SKU: {p.sku}</p>}
+                    </div>
                     <span style={{ padding: "2px 8px", borderRadius: 20, fontSize: 10, fontWeight: 700, flexShrink: 0, background: p.is_available ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.1)", color: p.is_available ? "#4ade80" : "#f87171" }}>
                       {p.is_available ? "Activo" : "Pausado"}
                     </span>
@@ -188,6 +191,7 @@ export default function SupplierProductsPage() {
 
             {[
               { key: "name",        label: "Nombre *",     placeholder: "Ej: Pomada Matte Strong", type: "text" },
+              { key: "sku",         label: "SKU / Código", placeholder: "Ej: PM-001 (opcional)",   type: "text" },
               { key: "category",    label: "Categoría",    placeholder: "Ej: Pomadas, Shampoo, Afeitado", type: "text" },
               { key: "price",       label: "Precio *",     placeholder: "0", type: "number" },
               { key: "stock",       label: "Stock",        placeholder: "Dejar vacío = sin límite", type: "number" },

@@ -31,6 +31,8 @@ import SupplierDashboard     from "../features/supplier/pages/SupplierDashboard"
 import SupplierProductsPage  from "../features/supplier/pages/SupplierProductsPage";
 import SupplierOrdersPage    from "../features/supplier/pages/SupplierOrdersPage";
 import SupplierSettingsPage  from "../features/supplier/pages/SupplierSettingsPage";
+import SupplierSalesPage     from "../features/supplier/pages/SupplierSalesPage";
+import SupplierCreditsPage   from "../features/supplier/pages/SupplierCreditsPage";
 import SupplierCatalogPage   from "../pages/SupplierCatalogPage";
 
 import AgendaPage     from "../features/barber/pages/AgendaPage";
@@ -85,6 +87,8 @@ export const router = createBrowserRouter([
       { index: true,         element: <SupplierDashboard />     },
       { path: "products",    element: <SupplierProductsPage />  },
       { path: "orders",      element: <SupplierOrdersPage />    },
+      { path: "sales",       element: <SupplierSalesPage />     },
+      { path: "credits",     element: <SupplierCreditsPage />   },
       { path: "settings",    element: <SupplierSettingsPage />  },
     ],
   },
