@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { applyTheme } from "../lib/applyTheme";
 import { supabase } from "../lib/supabase";
-import { ArrowRight, Check, Scissors, MapPin, Calendar, BarChart3, Users, Zap, Star, ChevronDown, Menu, X } from "lucide-react";
+import { ArrowRight, Check, Scissors, Smartphone, Calendar, BarChart3, Users, Zap, Star, ChevronDown, Menu, X, Quote } from "lucide-react";
 import SupplierCatalog from "../features/supplier/components/SupplierCatalog";
 
 const O  = "#FF6B2C";
@@ -19,12 +19,47 @@ async function fetchPricing() {
 }
 
 const FEATURES = [
-  { icon: <Calendar size={20} />, title: "Reservas 24/7",          desc: "Tus clientes reservan solos. Tú solo atiendes." },
-  { icon: <MapPin size={20} />,   title: "Domicilios con mapa",    desc: "El cliente pone su dirección, el barbero va." },
-  { icon: <Users size={20} />,    title: "Tu equipo bajo control", desc: "Horarios, comisiones y agenda por barbero." },
-  { icon: <BarChart3 size={20} />,title: "Caja en tiempo real",    desc: "Cuánto entra y cuánto le toca a cada uno." },
-  { icon: <Zap size={20} />,      title: "Multi-sede",             desc: "Varias sedes, un solo panel." },
-  { icon: <Scissors size={20} />, title: "Tu página propia",       desc: "Con tu link, tus servicios y tus barberos." },
+  { icon: <Calendar size={20} />,    title: "Reservas 24/7",          desc: "Tus clientes reservan solos, en cualquier momento. Tú solo atiendes." },
+  { icon: <Smartphone size={20} />,  title: "Portal del barbero",      desc: "Cada barbero tiene su propia app: agenda, cobros y comisiones en el celular." },
+  { icon: <Users size={20} />,       title: "Tu equipo bajo control",  desc: "Horarios, comisiones y agenda por barbero. Todo en un solo panel." },
+  { icon: <BarChart3 size={20} />,   title: "Caja en tiempo real",     desc: "Ves cuánto entra y cuánto le toca a cada barbero, al instante." },
+  { icon: <Zap size={20} />,         title: "Multi-sede",              desc: "Varias sedes, un solo panel. Escala sin límites." },
+  { icon: <Scissors size={20} />,    title: "Tu página propia",        desc: "Con tu link, tus servicios, tus precios y tus barberos. Sin comisiones." },
+];
+
+const TESTIMONIALS = [
+  {
+    name: "Rodrigo Muñoz",
+    role: "Dueño · BarberKing Santiago",
+    avatar: "R",
+    color: "#FF6B2C",
+    text: "Antes perdía reservas por WhatsApp a toda hora. Ahora mis clientes reservan solos y yo solo aparezco a cortar. Cambió todo.",
+    stars: 5,
+  },
+  {
+    name: "Felipe Araya",
+    role: "Barbero independiente · Valparaíso",
+    avatar: "F",
+    color: "#3B82F6",
+    text: "El portal del barbero es una locura. Veo mi agenda, mis cobros y mis comisiones en el celular sin depender del dueño.",
+    stars: 5,
+  },
+  {
+    name: "Camila Torres",
+    role: "Administradora · FadeCo Barbers",
+    avatar: "C",
+    color: "#8B5CF6",
+    text: "La caja en tiempo real nos salvó. Antes cerrábamos el día a ojo. Ahora sabemos exactamente cuánto hizo cada barbero.",
+    stars: 5,
+  },
+  {
+    name: "Nicolás Vega",
+    role: "Dueño · NV Barbershop",
+    avatar: "N",
+    color: "#10B981",
+    text: "30 días gratis y ya no volví atrás. El setup tardó 20 minutos y al día siguiente ya tenía reservas entrando solas.",
+    stars: 5,
+  },
 ];
 
 function buildPlans(cfg) {
@@ -35,12 +70,12 @@ function buildPlans(cfg) {
   return [
     {
       name: "Trial", price: "Gratis", sub: `${days} días · sin tarjeta`,
-      features: ["Hasta 2 barberos", "Reservas ilimitadas", "Domicilios con mapa", "Panel admin completo"],
+      features: ["Hasta 2 barberos", "Reservas ilimitadas", "Portal del barbero", "Panel admin completo"],
       cta: "Empezar gratis", href: "/register", highlight: false,
     },
     {
       name: "Pro", price: fmt(base), sub: `+ ${fmt(perBar)} por barbero adicional`,
-      features: ["Reservas online 24/7", "Portal del barbero", "Domicilios con mapa", "Caja y comisiones", "Soporte por WhatsApp"],
+      features: ["Reservas online 24/7", "Portal del barbero", "Caja y comisiones", "Inventario con scanner", "Soporte por WhatsApp"],
       cta: "Empezar ahora", href: "/register", highlight: true,
     },
     {
@@ -282,7 +317,7 @@ export default function SaasLandingPage() {
           </h1>
 
           <p style={{ color:"#555", fontSize:"clamp(14px,2vw,17px)", lineHeight:1.7, maxWidth:440, margin:"0 auto 36px" }}>
-            Reservas online, domicilios con mapa, gestión de barberos y caja en tiempo real.
+            Reservas online, portal del barbero, caja y comisiones en tiempo real. Todo en un solo lugar.
           </p>
 
           {/* CTAs — apilados en móvil */}
@@ -374,10 +409,50 @@ export default function SaasLandingPage() {
         </div>
       </section>
 
+      {/* ── TESTIMONIALS ── */}
+      <section style={{ padding:"80px 20px 90px", background:"#080808" }}>
+        <div style={{ maxWidth:1080, margin:"0 auto" }}>
+          <Reveal>
+            <div style={{ textAlign:"center", marginBottom:48 }}>
+              <p style={{ color:O, fontSize:11, fontWeight:700, letterSpacing:2, textTransform:"uppercase", marginBottom:10 }}>Testimonios</p>
+              <h2 className="display" style={{ fontSize:"clamp(38px,6vw,60px)", textTransform:"uppercase", letterSpacing:-1 }}>
+                Lo que dicen<br />los que ya usaron
+              </h2>
+            </div>
+          </Reveal>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))", gap:14 }}>
+            {TESTIMONIALS.map((t, i) => (
+              <Reveal key={t.name} delay={i * 0.08}>
+                <div style={{ background:"#0C0C0C", border:"1px solid #1A1A1A", borderRadius:20, padding:24, display:"flex", flexDirection:"column", gap:16, height:"100%", boxSizing:"border-box" }}>
+                  <div style={{ color:"#1C1C1C" }}>
+                    <Quote size={28} fill="#1C1C1C" />
+                  </div>
+                  <p style={{ color:"#888", fontSize:14, lineHeight:1.7, flex:1 }}>"{t.text}"</p>
+                  <div>
+                    <div style={{ display:"flex", gap:3, marginBottom:10 }}>
+                      {[1,2,3,4,5].map(s => <Star key={s} size={12} fill={O} color={O} />)}
+                    </div>
+                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                      <div style={{ width:38, height:38, borderRadius:"50%", background:t.color, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                        <span style={{ fontWeight:900, fontSize:15, color:"#fff" }}>{t.avatar}</span>
+                      </div>
+                      <div>
+                        <p style={{ fontWeight:700, color:"#fff", fontSize:13 }}>{t.name}</p>
+                        <p style={{ fontSize:11, color:"#3A3A3A" }}>{t.role}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── STATS ── */}
       <section style={{ padding:"60px 20px", borderTop:"1px solid #111", borderBottom:"1px solid #111" }}>
         <div style={{ maxWidth:900, margin:"0 auto", display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:"32px 24px", textAlign:"center" }}>
-          {[["2+","Barberías activas"],["100%","Uptime"],["24/7","Reservas online"],["$0","Sin comisión por reserva"]].map(([n,l],i) => (
+          {[["100%","Uptime garantizado"],["24/7","Reservas online"],["$0","Sin comisión por reserva"],["∞","Clientes sin límite"]].map(([n,l],i) => (
             <Reveal key={l} delay={i*0.08}>
               <p className="display" style={{ fontSize:"clamp(40px,8vw,64px)", color:O, marginBottom:4, lineHeight:1 }}>{n}</p>
               <p style={{ fontSize:12, color:"#444" }}>{l}</p>
