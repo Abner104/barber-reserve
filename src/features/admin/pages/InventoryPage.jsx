@@ -39,11 +39,15 @@ export default function InventoryPage() {
   const [adjReason, setAdjReason]         = useState("");
   const [uploading, setUploading]         = useState(false);
   const [saving, setSaving]               = useState(false);
-  const [scanning, setScanning]           = useState(false);
+  const [scanning, setScanning]           = useState(false);       // scanner global (header)
+  const [skuScanning, setSkuScanning]     = useState(false);       // scanner dentro del modal SKU
 
   const videoRef        = useRef(null);
   const streamRef       = useRef(null);
   const scanIntervalRef = useRef(null);
+  const skuVideoRef        = useRef(null);
+  const skuStreamRef       = useRef(null);
+  const skuScanIntervalRef = useRef(null);
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["inventory"],
@@ -86,7 +90,43 @@ export default function InventoryPage() {
     setScanning(false);
   }, []);
 
-  useEffect(() => () => stopCamera(), [stopCamera]);
+  const stopSkuCamera = useCallback(() => {
+    clearInterval(skuScanIntervalRef.current);
+    if (skuStreamRef.current) {
+      skuStreamRef.current.getTracks().forEach(t => t.stop());
+      skuStreamRef.current = null;
+    }
+    setSkuScanning(false);
+  }, []);
+
+  useEffect(() => () => { stopCamera(); stopSkuCamera(); }, [stopCamera, stopSkuCamera]);
+
+  const startSkuCamera = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment", width: { ideal: 1280 } },
+      });
+      skuStreamRef.current = stream;
+      if (skuVideoRef.current) skuVideoRef.current.srcObject = stream;
+      setSkuScanning(true);
+      if ("BarcodeDetector" in window) {
+        const detector = new window.BarcodeDetector({
+          formats: ["ean_13", "ean_8", "code_128", "qr_code", "upc_a", "upc_e", "code_39"],
+        });
+        skuScanIntervalRef.current = setInterval(async () => {
+          if (!skuVideoRef.current) return;
+          try {
+            const barcodes = await detector.detect(skuVideoRef.current);
+            if (barcodes.length > 0) {
+              setForm(f => ({ ...f, sku: barcodes[0].rawValue }));
+              toast.success(`SKU capturado: ${barcodes[0].rawValue}`);
+              stopSkuCamera();
+            }
+          } catch {}
+        }, 600);
+      }
+    } catch { toast.error("No se pudo acceder a la cámara"); }
+  }, [stopSkuCamera]);
 
   const startCamera = useCallback(async () => {
     try {
@@ -386,7 +426,6 @@ export default function InventoryPage() {
 
             {[
               { key: "name",       label: "Nombre *",            placeholder: "Ej: Pomada Matte",          type: "text"   },
-              { key: "sku",        label: "SKU / Código",        placeholder: "Ej: PM-001 (opcional)",     type: "text"   },
               { key: "category",   label: "Categoría",           placeholder: "Pomadas, Shampoo...",       type: "text"   },
               { key: "price_sell", label: "Precio de venta *",   placeholder: "0",                         type: "number" },
               { key: "price_cost", label: "Precio de costo",     placeholder: "0 (opcional)",              type: "number" },
@@ -401,6 +440,38 @@ export default function InventoryPage() {
                 {formErrors[key] && <p style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{formErrors[key]}</p>}
               </div>
             ))}
+
+            {/* SKU con escáner de cámara */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>SKU / CÓDIGO (OPCIONAL)</label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  type="text"
+                  value={form.sku ?? ""}
+                  onChange={e => setForm(f => ({ ...f, sku: e.target.value }))}
+                  placeholder="Ej: 7791234567890"
+                  style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14, outline: "none", boxSizing: "border-box" }}
+                />
+                <button
+                  type="button"
+                  onClick={skuScanning ? stopSkuCamera : startSkuCamera}
+                  style={{ padding: "10px 12px", borderRadius: 10, background: skuScanning ? "rgba(239,68,68,0.08)" : "var(--surface2)", border: `1px solid ${skuScanning ? "rgba(239,68,68,0.3)" : "var(--border)"}`, color: skuScanning ? "#ef4444" : "var(--text-faint)", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontWeight: 600, fontSize: 13, flexShrink: 0 }}
+                >
+                  <ScanLine size={15} /> {skuScanning ? "Detener" : "Escanear"}
+                </button>
+              </div>
+              {skuScanning && (
+                <div style={{ marginTop: 10, borderRadius: 12, overflow: "hidden", position: "relative" }}>
+                  <video ref={skuVideoRef} autoPlay playsInline muted style={{ width: "100%", maxHeight: 200, objectFit: "cover", display: "block" }} />
+                  <div style={{ position: "absolute", inset: 0, border: `2px solid ${O}`, borderRadius: 12, pointerEvents: "none" }}>
+                    <div style={{ position: "absolute", top: "50%", left: "8%", right: "8%", height: 2, background: O, opacity: 0.8, transform: "translateY(-50%)" }} />
+                  </div>
+                  <p style={{ textAlign: "center", fontSize: 12, color: "var(--text-faint)", padding: "6px 0 2px" }}>
+                    {"BarcodeDetector" in window ? "Apuntá el código — se captura solo" : "Tu navegador no soporta auto-detección"}
+                  </p>
+                </div>
+              )}
+            </div>
 
             <div style={{ marginBottom: 14 }}>
               <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>DESCRIPCIÓN</label>
