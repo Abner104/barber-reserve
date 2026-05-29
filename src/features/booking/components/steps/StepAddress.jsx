@@ -78,8 +78,20 @@ export default function StepAddress() {
     ? { lat: shopConfig.lat, lng: shopConfig.lng }
     : { lat: -33.4489, lng: -70.6693 };
 
-  const feePerKm    = shopConfig?.delivery_fee_per_km ?? 650;
-  const distanceKm  = address.lat ? getDistanceKm(origin, { lat: address.lat, lng: address.lng }) : null;
+  const feePerKm = shopConfig?.delivery_fee_per_km ?? 650;
+  const [distanceKm, setDistanceKm]   = useState(null);
+  const [loadingDist, setLoadingDist] = useState(false);
+
+  useEffect(() => {
+    if (!address.lat) { setDistanceKm(null); return; }
+    let cancelled = false;
+    setLoadingDist(true);
+    getDistanceKm(origin, { lat: address.lat, lng: address.lng })
+      .then(km => { if (!cancelled) setDistanceKm(km); })
+      .finally(() => { if (!cancelled) setLoadingDist(false); });
+    return () => { cancelled = true; };
+  }, [address.lat, address.lng]);
+
   const deliveryFee = distanceKm != null ? calcDeliveryFee(distanceKm, 0, feePerKm) : null;
 
   // Cargar Google Places al montar
@@ -268,19 +280,26 @@ export default function StepAddress() {
             </div>
           </div>
 
-          {distanceKm != null && (
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"14px 16px", background:"var(--card-bg)", border:"1px solid var(--border)", borderRadius:12 }}>
-              <div>
-                <p style={{ fontSize:12, color:"var(--text-muted)" }}>Distancia</p>
-                <p style={{ fontWeight:700, color:"var(--text)", fontSize:15 }}>{distanceKm.toFixed(1)} km</p>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"14px 16px", background:"var(--card-bg)", border:"1px solid var(--border)", borderRadius:12 }}>
+            {loadingDist ? (
+              <div style={{ display:"flex", alignItems:"center", gap:8, color:"var(--text-faint)", fontSize:13 }}>
+                <Loader2 size={15} style={{ animation:"spin 1s linear infinite" }} />
+                Calculando distancia por calles...
               </div>
-              <div style={{ width:1, height:32, background:"var(--border)" }} />
-              <div style={{ textAlign:"right" }}>
-                <p style={{ fontSize:12, color:"var(--text-muted)" }}>Costo de domicilio</p>
-                <p style={{ fontWeight:700, color:brand, fontSize:15 }}>{formatCurrency(deliveryFee)}</p>
-              </div>
-            </div>
-          )}
+            ) : distanceKm != null ? (
+              <>
+                <div>
+                  <p style={{ fontSize:12, color:"var(--text-muted)" }}>Distancia por calles</p>
+                  <p style={{ fontWeight:700, color:"var(--text)", fontSize:15 }}>{distanceKm.toFixed(1)} km</p>
+                </div>
+                <div style={{ width:1, height:32, background:"var(--border)" }} />
+                <div style={{ textAlign:"right" }}>
+                  <p style={{ fontSize:12, color:"var(--text-muted)" }}>Costo de domicilio</p>
+                  <p style={{ fontWeight:700, color:brand, fontSize:15 }}>{formatCurrency(deliveryFee)}</p>
+                </div>
+              </>
+            ) : null}
+          </div>
         </div>
       )}
 

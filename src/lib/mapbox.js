@@ -1,36 +1,24 @@
-// Coordenadas por defecto: Santiago de Chile
 export const DEFAULT_CENTER = { lat: -33.4489, lng: -70.6693 };
 
 /**
- * Geocodifica una dirección de texto usando Nominatim (OpenStreetMap) — gratis, sin API key.
- * Retorna { lat, lng, place_name } o null si no hay resultados.
+ * Distancia real por calles usando Google Distance Matrix API.
+ * Fallback a Haversine × 1.35 si no hay key o falla la llamada.
  */
-export async function geocodeAddress(address) {
-  const query = encodeURIComponent(address + ", Chile");
-  const url = `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1&countrycodes=cl`;
-
-  const res = await fetch(url, {
-    headers: { "Accept-Language": "es" },
-  });
-  const data = await res.json();
-
-  if (!data.length) return null;
-
-  return {
-    lat: parseFloat(data[0].lat),
-    lng: parseFloat(data[0].lon),
-    place_name: data[0].display_name,
-  };
+export async function getDistanceKm(from, to) {
+  try {
+    const url = `/api/distance?olat=${from.lat}&olng=${from.lng}&dlat=${to.lat}&dlng=${to.lng}`;
+    const res  = await fetch(url);
+    const data = await res.json();
+    if (data.distanceKm != null) return data.distanceKm;
+  } catch { /* fallback */ }
+  return haversineKm(from, to) * 1.35;
 }
 
-/**
- * Distancia en km entre dos coordenadas (Haversine).
- */
-export function getDistanceKm(from, to) {
-  const R = 6371;
+function haversineKm(from, to) {
+  const R    = 6371;
   const dLat = ((to.lat - from.lat) * Math.PI) / 180;
   const dLng = ((to.lng - from.lng) * Math.PI) / 180;
-  const a =
+  const a    =
     Math.sin(dLat / 2) ** 2 +
     Math.cos((from.lat * Math.PI) / 180) *
       Math.cos((to.lat * Math.PI) / 180) *
@@ -40,11 +28,18 @@ export function getDistanceKm(from, to) {
 
 /**
  * Costo de domicilio: tarifa base + distancia × tarifa por km.
+ * distanceKm ya es la distancia real por calles — sin factor adicional.
  */
 export function calcDeliveryFee(distanceKm, baseFee, feePerKm) {
-  // Factor 1.3 para compensar ruta real vs línea recta (calles no son rectas)
-  // Mínimo 1 km cobrado aunque la distancia sea menor
-  const routeKm     = distanceKm * 1.3;
-  const effectiveKm = Math.max(1, routeKm);
+  const effectiveKm = Math.max(1, distanceKm);
   return Math.round(baseFee + effectiveKm * feePerKm);
+}
+
+export async function geocodeAddress(address) {
+  const query = encodeURIComponent(address + ", Chile");
+  const url   = `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1&countrycodes=cl`;
+  const res   = await fetch(url, { headers: { "Accept-Language": "es" } });
+  const data  = await res.json();
+  if (!data.length) return null;
+  return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), place_name: data[0].display_name };
 }
