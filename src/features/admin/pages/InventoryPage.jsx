@@ -81,50 +81,51 @@ export default function InventoryPage() {
   });
 
   const stopCamera = useCallback(() => {
-    if (readerRef.current) { readerRef.current.reset(); readerRef.current = null; }
+    if (readerRef.current) { try { readerRef.current.stop(); } catch {} readerRef.current = null; }
     setScanning(false);
   }, []);
 
   const stopSkuCamera = useCallback(() => {
-    if (skuReaderRef.current) { skuReaderRef.current.reset(); skuReaderRef.current = null; }
+    if (skuReaderRef.current) { try { skuReaderRef.current.stop(); } catch {} skuReaderRef.current = null; }
     setSkuScanning(false);
   }, []);
 
   useEffect(() => () => { stopCamera(); stopSkuCamera(); }, [stopCamera, stopSkuCamera]);
 
-  // Header scanner: abre modal de edición o de nuevo producto
+  // Header scanner — abre modal edición o nuevo producto con SKU pre-cargado
   useEffect(() => {
     if (!scanning || !videoRef.current) return;
-    const reader = new BrowserMultiFormatReader();
-    readerRef.current = reader;
-    reader.decodeFromConstraints(
-      { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } } },
-      videoRef.current,
-      (result) => {
-        if (!result) return;
-        handleSkuScan(result.getText());
-      }
-    ).catch(() => {});
-    return () => reader.reset();
+    let alive = true;
+    new BrowserMultiFormatReader()
+      .decodeFromConstraints(
+        { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } } },
+        videoRef.current,
+        (result) => { if (result && alive) handleSkuScan(result.getText()); }
+      )
+      .then(controls => { if (!alive) { try { controls.stop(); } catch {} return; } readerRef.current = controls; })
+      .catch(() => {});
+    return () => { alive = false; if (readerRef.current) { try { readerRef.current.stop(); } catch {} readerRef.current = null; } };
   }, [scanning]);
 
-  // SKU modal scanner: captura el código y lo pone en el campo SKU
+  // SKU modal scanner — captura SKU y lo pone en el campo
   useEffect(() => {
     if (!skuScanning || !skuVideoRef.current) return;
-    const reader = new BrowserMultiFormatReader();
-    skuReaderRef.current = reader;
-    reader.decodeFromConstraints(
-      { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } } },
-      skuVideoRef.current,
-      (result) => {
-        if (!result) return;
-        const raw = result.getText();
-        setForm(f => ({ ...f, sku: raw }));
-        toast.success(`SKU capturado: ${raw}`);
-        stopSkuCamera();
-      }
-    ).catch(() => {});
-    return () => reader.reset();
+    let alive = true;
+    new BrowserMultiFormatReader()
+      .decodeFromConstraints(
+        { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } } },
+        skuVideoRef.current,
+        (result) => {
+          if (!result || !alive) return;
+          const raw = result.getText();
+          setForm(f => ({ ...f, sku: raw }));
+          toast.success(`SKU capturado: ${raw}`);
+          stopSkuCamera();
+        }
+      )
+      .then(controls => { if (!alive) { try { controls.stop(); } catch {} return; } skuReaderRef.current = controls; })
+      .catch(() => {});
+    return () => { alive = false; if (skuReaderRef.current) { try { skuReaderRef.current.stop(); } catch {} skuReaderRef.current = null; } };
   }, [skuScanning, stopSkuCamera]);
 
   const startCamera    = useCallback(() => setScanning(true),    []);

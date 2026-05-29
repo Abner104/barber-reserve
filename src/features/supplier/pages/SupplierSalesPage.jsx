@@ -65,9 +65,8 @@ export default function SupplierSalesPage() {
   const [done, setDone]                 = useState(false);
 
   const videoRef       = useRef(null);
-  const readerRef      = useRef(null);
+  const controlsRef    = useRef(null); // IScannerControls returned by ZXing
   const lastScannedRef = useRef("");
-  // ref estable para addBySku (evita re-crear el reader en cada render)
   const productsRef    = useRef([]);
 
   const { data: supplier } = useQuery({
@@ -98,45 +97,40 @@ export default function SupplierSalesPage() {
 
   // ── ZXing Scanner ────────────────────────────────────────────
   const stopCamera = useCallback(() => {
-    if (readerRef.current) {
-      readerRef.current.reset();
-      readerRef.current = null;
-    }
+    if (controlsRef.current) { try { controlsRef.current.stop(); } catch {} controlsRef.current = null; }
     lastScannedRef.current = "";
     setScanning(false);
   }, []);
 
   useEffect(() => () => stopCamera(), [stopCamera]);
 
-  // Cuando scanning cambia a true y el video está en DOM, iniciamos ZXing
   useEffect(() => {
     if (!scanning || !videoRef.current) return;
-
+    let alive = true;
     const reader = new BrowserMultiFormatReader();
-    readerRef.current = reader;
 
     reader.decodeFromConstraints(
       { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } } },
       videoRef.current,
-      (result, err) => {
-        if (!result) return;
+      (result) => {
+        if (!result || !alive) return;
         const raw = result.getText();
         if (raw === lastScannedRef.current) return;
         lastScannedRef.current = raw;
         setTimeout(() => { lastScannedRef.current = ""; }, 2500);
-        // Buscar en products via ref (sin closure stale)
-        const found = productsRef.current.find(
-          p => p.sku?.toLowerCase() === raw.toLowerCase()
-        );
-        if (found) {
-          addToCartDirect(found);
-        } else {
-          toast.error(`SKU "${raw}" no encontrado`);
-        }
+        const found = productsRef.current.find(p => p.sku?.toLowerCase() === raw.toLowerCase());
+        if (found) addToCartDirect(found);
+        else toast.error(`SKU "${raw}" no encontrado`);
       }
-    ).catch(() => {});
+    ).then(controls => {
+      if (!alive) { try { controls.stop(); } catch {} return; }
+      controlsRef.current = controls;
+    }).catch(() => {});
 
-    return () => { reader.reset(); };
+    return () => {
+      alive = false;
+      if (controlsRef.current) { try { controlsRef.current.stop(); } catch {} controlsRef.current = null; }
+    };
   }, [scanning]);
 
   // Separamos addToCart para usarlo sin closure sobre products
