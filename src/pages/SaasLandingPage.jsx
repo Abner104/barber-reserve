@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { applyTheme } from "../lib/applyTheme";
 import { supabase } from "../lib/supabase";
-import { ArrowRight, Check, Scissors, Smartphone, Calendar, BarChart3, Users, Zap, Star, ChevronDown, Menu, X, Quote } from "lucide-react";
+import { ArrowRight, Check, Scissors, Smartphone, Calendar, BarChart3, Users, Zap, Star, ChevronDown, Menu, X, ChevronRight } from "lucide-react";
 import SupplierCatalog from "../features/supplier/components/SupplierCatalog";
 
 const O  = "#FF6B2C";
@@ -27,39 +27,13 @@ const FEATURES = [
   { icon: <Scissors size={20} />,    title: "Tu página propia",        desc: "Con tu link, tus servicios, tus precios y tus barberos. Sin comisiones." },
 ];
 
-const TESTIMONIALS = [
-  {
-    name: "Rodrigo Muñoz",
-    role: "Dueño · BarberKing Santiago",
-    avatar: "R",
-    color: "#FF6B2C",
-    text: "Antes perdía reservas por WhatsApp a toda hora. Ahora mis clientes reservan solos y yo solo aparezco a cortar. Cambió todo.",
-    stars: 5,
-  },
-  {
-    name: "Felipe Araya",
-    role: "Barbero independiente · Valparaíso",
-    avatar: "F",
-    color: "#3B82F6",
-    text: "El portal del barbero es una locura. Veo mi agenda, mis cobros y mis comisiones en el celular sin depender del dueño.",
-    stars: 5,
-  },
-  {
-    name: "Camila Torres",
-    role: "Administradora · FadeCo Barbers",
-    avatar: "C",
-    color: "#8B5CF6",
-    text: "La caja en tiempo real nos salvó. Antes cerrábamos el día a ojo. Ahora sabemos exactamente cuánto hizo cada barbero.",
-    stars: 5,
-  },
-  {
-    name: "Nicolás Vega",
-    role: "Dueño · NV Barbershop",
-    avatar: "N",
-    color: "#10B981",
-    text: "30 días gratis y ya no volví atrás. El setup tardó 20 minutos y al día siguiente ya tenía reservas entrando solas.",
-    stars: 5,
-  },
+const FAQS = [
+  { q: "¿Necesito saber de tecnología para configurarlo?", a: "No. El setup dura menos de 15 minutos: creás tu cuenta, agregás tus barberos y servicios, y ya tenés tu página lista para recibir reservas." },
+  { q: "¿Qué pasa cuando termina el período de prueba?", a: "Te avisamos con anticipación. Si querés continuar, elegís tu plan y seguís sin perder nada. Si no, tu cuenta se suspende y nada se cobra automáticamente." },
+  { q: "¿Puedo tener varios barberos en mi equipo?", a: "Sí. El plan Pro incluye hasta el número de barberos que necesites, pagando una tarifa adicional por cada uno. Cada barbero tiene su propio portal con su agenda y cobros." },
+  { q: "¿Funciona bien en el celular?", a: "100%. Tanto el panel admin como el portal del barbero están optimizados para móvil. Tus clientes también reservan desde el teléfono sin descargar nada." },
+  { q: "¿Cobran comisión por cada reserva?", a: "No. Pagás solo el plan mensual. No hay comisiones por reserva, por venta ni por nada más. Lo que entra en tu caja es tuyo." },
+  { q: "¿Puedo cancelar cuando quiera?", a: "Sí, sin contratos ni permanencia. Cancelás desde tu panel y no se vuelve a cobrar. Sin preguntas, sin burocracia." },
 ];
 
 function buildPlans(cfg) {
@@ -215,6 +189,34 @@ function useParallax(f = 0.22) {
     return () => window.removeEventListener("scroll", fn);
   }, [f]);
   return y;
+}
+
+// ── FAQ Accordion ─────────────────────────────────────────────
+function FaqList() {
+  const [open, setOpen] = useState(null);
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+      {FAQS.map((item, i) => {
+        const isOpen = open === i;
+        return (
+          <div key={i} style={{ background:"#0C0C0C", border:`1px solid ${isOpen ? "#2A2A2A" : "#161616"}`, borderRadius:14, overflow:"hidden", transition:"border-color .2s" }}>
+            <button
+              onClick={() => setOpen(isOpen ? null : i)}
+              style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 20px", background:"none", border:"none", cursor:"pointer", gap:16, textAlign:"left" }}
+            >
+              <span style={{ fontWeight:600, fontSize:15, color:"#ddd", lineHeight:1.4 }}>{item.q}</span>
+              <ChevronRight size={16} color="#444" style={{ flexShrink:0, transform: isOpen ? "rotate(90deg)" : "none", transition:"transform .25s" }} />
+            </button>
+            {isOpen && (
+              <div style={{ padding:"0 20px 18px" }}>
+                <p style={{ color:"#555", fontSize:14, lineHeight:1.7 }}>{item.a}</p>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 // ── Main ──────────────────────────────────────────────────────
@@ -409,43 +411,18 @@ export default function SaasLandingPage() {
         </div>
       </section>
 
-      {/* ── TESTIMONIALS ── */}
+      {/* ── FAQ ── */}
       <section style={{ padding:"80px 20px 90px", background:"#080808" }}>
-        <div style={{ maxWidth:1080, margin:"0 auto" }}>
+        <div style={{ maxWidth:720, margin:"0 auto" }}>
           <Reveal>
             <div style={{ textAlign:"center", marginBottom:48 }}>
-              <p style={{ color:O, fontSize:11, fontWeight:700, letterSpacing:2, textTransform:"uppercase", marginBottom:10 }}>Testimonios</p>
+              <p style={{ color:O, fontSize:11, fontWeight:700, letterSpacing:2, textTransform:"uppercase", marginBottom:10 }}>FAQ</p>
               <h2 className="display" style={{ fontSize:"clamp(38px,6vw,60px)", textTransform:"uppercase", letterSpacing:-1 }}>
-                Lo que dicen<br />los que ya usaron
+                Preguntas<br />frecuentes
               </h2>
             </div>
           </Reveal>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))", gap:14 }}>
-            {TESTIMONIALS.map((t, i) => (
-              <Reveal key={t.name} delay={i * 0.08}>
-                <div style={{ background:"#0C0C0C", border:"1px solid #1A1A1A", borderRadius:20, padding:24, display:"flex", flexDirection:"column", gap:16, height:"100%", boxSizing:"border-box" }}>
-                  <div style={{ color:"#1C1C1C" }}>
-                    <Quote size={28} fill="#1C1C1C" />
-                  </div>
-                  <p style={{ color:"#888", fontSize:14, lineHeight:1.7, flex:1 }}>"{t.text}"</p>
-                  <div>
-                    <div style={{ display:"flex", gap:3, marginBottom:10 }}>
-                      {[1,2,3,4,5].map(s => <Star key={s} size={12} fill={O} color={O} />)}
-                    </div>
-                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                      <div style={{ width:38, height:38, borderRadius:"50%", background:t.color, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                        <span style={{ fontWeight:900, fontSize:15, color:"#fff" }}>{t.avatar}</span>
-                      </div>
-                      <div>
-                        <p style={{ fontWeight:700, color:"#fff", fontSize:13 }}>{t.name}</p>
-                        <p style={{ fontSize:11, color:"#3A3A3A" }}>{t.role}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </Reveal>
-            ))}
-          </div>
+          <FaqList />
         </div>
       </section>
 
