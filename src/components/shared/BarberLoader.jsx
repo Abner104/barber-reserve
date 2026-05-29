@@ -20,10 +20,24 @@ export default function BarberLoader({
   useEffect(() => {
     const a = new Audio("/sound/freesound_community-shaver-39110.mp3");
     a.loop = true;
-    a.volume = 0.35;
+    a.volume = 0.55;
     audioRef.current = a;
-    a.play().catch(() => {});
-    return () => { a.pause(); a.currentTime = 0; };
+
+    // Intenta reproducir de inmediato (funciona si ya hubo interacción del usuario)
+    const tryPlay = () => a.play().catch(() => {});
+    tryPlay();
+
+    // Si el navegador bloqueó el autoplay, espera el primer click/touch para reproducir
+    const unlock = () => { tryPlay(); document.removeEventListener("click", unlock); document.removeEventListener("touchstart", unlock); };
+    document.addEventListener("click", unlock);
+    document.addEventListener("touchstart", unlock);
+
+    return () => {
+      document.removeEventListener("click", unlock);
+      document.removeEventListener("touchstart", unlock);
+      a.pause();
+      a.currentTime = 0;
+    };
   }, []);
 
   return (

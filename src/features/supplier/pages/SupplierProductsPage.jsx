@@ -10,7 +10,7 @@ import { formatCurrency } from "../../../lib/utils";
 
 const O = "var(--brand, #FF6B2C)";
 
-const EMPTY = { name: "", description: "", price: "", stock: "", category: "", image_url: "", unit: "unidad", is_available: true, sku: "" };
+const EMPTY = { name: "", description: "", price: "", stock: "", category: "", image_url: "", images: [], unit: "unidad", is_available: true, sku: "" };
 
 const STEPS = [
   { id: 1, label: "Identidad",  desc: "Nombre, SKU y categoría" },
@@ -88,7 +88,7 @@ export default function SupplierProductsPage() {
   }
 
   function openEdit(p) {
-    setForm({ ...p, price: String(p.price), stock: String(p.stock ?? ""), sku: p.sku ?? "" });
+    setForm({ ...p, price: String(p.price), stock: String(p.stock ?? ""), sku: p.sku ?? "", images: p.images ?? [] });
     setFormErrors({});
     setModal(p);
   }
@@ -97,9 +97,23 @@ export default function SupplierProductsPage() {
 
   async function handleImageUpload(file) {
     setUploading(true);
-    try { const url = await uploadImage(file, "shop-images", "supplier-products"); setForm(f => ({ ...f, image_url: url })); }
+    try {
+      const url = await uploadImage(file, "shop-images", "supplier-products");
+      setForm(f => ({
+        ...f,
+        image_url: f.image_url || url,
+        images: [...(f.images ?? []), url],
+      }));
+    }
     catch { toast.error("Error subiendo imagen"); }
     finally { setUploading(false); }
+  }
+
+  function removeImage(idx) {
+    setForm(f => {
+      const next = f.images.filter((_, i) => i !== idx);
+      return { ...f, images: next, image_url: next[0] ?? "" };
+    });
   }
 
   // ── Wizard navigation ────────────────────────────────────────
@@ -238,28 +252,53 @@ export default function SupplierProductsPage() {
     );
   }
 
+  function GaleriaFotos() {
+    const imgs = form.images ?? [];
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {imgs.length > 0 && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+            {imgs.map((url, i) => (
+              <div key={i} style={{ position: "relative", borderRadius: 10, overflow: "hidden", aspectRatio: "1" }}>
+                <img src={url} alt={`foto ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                {i === 0 && (
+                  <span style={{ position: "absolute", top: 4, left: 4, background: O, color: "#fff", fontSize: 9, fontWeight: 800, padding: "2px 6px", borderRadius: 6 }}>PRINCIPAL</span>
+                )}
+                <button onClick={() => removeImage(i)}
+                  style={{ position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,0.7)", border: "none", borderRadius: 6, width: 22, height: 22, cursor: "pointer", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, height: imgs.length > 0 ? 80 : 160, borderRadius: 12, border: "2px dashed var(--border)", cursor: uploading ? "not-allowed" : "pointer", color: "var(--text-faint)", opacity: uploading ? 0.6 : 1 }}>
+          <Package size={28} style={{ opacity: 0.4 }} />
+          <span style={{ fontSize: 13, fontWeight: 600 }}>{uploading ? "Subiendo..." : imgs.length > 0 ? "Agregar más fotos" : "Tocar para agregar foto"}</span>
+          {imgs.length === 0 && <span style={{ fontSize: 11, opacity: 0.6 }}>JPG, PNG — opcional, podés poner varias</span>}
+          <input type="file" accept="image/*" multiple style={{ display: "none" }} disabled={uploading}
+            onChange={async e => { for (const f of Array.from(e.target.files ?? [])) await handleImageUpload(f); }} />
+        </label>
+
+        {imgs.length > 0 && (
+          <p style={{ textAlign: "center", color: "var(--text-faint)", fontSize: 12 }}>
+            {imgs.length} foto{imgs.length > 1 ? "s" : ""} · La primera es la principal
+          </p>
+        )}
+      </div>
+    );
+  }
+
   function StepFoto() {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {form.image_url ? (
-          <div style={{ position: "relative" }}>
-            <img src={form.image_url} alt="preview" style={{ width: "100%", height: 200, objectFit: "cover", borderRadius: 14 }} />
-            <button onClick={() => setForm(f => ({ ...f, image_url: "" }))}
-              style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.7)", border: "none", borderRadius: 8, padding: "4px 10px", cursor: "pointer", color: "#fff", fontSize: 12 }}>
-              Quitar
-            </button>
-          </div>
-        ) : (
-          <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, height: 180, borderRadius: 14, border: "2px dashed var(--border)", cursor: "pointer", color: "var(--text-faint)" }}>
-            <Package size={36} style={{ opacity: 0.4 }} />
-            <span style={{ fontSize: 14, fontWeight: 600 }}>{uploading ? "Subiendo..." : "Tocar para agregar foto"}</span>
-            <span style={{ fontSize: 12, opacity: 0.6 }}>JPG, PNG — opcional</span>
-            <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => e.target.files?.[0] && handleImageUpload(e.target.files[0])} />
-          </label>
+        <GaleriaFotos />
+        {(form.images ?? []).length === 0 && (
+          <p style={{ textAlign: "center", color: "var(--text-faint)", fontSize: 13 }}>
+            Podés saltear este paso si no tenés foto ahora
+          </p>
         )}
-        <p style={{ textAlign: "center", color: "var(--text-faint)", fontSize: 13 }}>
-          {form.image_url ? "Foto lista ✓" : "Podés saltear este paso si no tenés foto ahora"}
-        </p>
       </div>
     );
   }
@@ -403,18 +442,10 @@ export default function SupplierProductsPage() {
               <button onClick={closeModal} style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 8, padding: 6, cursor: "pointer", color: "var(--text-faint)", display: "flex" }}><X size={16} /></button>
             </div>
 
-            {form.image_url ? (
-              <div style={{ position: "relative", marginBottom: 14 }}>
-                <img src={form.image_url} alt="preview" style={{ width: "100%", height: 150, objectFit: "cover", borderRadius: 12 }} />
-                <button onClick={() => setForm(f => ({ ...f, image_url: "" }))} style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.7)", border: "none", borderRadius: 6, padding: "4px 8px", cursor: "pointer", color: "#fff", fontSize: 12 }}>Quitar</button>
-              </div>
-            ) : (
-              <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, height: 100, borderRadius: 12, border: "2px dashed var(--border)", cursor: "pointer", color: "var(--text-faint)", marginBottom: 14 }}>
-                <Package size={24} />
-                <span style={{ fontSize: 13 }}>{uploading ? "Subiendo..." : "Agregar foto"}</span>
-                <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => e.target.files?.[0] && handleImageUpload(e.target.files[0])} />
-              </label>
-            )}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 8 }}>FOTOS DEL PRODUCTO</label>
+              <GaleriaFotos />
+            </div>
 
             {[
               { key: "name",     label: "Nombre *",    placeholder: "Nombre del producto", type: "text"   },
