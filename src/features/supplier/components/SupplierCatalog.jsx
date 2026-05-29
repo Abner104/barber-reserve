@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { ShoppingCart, Plus, Minus, X, Package, Loader2, Check } from "lucide-react";
+import { ShoppingCart, Plus, Minus, X, Package, Loader2, Check, ChevronLeft, ChevronRight, ZoomIn } from "lucide-react";
 import { toast } from "sonner";
 import { getPublicProducts, createOrder, getFirstSupplier } from "../services/supplierService";
 import { formatCurrency } from "../../../lib/utils";
@@ -40,6 +40,10 @@ export default function SupplierCatalog({ supplierOverride } = {}) {
   const [form, setForm]         = useState({ name: "", phone: "", note: "" });
   const [formErrors, setFormErrors] = useState({});
   const [success, setSuccess]   = useState(false);
+  const [lightbox, setLightbox]   = useState(null); // { images: [], idx: number }
+  const [imgIndexes, setImgIndexes] = useState({}); // { [productId]: currentImageIndex }
+  const [catMenuOpen, setCatMenuOpen] = useState(false);
+  const [activeCategory, setActiveCategory] = useState(null);
 
   const { data: supplierFetched } = useQuery({
     queryKey: ["public-supplier"],
@@ -160,6 +164,73 @@ export default function SupplierCatalog({ supplierOverride } = {}) {
           )}
         </div>
 
+        {/* ── Barra de categorías (sticky, mobile-first) ── */}
+        {Object.keys(grouped).length > 1 && (
+          <>
+            {/* Desktop: pills horizontales */}
+            <div style={{ display: "flex", gap: 8, flexWrap: "nowrap", overflowX: "auto", marginBottom: 28, paddingBottom: 4, scrollbarWidth: "none" }}>
+              <button onClick={() => setActiveCategory(null)}
+                style={{ padding: "7px 16px", borderRadius: 20, border: `1px solid ${!activeCategory ? O : "var(--border)"}`, background: !activeCategory ? O : "transparent", color: !activeCategory ? "#fff" : "var(--text-faint)", fontWeight: !activeCategory ? 700 : 400, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>
+                Todo
+              </button>
+              {Object.keys(grouped).map(cat => (
+                <button key={cat} onClick={() => { setActiveCategory(cat); document.getElementById(`cat-${cat}`)?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
+                  style={{ padding: "7px 16px", borderRadius: 20, border: `1px solid ${activeCategory === cat ? O : "var(--border)"}`, background: activeCategory === cat ? O : "transparent", color: activeCategory === cat ? "#fff" : "var(--text-faint)", fontWeight: activeCategory === cat ? 700 : 400, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            {/* Mobile: botón hamburguesa flotante (solo cuando hay carrito o siempre) */}
+            <style>{`
+              @media (max-width: 640px) {
+                .cat-pills { display: none !important; }
+                .cat-fab    { display: flex !important; }
+              }
+              @media (min-width: 641px) {
+                .cat-fab { display: none !important; }
+              }
+            `}</style>
+          </>
+        )}
+
+        {/* FAB de categorías — solo mobile */}
+        {Object.keys(grouped).length > 1 && (
+          <div className="cat-fab" style={{ display: "none", position: "fixed", bottom: cartCount > 0 ? 90 : 24, left: 20, zIndex: 79 }}>
+            <button onClick={() => setCatMenuOpen(true)}
+              style={{ width: 48, height: 48, borderRadius: "50%", background: "var(--surface)", border: `2px solid ${O}`, cursor: "pointer", color: O, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 16px rgba(0,0,0,0.3)" }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
+          </div>
+        )}
+
+        {/* Drawer categorías mobile */}
+        {catMenuOpen && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}
+            onClick={() => setCatMenuOpen(false)}>
+            <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.7)" }} />
+            <div onClick={e => e.stopPropagation()}
+              style={{ position: "relative", background: "var(--surface)", borderRadius: "20px 20px 0 0", padding: "20px 20px 40px" }}>
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: "var(--border)", margin: "0 auto 20px" }} />
+              <p style={{ fontWeight: 800, fontSize: 16, color: "var(--text)", marginBottom: 14 }}>Categorías</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <button onClick={() => { setActiveCategory(null); setCatMenuOpen(false); }}
+                  style={{ padding: "12px 16px", borderRadius: 12, border: "none", background: !activeCategory ? `rgba(255,107,44,0.1)` : "transparent", color: !activeCategory ? O : "var(--text)", fontWeight: !activeCategory ? 700 : 400, fontSize: 15, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  Todos los productos
+                  {!activeCategory && <span style={{ color: O, fontSize: 16 }}>✓</span>}
+                </button>
+                {Object.keys(grouped).map(cat => (
+                  <button key={cat} onClick={() => { setActiveCategory(cat); setCatMenuOpen(false); setTimeout(() => document.getElementById(`cat-${cat}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 100); }}
+                    style={{ padding: "12px 16px", borderRadius: 12, border: "none", background: activeCategory === cat ? `rgba(255,107,44,0.1)` : "transparent", color: activeCategory === cat ? O : "var(--text)", fontWeight: activeCategory === cat ? 700 : 400, fontSize: 15, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    {cat}
+                    <span style={{ fontSize: 12, color: "var(--text-faint)" }}>{grouped[cat].length}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Catálogo */}
         {isLoading && (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 }}>
@@ -172,32 +243,75 @@ export default function SupplierCatalog({ supplierOverride } = {}) {
             <p style={{ fontSize: 11, letterSpacing: 2.5, textTransform: "uppercase", color: "var(--text-faint)", fontWeight: 700, marginBottom: 16, paddingLeft: 4 }}>{cat}</p>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 }}>
               {items.map(p => {
-                const qty = cart[p.id] ?? 0;
+                const qty    = cart[p.id] ?? 0;
+                // Armar lista de imágenes: images[] tiene prioridad, fallback a image_url
+                const imgs   = (p.images && p.images.length > 0) ? p.images : (p.image_url ? [p.image_url] : []);
+                const imgIdx = imgIndexes[p.id] ?? 0;
+                const curImg = imgs[imgIdx] ?? null;
                 return (
                   <div key={p.id} style={{ background: "var(--surface)", border: `1px solid ${qty > 0 ? O + "55" : "var(--surface2)"}`, borderRadius: 16, overflow: "hidden", transition: "border-color 0.2s" }}>
-                    {p.image_url ? (
-                      <img src={p.image_url} alt={p.name} style={{ width: "100%", height: 160, objectFit: "cover" }} />
-                    ) : (
-                      <div style={{ width: "100%", height: 160, background: "var(--surface2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <Package size={40} color="#333" />
-                      </div>
-                    )}
+
+                    {/* ── Galería de imágenes ── */}
+                    <div style={{ position: "relative", width: "100%", height: 180, background: "var(--surface2)" }}>
+                      {curImg ? (
+                        <img
+                          src={curImg}
+                          alt={p.name}
+                          style={{ width: "100%", height: "100%", objectFit: "contain", cursor: "zoom-in", background: "var(--surface2)" }}
+                          onClick={() => setLightbox({ images: imgs, idx: imgIdx })}
+                        />
+                      ) : (
+                        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <Package size={40} color="var(--text-faint)" style={{ opacity: 0.3 }} />
+                        </div>
+                      )}
+
+                      {/* Lupa */}
+                      {curImg && (
+                        <button onClick={() => setLightbox({ images: imgs, idx: imgIdx })}
+                          style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.45)", border: "none", borderRadius: 8, padding: 5, cursor: "pointer", color: "#fff", display: "flex" }}>
+                          <ZoomIn size={14} />
+                        </button>
+                      )}
+
+                      {/* Flechas navegación multi-imagen */}
+                      {imgs.length > 1 && (
+                        <>
+                          <button onClick={() => setImgIndexes(ix => ({ ...ix, [p.id]: (imgIdx - 1 + imgs.length) % imgs.length }))}
+                            style={{ position: "absolute", left: 6, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.45)", border: "none", borderRadius: 8, padding: 4, cursor: "pointer", color: "#fff", display: "flex" }}>
+                            <ChevronLeft size={16} />
+                          </button>
+                          <button onClick={() => setImgIndexes(ix => ({ ...ix, [p.id]: (imgIdx + 1) % imgs.length }))}
+                            style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.45)", border: "none", borderRadius: 8, padding: 4, cursor: "pointer", color: "#fff", display: "flex" }}>
+                            <ChevronRight size={16} />
+                          </button>
+                          {/* Dots */}
+                          <div style={{ position: "absolute", bottom: 6, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 4 }}>
+                            {imgs.map((_, i) => (
+                              <div key={i} onClick={() => setImgIndexes(ix => ({ ...ix, [p.id]: i }))}
+                                style={{ width: i === imgIdx ? 16 : 6, height: 6, borderRadius: 3, background: i === imgIdx ? O : "rgba(255,255,255,0.5)", cursor: "pointer", transition: "all 0.2s" }} />
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+
                     <div style={{ padding: "14px 16px" }}>
                       <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 15, marginBottom: 4 }}>{p.name}</p>
-                      {p.description && <p style={{ color: "#666", fontSize: 12, marginBottom: 10, lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{p.description}</p>}
+                      {p.description && <p style={{ color: "var(--text-faint)", fontSize: 12, marginBottom: 10, lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{p.description}</p>}
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                         <p style={{ fontWeight: 800, color: O, fontSize: 17 }}>{formatCurrency(p.price)}</p>
                         {qty === 0 ? (
-                          <button onClick={() => addToCart(p)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 10, background: O, color: "var(--text)", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>
+                          <button onClick={() => addToCart(p)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 10, background: O, color: "#fff", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>
                             <Plus size={14} /> Agregar
                           </button>
                         ) : (
-                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             <button onClick={() => removeOne(p.id)} style={{ width: 30, height: 30, borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", cursor: "pointer", color: "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                               <Minus size={13} />
                             </button>
                             <span style={{ fontWeight: 800, color: "var(--text)", fontSize: 16, minWidth: 16, textAlign: "center" }}>{qty}</span>
-                            <button onClick={() => addToCart(p)} style={{ width: 30, height: 30, borderRadius: 8, background: O, border: "none", cursor: "pointer", color: "var(--text)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <button onClick={() => addToCart(p)} style={{ width: 30, height: 30, borderRadius: 8, background: O, border: "none", cursor: "pointer", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
                               <Plus size={13} />
                             </button>
                           </div>
@@ -278,6 +392,38 @@ export default function SupplierCatalog({ supplierOverride } = {}) {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── Lightbox ── */}
+      {lightbox && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.95)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center" }}
+          onClick={() => setLightbox(null)}>
+          <button onClick={() => setLightbox(null)} style={{ position: "absolute", top: 16, right: 16, background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 10, padding: 10, cursor: "pointer", color: "#fff", display: "flex", zIndex: 10 }}>
+            <X size={20} />
+          </button>
+          <img src={lightbox.images[lightbox.idx]} alt="zoom"
+            style={{ maxWidth: "95vw", maxHeight: "90vh", objectFit: "contain", borderRadius: 12 }}
+            onClick={e => e.stopPropagation()}
+          />
+          {lightbox.images.length > 1 && (
+            <>
+              <button onClick={e => { e.stopPropagation(); setLightbox(lb => ({ ...lb, idx: (lb.idx - 1 + lb.images.length) % lb.images.length })); }}
+                style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 10, padding: 10, cursor: "pointer", color: "#fff", display: "flex" }}>
+                <ChevronLeft size={24} />
+              </button>
+              <button onClick={e => { e.stopPropagation(); setLightbox(lb => ({ ...lb, idx: (lb.idx + 1) % lb.images.length })); }}
+                style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 10, padding: 10, cursor: "pointer", color: "#fff", display: "flex" }}>
+                <ChevronRight size={24} />
+              </button>
+              <div style={{ position: "absolute", bottom: 20, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 6 }}>
+                {lightbox.images.map((_, i) => (
+                  <div key={i} onClick={e => { e.stopPropagation(); setLightbox(lb => ({ ...lb, idx: i })); }}
+                    style={{ width: i === lightbox.idx ? 20 : 8, height: 8, borderRadius: 4, background: i === lightbox.idx ? O : "rgba(255,255,255,0.4)", cursor: "pointer", transition: "all 0.2s" }} />
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
 
