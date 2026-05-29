@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Player } from "@lottiefiles/react-lottie-player";
 
 /**
@@ -15,6 +16,16 @@ export default function BarberLoader({
   shopName = null,
   color    = "var(--brand, #FF6B2C)",
 }) {
+  const audioRef = useRef(null);
+  useEffect(() => {
+    const a = new Audio("/sound/freesound_community-shaver-39110.mp3");
+    a.loop = true;
+    a.volume = 0.35;
+    audioRef.current = a;
+    a.play().catch(() => {});
+    return () => { a.pause(); a.currentTime = 0; };
+  }, []);
+
   return (
     <div style={{
       minHeight: "100vh",

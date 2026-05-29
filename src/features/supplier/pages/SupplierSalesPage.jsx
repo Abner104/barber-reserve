@@ -10,6 +10,7 @@ import { useAuthStore } from "../../../store/authStore";
 import { getSupplierByProfileId, getSupplierProducts } from "../services/supplierService";
 import { supabase } from "../../../lib/supabase";
 import { formatCurrency } from "../../../lib/utils";
+import { useSound } from "../../../hooks/useSound";
 
 const O = "var(--brand, #FF6B2C)";
 
@@ -63,6 +64,8 @@ export default function SupplierSalesPage() {
   const [clientPhone, setClientPhone]   = useState("");
   const [note, setNote]                 = useState("");
   const [done, setDone]                 = useState(false);
+
+  const { play: playScan } = useSound("/sound/mixkit-sci-fi-click-900.wav", { volume: 0.8 });
 
   const videoRef       = useRef(null);
   const controlsRef    = useRef(null); // IScannerControls returned by ZXing
@@ -119,7 +122,7 @@ export default function SupplierSalesPage() {
         lastScannedRef.current = raw;
         setTimeout(() => { lastScannedRef.current = ""; }, 2500);
         const found = productsRef.current.find(p => p.sku?.toLowerCase() === raw.toLowerCase());
-        if (found) addToCartDirect(found);
+        if (found) { playScan(); addToCartDirect(found); }
         else toast.error(`SKU "${raw}" no encontrado`);
       }
     ).then(controls => {
@@ -148,6 +151,7 @@ export default function SupplierSalesPage() {
     if (!sku?.trim()) return;
     const found = products.find(p => p.sku?.toLowerCase() === sku.trim().toLowerCase());
     if (!found) { toast.error(`SKU "${sku}" no encontrado`); return; }
+    playScan();
     addToCartDirect(found);
   }
 

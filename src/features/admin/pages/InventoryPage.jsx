@@ -9,6 +9,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { formatCurrency } from "../../../lib/utils";
 import { uploadImage } from "../../../components/shared/ImageUpload";
+import { useSound } from "../../../hooks/useSound";
 import {
   getInventory, upsertInventoryProduct, deleteInventoryProduct,
   adjustStock, getInventoryMovements,
@@ -42,6 +43,8 @@ export default function InventoryPage() {
   const [saving, setSaving]               = useState(false);
   const [scanning, setScanning]           = useState(false);       // scanner global (header)
   const [skuScanning, setSkuScanning]     = useState(false);       // scanner dentro del modal SKU
+
+  const { play: playScan } = useSound("/sound/mixkit-sci-fi-click-900.wav", { volume: 0.8 });
 
   const videoRef        = useRef(null);
   const skuVideoRef     = useRef(null);
@@ -118,6 +121,7 @@ export default function InventoryPage() {
         (result) => {
           if (!result || !alive) return;
           const raw = result.getText();
+          playScan();
           setForm(f => ({ ...f, sku: raw }));
           toast.success(`SKU capturado: ${raw}`);
           stopSkuCamera();
@@ -134,6 +138,7 @@ export default function InventoryPage() {
   function handleSkuScan(sku) {
     if (!sku?.trim()) return;
     const found = products.find(p => p.sku?.toLowerCase() === sku.trim().toLowerCase());
+    playScan();
     stopCamera();
     if (found) {
       openEdit(found);
