@@ -23,15 +23,11 @@ function toSlug(str) {
 }
 
 async function createSupplierWithUser({ email, password, fullName, supplierName, description, whatsapp }) {
-  const WA_URL    = import.meta.env.VITE_WA_SERVICE_URL ?? "http://localhost:3001";
-  const WA_SECRET = import.meta.env.VITE_WA_SECRET      ?? "barberos2026secret";
-
-  const res = await fetch(`${WA_URL}/create-supplier`, {
+  const res = await fetch("/api/create-supplier", {
     method:  "POST",
-    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${WA_SECRET}` },
+    headers: { "Content-Type": "application/json" },
     body:    JSON.stringify({ email, password, fullName, supplierName, description, whatsapp }),
   });
-
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? "Error al crear el proveedor");
   return data.supplier;
