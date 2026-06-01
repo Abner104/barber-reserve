@@ -6,14 +6,27 @@ import { applyTheme, resetTheme } from "../lib/applyTheme";
 import SupplierCatalog from "../features/supplier/components/SupplierCatalog";
 
 async function getSupplierBySlug(slug) {
-  const { data, error } = await supabase
+  // Intenta por slug primero, luego por id como fallback
+  const { data } = await supabase
     .from("suppliers")
     .select("*")
     .eq("slug", slug)
     .eq("is_active", true)
     .maybeSingle();
-  if (error) throw error;
-  return data;
+  if (data) return data;
+
+  // Fallback: buscar por id (UUID)
+  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (uuidRe.test(slug)) {
+    const { data: byId } = await supabase
+      .from("suppliers")
+      .select("*")
+      .eq("id", slug)
+      .eq("is_active", true)
+      .maybeSingle();
+    return byId ?? null;
+  }
+  return null;
 }
 
 export default function SupplierCatalogPage() {

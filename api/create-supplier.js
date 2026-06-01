@@ -49,7 +49,14 @@ export default async function handler(req, res) {
     const supRes  = await fetch(`${SUPABASE_URL}/rest/v1/suppliers`, {
       method: "POST",
       headers: { ...base, "Prefer": "return=representation" },
-      body: JSON.stringify({ profile_id: userId, name: supplierName, description: description || null, whatsapp: whatsapp || null, is_active: true }),
+      body: JSON.stringify({
+        profile_id:  userId,
+        name:        supplierName,
+        slug:        supplierName.toLowerCase().trim().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,""),
+        description: description || null,
+        whatsapp:    whatsapp    || null,
+        is_active:   true,
+      }),
     });
     const supData = await supRes.json();
     if (!supRes.ok) throw new Error(supData.message ?? supData.hint ?? JSON.stringify(supData));
