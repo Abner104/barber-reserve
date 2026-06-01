@@ -9,19 +9,17 @@ import { uploadImage } from "../../../components/shared/ImageUpload";
 import { formatCurrency } from "../../../lib/utils";
 
 const O = "var(--brand, #FF6B2C)";
-
 const EMPTY = { name: "", description: "", price: "", stock: "", category: "", image_url: "", images: [], unit: "unidad", is_available: true, sku: "" };
-
 const STEPS = [
-  { id: 1, label: "Identidad",  desc: "Nombre, SKU y categoría" },
-  { id: 2, label: "Precio",     desc: "Precio y stock"          },
-  { id: 3, label: "Foto",       desc: "Imagen del producto"     },
+  { id: 1, label: "Identidad", desc: "Nombre, SKU y categoría" },
+  { id: 2, label: "Precio",    desc: "Precio y stock" },
+  { id: 3, label: "Foto",      desc: "Imagen del producto" },
 ];
 
 export default function SupplierProductsPage() {
   const qc = useQueryClient();
   const { user } = useAuthStore();
-  const [modal, setModal]               = useState(null); // null | "wizard" | product (edit)
+  const [modal, setModal]               = useState(null);
   const [wizardStep, setWizardStep]     = useState(1);
   const [form, setForm]                 = useState(EMPTY);
   const [formErrors, setFormErrors]     = useState({});
@@ -30,8 +28,8 @@ export default function SupplierProductsPage() {
   const [saving, setSaving]             = useState(false);
   const [skuScanning, setSkuScanning]   = useState(false);
 
-  const skuVideoRef  = useRef(null);
-  const skuControls  = useRef(null);
+  const skuVideoRef = useRef(null);
+  const skuControls = useRef(null);
 
   const { data: supplier } = useQuery({
     queryKey: ["supplier-profile", user?.id],
@@ -51,7 +49,6 @@ export default function SupplierProductsPage() {
     onError: () => toast.error("Error al eliminar"),
   });
 
-  // ── SKU Camera ──────────────────────────────────────────────
   const stopSkuCamera = useCallback(() => {
     if (skuControls.current) { try { skuControls.current.stop(); } catch {} skuControls.current = null; }
     setSkuScanning(false);
@@ -68,18 +65,16 @@ export default function SupplierProductsPage() {
         skuVideoRef.current,
         (result) => {
           if (!result || !alive) return;
-          const raw = result.getText();
-          setForm(f => ({ ...f, sku: raw }));
-          toast.success(`SKU capturado: ${raw}`);
+          setForm(f => ({ ...f, sku: result.getText() }));
+          toast.success(`SKU capturado: ${result.getText()}`);
           stopSkuCamera();
         }
       )
-      .then(controls => { if (!alive) { try { controls.stop(); } catch {} return; } skuControls.current = controls; })
+      .then(c => { if (!alive) { try { c.stop(); } catch {} return; } skuControls.current = c; })
       .catch(() => {});
     return () => { alive = false; if (skuControls.current) { try { skuControls.current.stop(); } catch {} skuControls.current = null; } };
   }, [skuScanning, stopSkuCamera]);
 
-  // ── Modal helpers ────────────────────────────────────────────
   function openWizard() {
     setForm({ ...EMPTY, supplier_id: supplier.id });
     setFormErrors({});
@@ -99,13 +94,8 @@ export default function SupplierProductsPage() {
     setUploading(true);
     try {
       const url = await uploadImage(file, "shop-images", "supplier-products");
-      setForm(f => ({
-        ...f,
-        image_url: f.image_url || url,
-        images: [...(f.images ?? []), url],
-      }));
-    }
-    catch { toast.error("Error subiendo imagen"); }
+      setForm(f => ({ ...f, image_url: f.image_url || url, images: [...(f.images ?? []), url] }));
+    } catch { toast.error("Error subiendo imagen"); }
     finally { setUploading(false); }
   }
 
@@ -116,40 +106,26 @@ export default function SupplierProductsPage() {
     });
   }
 
-  // ── Wizard navigation ────────────────────────────────────────
   function validateStep(step) {
     const errors = {};
-    if (step === 1) {
-      if (!form.name?.trim()) errors.name = "El nombre es obligatorio";
-    }
-    if (step === 2) {
-      if (!form.price || isNaN(Number(form.price)) || Number(form.price) <= 0) errors.price = "Ingresá un precio válido";
-    }
+    if (step === 1 && !form.name?.trim()) errors.name = "El nombre es obligatorio";
+    if (step === 2 && (!form.price || isNaN(Number(form.price)) || Number(form.price) <= 0)) errors.price = "Ingresá un precio válido";
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   }
-
-  function nextStep() { if (validateStep(wizardStep)) setWizardStep(s => s + 1); }
-  function prevStep() { setWizardStep(s => s - 1); }
 
   async function handleSave() {
     if (!validateStep(wizardStep)) return;
     setSaving(true);
     try {
-      await upsertProduct({
-        ...form,
-        supplier_id: supplier.id,
-        price:  Number(form.price),
-        stock:  form.stock !== "" ? Number(form.stock) : null,
-      });
+      await upsertProduct({ ...form, supplier_id: supplier.id, price: Number(form.price), stock: form.stock !== "" ? Number(form.stock) : null });
       qc.invalidateQueries({ queryKey: ["supplier-products"] });
-      toast.success(modal === "wizard" ? "Producto creado" : "Producto actualizado");
+      toast.success("Producto creado");
       closeModal();
     } catch { toast.error("Error al guardar"); }
     finally { setSaving(false); }
   }
 
-  // Edit save (no wizard)
   async function handleEditSave() {
     const errors = {};
     if (!form.name?.trim()) errors.name = "El nombre es obligatorio";
@@ -167,141 +143,67 @@ export default function SupplierProductsPage() {
 
   const categories = [...new Set(products.map(p => p.category).filter(Boolean))];
   const grouped    = products.reduce((acc, p) => { const c = p.category || "Sin categoría"; if (!acc[c]) acc[c] = []; acc[c].push(p); return acc; }, {});
-
   const inp = { width: "100%", padding: "11px 12px", borderRadius: 10, background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14, outline: "none", boxSizing: "border-box" };
-  const inpErr = (key) => ({ ...inp, border: `1px solid ${formErrors[key] ? "#ef4444" : "var(--border)"}` });
 
-  // ── Wizard step content ──────────────────────────────────────
-  function StepIdentidad() {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <div>
-          <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>NOMBRE DEL PRODUCTO *</label>
-          <input autoFocus value={form.name} onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setFormErrors(fe => ({ ...fe, name: null })); }}
-            placeholder="Ej: Pomada Matte Strong" style={inpErr("name")} />
-          {formErrors.name && <p style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{formErrors.name}</p>}
-        </div>
-
-        <div>
-          <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>SKU / CÓDIGO DE BARRAS</label>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input value={form.sku} onChange={e => setForm(f => ({ ...f, sku: e.target.value }))}
-              placeholder="Ej: 7791234567890 (opcional)" style={{ ...inp, flex: 1 }} />
-            <button type="button" onClick={() => setSkuScanning(s => !s)}
-              style={{ padding: "11px 12px", borderRadius: 10, background: skuScanning ? "rgba(239,68,68,0.08)" : "var(--surface2)", border: `1px solid ${skuScanning ? "rgba(239,68,68,0.3)" : "var(--border)"}`, color: skuScanning ? "#ef4444" : "var(--text-faint)", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontWeight: 600, fontSize: 13, flexShrink: 0 }}>
-              <ScanLine size={15} />{skuScanning ? "Detener" : "Escanear"}
-            </button>
-          </div>
-          {skuScanning && (
-            <div style={{ marginTop: 10, borderRadius: 12, overflow: "hidden", position: "relative", background: "#000" }}>
-              <video ref={skuVideoRef} autoPlay playsInline muted style={{ width: "100%", height: 180, objectFit: "cover", display: "block" }} />
-              <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-                <div style={{ position: "absolute", top: "15%", left: "8%", right: "8%", bottom: "15%", border: `2px solid ${O}`, borderRadius: 10 }} />
-                <style>{`@keyframes sku-scan { 0%{top:18%} 50%{top:72%} 100%{top:18%} }`}</style>
-                <div style={{ position: "absolute", left: "8%", right: "8%", height: 2, background: O, borderRadius: 2, boxShadow: `0 0 8px ${O}`, animation: "sku-scan 2s ease-in-out infinite" }} />
-              </div>
-              <p style={{ textAlign: "center", fontSize: 12, color: "var(--text-faint)", padding: "6px 0 4px", background: "var(--surface)" }}>Apuntá el código — se captura automático</p>
+  // JSX reutilizable para la galería de fotos (no es un componente — es JSX inline)
+  const galeriaFotosJSX = (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {(form.images ?? []).length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+          {(form.images ?? []).map((url, i) => (
+            <div key={i} style={{ position: "relative", borderRadius: 10, overflow: "hidden", aspectRatio: "1" }}>
+              <img src={url} alt={`foto ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              {i === 0 && <span style={{ position: "absolute", top: 4, left: 4, background: O, color: "#fff", fontSize: 9, fontWeight: 800, padding: "2px 6px", borderRadius: 6 }}>PRINCIPAL</span>}
+              <button onClick={() => removeImage(i)} style={{ position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,0.7)", border: "none", borderRadius: 6, width: 22, height: 22, cursor: "pointer", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <X size={12} />
+              </button>
             </div>
-          )}
+          ))}
         </div>
+      )}
+      <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, height: (form.images ?? []).length > 0 ? 80 : 160, borderRadius: 12, border: "2px dashed var(--border)", cursor: uploading ? "not-allowed" : "pointer", color: "var(--text-faint)", opacity: uploading ? 0.6 : 1 }}>
+        <Package size={28} style={{ opacity: 0.4 }} />
+        <span style={{ fontSize: 13, fontWeight: 600 }}>{uploading ? "Subiendo..." : (form.images ?? []).length > 0 ? "Agregar más fotos" : "Tocar para agregar foto"}</span>
+        {(form.images ?? []).length === 0 && <span style={{ fontSize: 11, opacity: 0.6 }}>JPG, PNG — opcional, podés poner varias</span>}
+        <input type="file" accept="image/*" multiple style={{ display: "none" }} disabled={uploading}
+          onChange={async e => { for (const f of Array.from(e.target.files ?? [])) await handleImageUpload(f); }} />
+      </label>
+      {(form.images ?? []).length > 0 && (
+        <p style={{ textAlign: "center", color: "var(--text-faint)", fontSize: 12 }}>
+          {(form.images ?? []).length} foto{(form.images ?? []).length > 1 ? "s" : ""} · La primera es la principal
+        </p>
+      )}
+    </div>
+  );
 
-        <div>
-          <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>CATEGORÍA</label>
-          <input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-            placeholder="Ej: Pomadas, Shampoo, Afeitado" style={inp} list="cats" />
-          <datalist id="cats">{categories.map(c => <option key={c} value={c} />)}</datalist>
-        </div>
-
-        <div>
-          <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>DESCRIPCIÓN</label>
-          <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-            placeholder="Descripción breve..." rows={2}
-            style={{ ...inp, resize: "none" }} />
-        </div>
+  // JSX del scanner SKU (reutilizado en wizard y edición)
+  const skuScannerJSX = (
+    <>
+      <div style={{ display: "flex", gap: 8 }}>
+        <input
+          value={form.sku}
+          onChange={e => setForm(f => ({ ...f, sku: e.target.value }))}
+          placeholder="Ej: 7791234567890 (opcional)"
+          style={{ ...inp, flex: 1 }}
+        />
+        <button type="button" onClick={() => setSkuScanning(s => !s)}
+          style={{ padding: "11px 12px", borderRadius: 10, background: skuScanning ? "rgba(239,68,68,0.08)" : "var(--surface2)", border: `1px solid ${skuScanning ? "rgba(239,68,68,0.3)" : "var(--border)"}`, color: skuScanning ? "#ef4444" : "var(--text-faint)", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontWeight: 600, fontSize: 13, flexShrink: 0 }}>
+          <ScanLine size={15} />{skuScanning ? "Detener" : "Escanear"}
+        </button>
       </div>
-    );
-  }
-
-  function StepPrecio() {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <div>
-          <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>PRECIO DE VENTA *</label>
-          <input type="number" autoFocus value={form.price} onChange={e => { setForm(f => ({ ...f, price: e.target.value })); setFormErrors(fe => ({ ...fe, price: null })); }}
-            placeholder="0" style={inpErr("price")} />
-          {formErrors.price && <p style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{formErrors.price}</p>}
-        </div>
-
-        <div>
-          <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>STOCK DISPONIBLE</label>
-          <input type="number" value={form.stock} onChange={e => setForm(f => ({ ...f, stock: e.target.value }))}
-            placeholder="Dejar vacío = sin límite" style={inp} />
-        </div>
-
-        <div>
-          <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>UNIDAD</label>
-          <input value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}
-            placeholder="unidad, caja, litro..." style={inp} />
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: "var(--surface2)", borderRadius: 10 }}>
-          <input type="checkbox" id="avail" checked={form.is_available} onChange={e => setForm(f => ({ ...f, is_available: e.target.checked }))} style={{ width: 18, height: 18 }} />
-          <label htmlFor="avail" style={{ fontSize: 14, color: "var(--text)", cursor: "pointer", fontWeight: 500 }}>Producto disponible en catálogo</label>
-        </div>
-      </div>
-    );
-  }
-
-  function GaleriaFotos() {
-    const imgs = form.images ?? [];
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        {imgs.length > 0 && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-            {imgs.map((url, i) => (
-              <div key={i} style={{ position: "relative", borderRadius: 10, overflow: "hidden", aspectRatio: "1" }}>
-                <img src={url} alt={`foto ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                {i === 0 && (
-                  <span style={{ position: "absolute", top: 4, left: 4, background: O, color: "#fff", fontSize: 9, fontWeight: 800, padding: "2px 6px", borderRadius: 6 }}>PRINCIPAL</span>
-                )}
-                <button onClick={() => removeImage(i)}
-                  style={{ position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,0.7)", border: "none", borderRadius: 6, width: 22, height: 22, cursor: "pointer", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <X size={12} />
-                </button>
-              </div>
-            ))}
+      {skuScanning && (
+        <div style={{ marginTop: 10, borderRadius: 12, overflow: "hidden", position: "relative", background: "#000" }}>
+          <video ref={skuVideoRef} autoPlay playsInline muted style={{ width: "100%", height: 180, objectFit: "cover", display: "block" }} />
+          <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+            <div style={{ position: "absolute", top: "15%", left: "8%", right: "8%", bottom: "15%", border: `2px solid ${O}`, borderRadius: 10 }} />
+            <style>{`@keyframes sku-scan { 0%{top:18%} 50%{top:72%} 100%{top:18%} }`}</style>
+            <div style={{ position: "absolute", left: "8%", right: "8%", height: 2, background: O, borderRadius: 2, boxShadow: `0 0 8px ${O}`, animation: "sku-scan 2s ease-in-out infinite" }} />
           </div>
-        )}
-
-        <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, height: imgs.length > 0 ? 80 : 160, borderRadius: 12, border: "2px dashed var(--border)", cursor: uploading ? "not-allowed" : "pointer", color: "var(--text-faint)", opacity: uploading ? 0.6 : 1 }}>
-          <Package size={28} style={{ opacity: 0.4 }} />
-          <span style={{ fontSize: 13, fontWeight: 600 }}>{uploading ? "Subiendo..." : imgs.length > 0 ? "Agregar más fotos" : "Tocar para agregar foto"}</span>
-          {imgs.length === 0 && <span style={{ fontSize: 11, opacity: 0.6 }}>JPG, PNG — opcional, podés poner varias</span>}
-          <input type="file" accept="image/*" multiple style={{ display: "none" }} disabled={uploading}
-            onChange={async e => { for (const f of Array.from(e.target.files ?? [])) await handleImageUpload(f); }} />
-        </label>
-
-        {imgs.length > 0 && (
-          <p style={{ textAlign: "center", color: "var(--text-faint)", fontSize: 12 }}>
-            {imgs.length} foto{imgs.length > 1 ? "s" : ""} · La primera es la principal
-          </p>
-        )}
-      </div>
-    );
-  }
-
-  function StepFoto() {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <GaleriaFotos />
-        {(form.images ?? []).length === 0 && (
-          <p style={{ textAlign: "center", color: "var(--text-faint)", fontSize: 13 }}>
-            Podés saltear este paso si no tenés foto ahora
-          </p>
-        )}
-      </div>
-    );
-  }
+          <p style={{ textAlign: "center", fontSize: 12, color: "var(--text-faint)", padding: "6px 0 4px", background: "var(--surface)" }}>Apuntá el código — se captura automático</p>
+        </div>
+      )}
+    </>
+  );
 
   return (
     <div className="sup-page" style={{ maxWidth: "min(1100px, 100%)" }}>
@@ -316,26 +218,21 @@ export default function SupplierProductsPage() {
         </button>
       </div>
 
-      {/* Loading */}
       {isLoading && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
           {[1,2,3,4].map(i => <div key={i} style={{ height: 200, borderRadius: 14, background: "var(--surface)" }} />)}
         </div>
       )}
 
-      {/* Empty */}
       {!isLoading && products.length === 0 && (
         <div style={{ textAlign: "center", padding: "64px 20px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16 }}>
           <div style={{ fontSize: 44, marginBottom: 12 }}>📦</div>
           <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 16, marginBottom: 8 }}>Sin productos aún</p>
           <p style={{ color: "var(--text-faint)", fontSize: 13, marginBottom: 20 }}>Empieza subiendo tu primer producto al catálogo.</p>
-          <button onClick={openWizard} style={{ padding: "10px 20px", borderRadius: 10, background: O, color: "#fff", border: "none", cursor: "pointer", fontWeight: 700 }}>
-            Agregar producto
-          </button>
+          <button onClick={openWizard} style={{ padding: "10px 20px", borderRadius: 10, background: O, color: "#fff", border: "none", cursor: "pointer", fontWeight: 700 }}>Agregar producto</button>
         </div>
       )}
 
-      {/* Grid */}
       {Object.entries(grouped).map(([cat, items]) => (
         <div key={cat} style={{ marginBottom: 32 }}>
           <p style={{ fontSize: 11, letterSpacing: 2, textTransform: "uppercase", color: "var(--text-faint)", fontWeight: 700, marginBottom: 14 }}>{cat}</p>
@@ -378,47 +275,94 @@ export default function SupplierProductsPage() {
 
       {/* ── WIZARD NUEVO PRODUCTO ── */}
       {modal === "wizard" && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 200, display: "flex", alignItems: "flex-end", justifyContent: "center" }}
-          onClick={closeModal}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 200, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={closeModal}>
           <div style={{ background: "var(--surface)", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 520, maxHeight: "92vh", display: "flex", flexDirection: "column", overflow: "hidden" }}
             onClick={e => e.stopPropagation()}>
 
-            {/* Header wizard */}
             <div style={{ padding: "20px 20px 0", flexShrink: 0 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
                 <div>
                   <p style={{ fontWeight: 800, fontSize: 18, color: "var(--text)" }}>Nuevo producto</p>
                   <p style={{ fontSize: 13, color: "var(--text-faint)", marginTop: 2 }}>Paso {wizardStep} de {STEPS.length} — {STEPS[wizardStep-1].desc}</p>
                 </div>
-                <button onClick={closeModal} style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 8, padding: 6, cursor: "pointer", color: "var(--text-faint)", display: "flex" }}>
-                  <X size={16} />
-                </button>
+                <button onClick={closeModal} style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 8, padding: 6, cursor: "pointer", color: "var(--text-faint)", display: "flex" }}><X size={16} /></button>
               </div>
-
-              {/* Progress bar */}
               <div style={{ display: "flex", gap: 6, marginBottom: 20 }}>
-                {STEPS.map(s => (
-                  <div key={s.id} style={{ flex: 1, height: 4, borderRadius: 4, background: s.id <= wizardStep ? O : "var(--border)", transition: "background 0.3s" }} />
-                ))}
+                {STEPS.map(s => <div key={s.id} style={{ flex: 1, height: 4, borderRadius: 4, background: s.id <= wizardStep ? O : "var(--border)", transition: "background 0.3s" }} />)}
               </div>
             </div>
 
-            {/* Step content */}
-            <div style={{ flex: 1, overflowY: "auto", padding: "0 20px" }}>
-              {wizardStep === 1 && <StepIdentidad />}
-              {wizardStep === 2 && <StepPrecio />}
-              {wizardStep === 3 && <StepFoto />}
+            <div style={{ flex: 1, overflowY: "auto", padding: "0 20px 8px" }}>
+              {/* Step 1 — Identidad */}
+              {wizardStep === 1 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 14, paddingTop: 4 }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>NOMBRE DEL PRODUCTO *</label>
+                    <input
+                      autoFocus
+                      value={form.name}
+                      onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setFormErrors(fe => ({ ...fe, name: null })); }}
+                      placeholder="Ej: Pomada Matte Strong"
+                      style={{ ...inp, border: `1px solid ${formErrors.name ? "#ef4444" : "var(--border)"}` }}
+                    />
+                    {formErrors.name && <p style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{formErrors.name}</p>}
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>SKU / CÓDIGO DE BARRAS</label>
+                    {skuScannerJSX}
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>CATEGORÍA</label>
+                    <input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} placeholder="Ej: Pomadas, Shampoo, Afeitado" style={inp} list="cats-wiz" />
+                    <datalist id="cats-wiz">{categories.map(c => <option key={c} value={c} />)}</datalist>
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>DESCRIPCIÓN</label>
+                    <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Descripción breve..." rows={2} style={{ ...inp, resize: "none" }} />
+                  </div>
+                </div>
+              )}
+
+              {/* Step 2 — Precio */}
+              {wizardStep === 2 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 14, paddingTop: 4 }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>PRECIO DE VENTA *</label>
+                    <input type="number" autoFocus value={form.price} onChange={e => { setForm(f => ({ ...f, price: e.target.value })); setFormErrors(fe => ({ ...fe, price: null })); }} placeholder="0" style={{ ...inp, border: `1px solid ${formErrors.price ? "#ef4444" : "var(--border)"}` }} />
+                    {formErrors.price && <p style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{formErrors.price}</p>}
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>STOCK DISPONIBLE</label>
+                    <input type="number" value={form.stock} onChange={e => setForm(f => ({ ...f, stock: e.target.value }))} placeholder="Dejar vacío = sin límite" style={inp} />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>UNIDAD</label>
+                    <input value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))} placeholder="unidad, caja, litro..." style={inp} />
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: "var(--surface2)", borderRadius: 10 }}>
+                    <input type="checkbox" id="avail-wiz" checked={form.is_available} onChange={e => setForm(f => ({ ...f, is_available: e.target.checked }))} style={{ width: 18, height: 18 }} />
+                    <label htmlFor="avail-wiz" style={{ fontSize: 14, color: "var(--text)", cursor: "pointer", fontWeight: 500 }}>Producto disponible en catálogo</label>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3 — Foto */}
+              {wizardStep === 3 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 16, paddingTop: 4 }}>
+                  {galeriaFotosJSX}
+                  {(form.images ?? []).length === 0 && <p style={{ textAlign: "center", color: "var(--text-faint)", fontSize: 13 }}>Podés saltear este paso si no tenés foto ahora</p>}
+                </div>
+              )}
             </div>
 
-            {/* Footer nav */}
             <div style={{ padding: 20, borderTop: "1px solid var(--border)", display: "flex", gap: 10, flexShrink: 0 }}>
               {wizardStep > 1 && (
-                <button onClick={prevStep} style={{ flex: 1, padding: 13, borderRadius: 12, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-faint)", fontWeight: 600, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                <button onClick={() => setWizardStep(s => s - 1)} style={{ flex: 1, padding: 13, borderRadius: 12, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-faint)", fontWeight: 600, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                   <ChevronLeft size={16} /> Atrás
                 </button>
               )}
               {wizardStep < STEPS.length ? (
-                <button onClick={nextStep} style={{ flex: 2, padding: 13, borderRadius: 12, background: O, color: "#fff", border: "none", fontWeight: 700, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                <button onClick={() => { if (validateStep(wizardStep)) setWizardStep(s => s + 1); }} style={{ flex: 2, padding: 13, borderRadius: 12, background: O, color: "#fff", border: "none", fontWeight: 700, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                   Siguiente <ChevronRight size={16} />
                 </button>
               ) : (
@@ -431,10 +375,9 @@ export default function SupplierProductsPage() {
         </div>
       )}
 
-      {/* ── MODAL EDICIÓN (sin wizard) ── */}
+      {/* ── MODAL EDICIÓN ── */}
       {modal && modal !== "wizard" && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
-          onClick={closeModal}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={closeModal}>
           <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 20, padding: 24, width: "100%", maxWidth: 480, maxHeight: "90vh", overflowY: "auto" }}
             onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
@@ -444,15 +387,15 @@ export default function SupplierProductsPage() {
 
             <div style={{ marginBottom: 14 }}>
               <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 8 }}>FOTOS DEL PRODUCTO</label>
-              <GaleriaFotos />
+              {galeriaFotosJSX}
             </div>
 
             {[
-              { key: "name",     label: "Nombre *",    placeholder: "Nombre del producto", type: "text"   },
-              { key: "category", label: "Categoría",   placeholder: "Pomadas, Shampoo...", type: "text"   },
-              { key: "price",    label: "Precio *",    placeholder: "0",                   type: "number" },
-              { key: "stock",    label: "Stock",       placeholder: "Sin límite",          type: "number" },
-              { key: "unit",     label: "Unidad",      placeholder: "unidad, caja...",     type: "text"   },
+              { key: "name",     label: "Nombre *",  placeholder: "Nombre del producto", type: "text"   },
+              { key: "category", label: "Categoría", placeholder: "Pomadas, Shampoo...", type: "text"   },
+              { key: "price",    label: "Precio *",  placeholder: "0",                   type: "number" },
+              { key: "stock",    label: "Stock",     placeholder: "Sin límite",          type: "number" },
+              { key: "unit",     label: "Unidad",    placeholder: "unidad, caja...",     type: "text"   },
             ].map(({ key, label, placeholder, type }) => (
               <div key={key} style={{ marginBottom: 12 }}>
                 <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 5 }}>{label.toUpperCase()}</label>
@@ -462,35 +405,19 @@ export default function SupplierProductsPage() {
               </div>
             ))}
 
-            {/* SKU con cámara en edición */}
             <div style={{ marginBottom: 12 }}>
               <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 5 }}>SKU / CÓDIGO</label>
-              <div style={{ display: "flex", gap: 8 }}>
-                <input value={form.sku ?? ""} onChange={e => setForm(f => ({ ...f, sku: e.target.value }))} placeholder="Ej: 7791234567890" style={{ ...inp, flex: 1 }} />
-                <button type="button" onClick={() => setSkuScanning(s => !s)}
-                  style={{ padding: "11px 12px", borderRadius: 10, background: skuScanning ? "rgba(239,68,68,0.08)" : "var(--surface2)", border: `1px solid ${skuScanning ? "rgba(239,68,68,0.3)" : "var(--border)"}`, color: skuScanning ? "#ef4444" : "var(--text-faint)", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, flexShrink: 0 }}>
-                  <ScanLine size={15} />{skuScanning ? "Detener" : "Escanear"}
-                </button>
-              </div>
-              {skuScanning && (
-                <div style={{ marginTop: 8, borderRadius: 10, overflow: "hidden", position: "relative", background: "#000" }}>
-                  <video ref={skuVideoRef} autoPlay playsInline muted style={{ width: "100%", height: 160, objectFit: "cover", display: "block" }} />
-                  <div style={{ position: "absolute", inset: 0, border: `2px solid ${O}`, borderRadius: 10, pointerEvents: "none" }}>
-                    <div style={{ position: "absolute", top: "50%", left: "8%", right: "8%", height: 2, background: O, opacity: 0.8, transform: "translateY(-50%)" }} />
-                  </div>
-                </div>
-              )}
+              {skuScannerJSX}
             </div>
 
             <div style={{ marginBottom: 14 }}>
               <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 5 }}>DESCRIPCIÓN</label>
-              <textarea value={form.description ?? ""} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2}
-                style={{ ...inp, resize: "none" }} />
+              <textarea value={form.description ?? ""} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} style={{ ...inp, resize: "none" }} />
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
-              <input type="checkbox" id="avail2" checked={form.is_available} onChange={e => setForm(f => ({ ...f, is_available: e.target.checked }))} />
-              <label htmlFor="avail2" style={{ fontSize: 14, color: "var(--text)", cursor: "pointer" }}>Disponible en catálogo</label>
+              <input type="checkbox" id="avail-edit" checked={form.is_available} onChange={e => setForm(f => ({ ...f, is_available: e.target.checked }))} />
+              <label htmlFor="avail-edit" style={{ fontSize: 14, color: "var(--text)", cursor: "pointer" }}>Disponible en catálogo</label>
             </div>
 
             <button onClick={handleEditSave} disabled={saving} style={{ width: "100%", padding: 14, borderRadius: 12, background: O, color: "#fff", fontWeight: 800, fontSize: 15, border: "none", cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.7 : 1 }}>
@@ -502,10 +429,8 @@ export default function SupplierProductsPage() {
 
       {/* ── ELIMINAR ── */}
       {deleteConfirm && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
-          onClick={() => setDeleteConfirm(null)}>
-          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 20, padding: 28, width: "100%", maxWidth: 400 }}
-            onClick={e => e.stopPropagation()}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => setDeleteConfirm(null)}>
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 20, padding: 28, width: "100%", maxWidth: 400 }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
               <AlertTriangle size={22} color="#f87171" />
               <p style={{ fontWeight: 800, fontSize: 17, color: "var(--text)" }}>Eliminar producto</p>
@@ -515,10 +440,7 @@ export default function SupplierProductsPage() {
             </p>
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setDeleteConfirm(null)} style={{ flex: 1, padding: 12, borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-faint)", cursor: "pointer", fontWeight: 600 }}>Cancelar</button>
-              <button onClick={() => deleteMut.mutate(deleteConfirm.id)} disabled={deleteMut.isPending}
-                style={{ flex: 1, padding: 12, borderRadius: 10, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171", cursor: "pointer", fontWeight: 700 }}>
-                Eliminar
-              </button>
+              <button onClick={() => deleteMut.mutate(deleteConfirm.id)} disabled={deleteMut.isPending} style={{ flex: 1, padding: 12, borderRadius: 10, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171", cursor: "pointer", fontWeight: 700 }}>Eliminar</button>
             </div>
           </div>
         </div>
