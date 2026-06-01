@@ -183,9 +183,9 @@ export default function StepConfirm() {
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "var(--text-muted)", marginBottom: 6 }}>
             <span>Servicio{peopleCount > 1 ? ` × ${peopleCount}` : ""}</span><span style={{ color: "var(--text)" }}>{formatCurrency(servicePrice)}</span>
           </div>
-          {type === "delivery" && distanceKm != null && (
+          {type === "delivery" && deliveryFee > 0 && (
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "var(--text-muted)", marginBottom: 6 }}>
-              <span>Domicilio ({distanceKm.toFixed(1)} km)</span>
+              <span>Domicilio</span>
               <span style={{ color: "var(--text)" }}>{formatCurrency(deliveryFee)}</span>
             </div>
           )}
