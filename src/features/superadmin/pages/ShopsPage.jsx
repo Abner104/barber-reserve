@@ -1,9 +1,17 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ExternalLink, Power, Crown, Clock, ChevronDown, ChevronUp, Users, Calendar, TrendingUp } from "lucide-react";
+import { ExternalLink, Power, Clock, ChevronDown, ChevronUp, Users, Calendar, TrendingUp, DollarSign, Plus } from "lucide-react";
 import { getAllShops, getShopStats, updateShopPlan, deleteShop } from "../services/superAdminService";
 import { formatCurrency } from "../../../lib/utils";
+import { supabase } from "../../../lib/supabase";
+
+const PAYMENT_METHODS = [
+  { value: "transfer",  label: "Transferencia" },
+  { value: "cash",      label: "Efectivo" },
+  { value: "haircut",   label: "Con corte" },
+  { value: "other",     label: "Otro" },
+];
 
 const O = "#FF6B2C";
 
@@ -136,10 +144,45 @@ export default function ShopsPage() {
 }
 
 function ShopDetail({ shop, planMut, expired, plan }) {
+  const qc = useQueryClient();
   const { data: stats } = useQuery({
     queryKey: ["sa-shop-stats", shop.id],
     queryFn: () => getShopStats(shop.id),
   });
+
+  const { data: payments = [] } = useQuery({
+    queryKey: ["sa-payments", shop.id],
+    queryFn: async () => {
+      const { data } = await supabase.from("shop_payments")
+        .select("*").eq("shop_id", shop.id).order("paid_at", { ascending: false }).limit(10);
+      return data ?? [];
+    },
+  });
+
+  const [showPayForm, setShowPayForm] = useState(false);
+  const [payForm, setPayForm] = useState({ amount: "", method: "transfer", note: "" });
+  const [savingPay, setSavingPay] = useState(false);
+
+  async function registerPayment() {
+    if (!payForm.amount || isNaN(Number(payForm.amount))) { toast.error("Ingresá un monto"); return; }
+    setSavingPay(true);
+    try {
+      const { error } = await supabase.from("shop_payments").insert({
+        shop_id: shop.id,
+        amount:  Number(payForm.amount),
+        method:  payForm.method,
+        note:    payForm.note || null,
+        paid_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ["sa-payments", shop.id] });
+      toast.success("Pago registrado ✓");
+      setPayForm({ amount: "", method: "transfer", note: "" });
+      setShowPayForm(false);
+    } catch (e) {
+      toast.error(e.message ?? "Error al registrar");
+    } finally { setSavingPay(false); }
+  }
 
   const inp = { background: "#0F0F0F", border: "1px solid #2A2A2A", borderRadius: 9, padding: "8px 12px", color: "#fff", fontSize: 13, outline: "none", cursor: "pointer" };
 
@@ -200,6 +243,73 @@ function ShopDetail({ shop, planMut, expired, plan }) {
             <Clock size={13} />
             Trial {expired ? "expiró" : "expira"} el{" "}
             {new Date(shop.trial_ends_at).toLocaleDateString("es-CL")}
+          </div>
+        )}
+      </div>
+
+      {/* ── Pagos ── */}
+      <div style={{ marginTop: 20, borderTop: "1px solid #1E1E1E", paddingTop: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#aaa" }}>
+            <DollarSign size={14} />
+            <span style={{ fontSize: 13, fontWeight: 600 }}>Historial de pagos</span>
+          </div>
+          <button onClick={() => setShowPayForm(f => !f)}
+            style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, background: "rgba(255,107,44,0.1)", border: "1px solid rgba(255,107,44,0.3)", color: "#FF6B2C", cursor: "pointer", fontSize: 12, fontWeight: 700 }}>
+            <Plus size={13} /> Registrar pago
+          </button>
+        </div>
+
+        {/* Formulario de pago */}
+        {showPayForm && (
+          <div style={{ background: "#141414", border: "1px solid #2A2A2A", borderRadius: 12, padding: 14, marginBottom: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+              <div>
+                <label style={{ display: "block", fontSize: 11, color: "#555", marginBottom: 4 }}>MONTO ($)</label>
+                <input type="number" value={payForm.amount} onChange={e => setPayForm(f => ({ ...f, amount: e.target.value }))}
+                  placeholder="11990" style={{ ...inp, width: "100%", boxSizing: "border-box" }} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: 11, color: "#555", marginBottom: 4 }}>MÉTODO</label>
+                <select value={payForm.method} onChange={e => setPayForm(f => ({ ...f, method: e.target.value }))} style={{ ...inp, width: "100%", boxSizing: "border-box" }}>
+                  {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                </select>
+              </div>
+            </div>
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ display: "block", fontSize: 11, color: "#555", marginBottom: 4 }}>NOTA (opcional)</label>
+              <input value={payForm.note} onChange={e => setPayForm(f => ({ ...f, note: e.target.value }))}
+                placeholder="Ej: Pagó con corte a domicilio..." style={{ ...inp, width: "100%", boxSizing: "border-box" }} />
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => setShowPayForm(false)} style={{ flex: 1, padding: "8px", borderRadius: 8, background: "transparent", border: "1px solid #2A2A2A", color: "#555", cursor: "pointer", fontSize: 13 }}>Cancelar</button>
+              <button onClick={registerPayment} disabled={savingPay}
+                style={{ flex: 2, padding: "8px", borderRadius: 8, background: "#FF6B2C", border: "none", color: "#fff", cursor: "pointer", fontWeight: 700, fontSize: 13, opacity: savingPay ? 0.7 : 1 }}>
+                {savingPay ? "Guardando..." : "Confirmar pago"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Lista de pagos */}
+        {payments.length === 0 ? (
+          <p style={{ fontSize: 12, color: "#3f3f3f" }}>Sin pagos registrados aún.</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {payments.map(p => (
+              <div key={p.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", background: "#141414", borderRadius: 8 }}>
+                <div>
+                  <span style={{ fontWeight: 700, color: "#22c55e", fontSize: 14 }}>{formatCurrency(p.amount)}</span>
+                  <span style={{ fontSize: 11, color: "#555", marginLeft: 8 }}>
+                    {PAYMENT_METHODS.find(m => m.value === p.method)?.label ?? p.method}
+                    {p.note ? ` · ${p.note}` : ""}
+                  </span>
+                </div>
+                <span style={{ fontSize: 11, color: "#3f3f3f" }}>
+                  {new Date(p.paid_at).toLocaleDateString("es-CL", { day: "numeric", month: "short", year: "numeric" })}
+                </span>
+              </div>
+            ))}
           </div>
         )}
       </div>

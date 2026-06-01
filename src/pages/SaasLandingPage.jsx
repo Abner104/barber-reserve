@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import { applyTheme } from "../lib/applyTheme";
 import { supabase } from "../lib/supabase";
 import { ArrowRight, Check, Scissors, Smartphone, Calendar, BarChart3, Users, Zap, Star, ChevronDown, Menu, X, ChevronRight } from "lucide-react";
-import SupplierCatalog from "../features/supplier/components/SupplierCatalog";
 
 const O  = "#FF6B2C";
 const O2 = "rgba(255,107,44,0.1)";
@@ -189,6 +188,61 @@ function useParallax(f = 0.22) {
     return () => window.removeEventListener("scroll", fn);
   }, [f]);
   return y;
+}
+
+// ── Supplier Banner ───────────────────────────────────────────
+function SupplierBanner() {
+  const { data: supplier } = useQuery({
+    queryKey: ["landing-supplier"],
+    queryFn: async () => {
+      const { data } = await supabase.from("suppliers").select("id,name,description,logo_url,slug,theme_color").eq("is_active", true).limit(1).maybeSingle();
+      return data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  if (!supplier) return null;
+
+  const brand = supplier.theme_color || O;
+  const slug  = supplier.slug || supplier.id;
+
+  return (
+    <section style={{ padding:"72px 20px", background:"#050505", borderTop:"1px solid #111" }}>
+      <div style={{ maxWidth:900, margin:"0 auto" }}>
+        <Reveal>
+          <div style={{ background:"#0C0C0C", border:`1px solid #1A1A1A`, borderRadius:24, padding:"40px 36px", display:"flex", alignItems:"center", gap:32, flexWrap:"wrap" }}>
+            {/* Logo */}
+            <div style={{ flexShrink:0 }}>
+              {supplier.logo_url ? (
+                <img src={supplier.logo_url} alt={supplier.name} style={{ width:80, height:80, borderRadius:18, objectFit:"cover", border:"1px solid #222" }} />
+              ) : (
+                <div style={{ width:80, height:80, borderRadius:18, background:`rgba(255,107,44,0.1)`, border:`2px solid ${brand}`, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                  <span style={{ fontSize:32, fontWeight:900, color:brand }}>{supplier.name[0]}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Info */}
+            <div style={{ flex:1, minWidth:200 }}>
+              <p style={{ color:brand, fontSize:11, fontWeight:700, letterSpacing:2, textTransform:"uppercase", marginBottom:6 }}>Proveedor oficial</p>
+              <h3 className="display" style={{ fontSize:"clamp(22px,4vw,34px)", color:"#fff", marginBottom:8, letterSpacing:-0.5 }}>{supplier.name}</h3>
+              {supplier.description && (
+                <p style={{ color:"#555", fontSize:14, lineHeight:1.6, maxWidth:480 }}>{supplier.description}</p>
+              )}
+            </div>
+
+            {/* CTA */}
+            <div style={{ flexShrink:0 }}>
+              <Link to={`/catalogo/${slug}`}
+                style={{ display:"inline-flex", alignItems:"center", gap:10, padding:"14px 28px", background:brand, color:"#fff", borderRadius:12, fontWeight:800, fontSize:15, textDecoration:"none", boxShadow:`0 0 30px ${brand}44` }}>
+                Ver catálogo <ArrowRight size={16} />
+              </Link>
+            </div>
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  );
 }
 
 // ── FAQ Accordion ─────────────────────────────────────────────
@@ -477,8 +531,8 @@ export default function SaasLandingPage() {
         </div>
       </section>
 
-      {/* ── CATÁLOGO PROVEEDOR ── */}
-      <SupplierCatalog />
+      {/* ── PROVEEDOR OFICIAL ── */}
+      <SupplierBanner />
 
       {/* ── CTA ── */}
       <section style={{ padding:"80px 20px 100px", background:"#050505", position:"relative", overflow:"hidden" }}>
