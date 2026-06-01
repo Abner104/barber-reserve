@@ -98,20 +98,24 @@ export async function getAvailableSlots({ barberId, date, durationMin, type }) {
         const bs  = new Date(b.scheduled_at);
         const dur = b.duration_min || durationMin;
 
-        // Si la reserva existente es un domicilio, su bloqueo real incluye
-        // el trayecto de vuelta — nadie puede atenderse hasta que llegue
-        const beReal = b.type === "delivery"
-          ? addMinutes(bs, dur + travelMin)
-          : addMinutes(bs, dur);
+        if (b.type === "delivery" && travelMin > 0) {
+          // Reserva existente = domicilio:
+          // Bloquear [bs - travelMin ... bs + dur + travelMin]
+          // El barbero necesita travelMin para ir Y travelMin para volver
+          const blockedFrom = addMinutes(bs, -travelMin);
+          const blockedTo   = addMinutes(bs, dur + travelMin);
+          if (cursor < blockedTo && slotEnd > blockedFrom) return true;
+        } else {
+          // Reserva existente = local normal
+          const beEnd = addMinutes(bs, dur);
+          if (cursor < beEnd && slotEnd > bs) return true;
 
-        // Solapamiento con el bloqueo real de la reserva existente
-        if (cursor < beReal && slotEnd > bs) return true;
-
-        // Si el nuevo slot es domicilio, necesita travelMin libres antes
-        // para poder salir sin dejar a nadie esperando en el local
-        if (type === "delivery" && travelMin > 0 && b.type !== "delivery") {
-          const departureLatest = addMinutes(cursor, -travelMin);
-          if (bs < slotEnd && beReal > departureLatest) return true;
+          // Si el NUEVO slot es domicilio, necesita travelMin libres antes de salir
+          // — no puede haber un cliente en el local dentro de ese margen
+          if (type === "delivery" && travelMin > 0) {
+            const departFrom = addMinutes(cursor, -travelMin);
+            if (bs < cursor && beEnd > departFrom) return true;
+          }
         }
 
         return false;
@@ -166,19 +170,38 @@ export async function createBooking({ type, serviceId, barberId, date, slot, dur
   const dayStart = `${date}T00:00:00-04:00`;
   const dayEnd   = `${date}T23:59:59-04:00`;
 
-  const { data: dayBookings } = await supabase
-    .from("bookings")
-    .select("id, scheduled_at, duration_min")
-    .eq("barber_id", barberId)
-    .in("status", ["pending", "confirmed", "in_progress"])
-    .gte("scheduled_at", dayStart)
-    .lte("scheduled_at", dayEnd);
+  const [{ data: dayBookings }, { data: barberMeta }] = await Promise.all([
+    supabase.from("bookings")
+      .select("id, scheduled_at, duration_min, type")
+      .eq("barber_id", barberId)
+      .in("status", ["pending", "confirmed", "in_progress"])
+      .gte("scheduled_at", dayStart)
+      .lte("scheduled_at", dayEnd),
+    supabase.from("barbers")
+      .select("travel_time_min")
+      .eq("id", barberId)
+      .maybeSingle(),
+  ]);
+
+  const travelMinCreate = barberMeta?.travel_time_min ?? 0;
 
   const conflict = (dayBookings || []).find(b => {
-    const bStart   = new Date(b.scheduled_at);
-    const bDur     = b.duration_min || durationMin; // fallback a duración del nuevo si la existente es null
-    const bEnd     = addMinutes(bStart, bDur);
-    return newStart < bEnd && newEnd > bStart;
+    const bStart = new Date(b.scheduled_at);
+    const bDur   = b.duration_min || durationMin;
+
+    if (b.type === "delivery" && travelMinCreate > 0) {
+      const blockedFrom = addMinutes(bStart, -travelMinCreate);
+      const blockedTo   = addMinutes(bStart, bDur + travelMinCreate);
+      return newStart < blockedTo && newEnd > blockedFrom;
+    } else {
+      const bEnd = addMinutes(bStart, bDur);
+      if (newStart < bEnd && newEnd > bStart) return true;
+      if (type === "delivery" && travelMinCreate > 0) {
+        const departFrom = addMinutes(newStart, -travelMinCreate);
+        return bStart < newStart && bEnd > departFrom;
+      }
+      return false;
+    }
   });
 
   if (conflict) {
