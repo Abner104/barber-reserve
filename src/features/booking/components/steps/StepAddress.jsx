@@ -1,6 +1,6 @@
 import { formatCurrency } from "../../../../lib/utils";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { MapPin, ChevronLeft, Loader2, Check, X, AlertCircle } from "lucide-react";
+import { MapPin, ChevronLeft, Loader2, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { useBookingStore } from "../../../../store/bookingStore";
 import { getDistanceKm, calcDeliveryFee } from "../../../../lib/mapbox";
@@ -207,15 +207,6 @@ export default function StepAddress() {
         Escribe tu dirección y seleccioná la sugerencia correcta.
       </p>
 
-      {/* Aviso si no hay Google key */}
-      {!GOOGLE_KEY && (
-        <div style={{ display:"flex", alignItems:"flex-start", gap:8, padding:"12px 14px", background:"rgba(251,191,36,0.06)", border:"1px solid rgba(251,191,36,0.2)", borderRadius:12, marginBottom:16 }}>
-          <AlertCircle size={15} color="#fbbf24" style={{ flexShrink:0, marginTop:1 }} />
-          <p style={{ fontSize:12, color:"#888", lineHeight:1.5 }}>
-            Usando búsqueda básica. Para resultados exactos configurá tu Google Maps API key.
-          </p>
-        </div>
-      )}
 
       {/* Input */}
       <div style={{ position:"relative", marginBottom:16 }}>
