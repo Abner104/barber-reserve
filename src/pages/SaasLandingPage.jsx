@@ -95,11 +95,16 @@ const CSS = `
   .mob-nav a { color:#fff; font-size:22px; font-weight:700; text-decoration:none; font-family:'Barlow Condensed',sans-serif; letter-spacing:-0.5px; }
 
   /* Hide desktop links on mobile */
+  @keyframes float1 { 0%,100%{transform:translateY(0px)   rotate(-3deg)} 50%{transform:translateY(-18px)  rotate(-2deg)} }
+  @keyframes float2 { 0%,100%{transform:translateY(-8px)  rotate(0deg)}  50%{transform:translateY(10px)   rotate(1deg)}  }
+  @keyframes float3 { 0%,100%{transform:translateY(-4px)  rotate(3deg)}  50%{transform:translateY(-20px)  rotate(2deg)}  }
+
   @media(max-width:640px) {
     .desk-links { display:none !important; }
     .mob-menu-btn { display:flex !important; }
-    .mockup-section { display:none !important; }
     .hero-logo { width:90px !important; height:90px !important; }
+    .phones-section { padding: 40px 20px 60px !important; }
+    .phone-mid { display:none !important; }
   }
   @media(min-width:641px) {
     .mob-menu-btn { display:none !important; }
@@ -188,6 +193,157 @@ function useParallax(f = 0.22) {
     return () => window.removeEventListener("scroll", fn);
   }, [f]);
   return y;
+}
+
+// ── Phone Showcase ────────────────────────────────────────────
+const PHONES = [
+  {
+    label: "Cliente reserva",
+    anim: "float1 6s ease-in-out infinite",
+    rotate: "-3deg",
+    glow: "rgba(255,107,44,0.35)",
+    offset: "20px",
+    screen: [
+      { type: "header", text: "NobleCut ✂️" },
+      { type: "step",   text: "Fade + Barba" , price: "$45.000" },
+      { type: "slot",   text: "Hoy · 14:30" },
+      { type: "btn",    text: "Confirmar reserva" },
+    ],
+  },
+  {
+    label: "Panel admin",
+    anim: "float2 7s ease-in-out infinite 0.8s",
+    rotate: "0deg",
+    glow: "rgba(255,107,44,0.5)",
+    offset: "0px",
+    scale: 1.08,
+    screen: [
+      { type: "header", text: "Dashboard" },
+      { type: "stat",   vals: [["18","Reservas"],["$245k","Ingresos"]] },
+      { type: "row",    time:"09:00", name:"Carlos M.", tag:"Fade" },
+      { type: "row",    time:"10:30", name:"Ana P.",    tag:"Corte" },
+      { type: "row",    time:"11:30", name:"David R.",  tag:"📍 Dom." },
+    ],
+  },
+  {
+    label: "Portal barbero",
+    anim: "float3 5.5s ease-in-out infinite 1.4s",
+    rotate: "3deg",
+    glow: "rgba(255,107,44,0.3)",
+    offset: "20px",
+    screen: [
+      { type: "header", text: "Mi agenda" },
+      { type: "earns",  text: "Hoy ganaste", val: "$62.500" },
+      { type: "row",    time:"14:00", name:"Luis T.",  tag:"Fade" },
+      { type: "row",    time:"15:30", name:"Pedro R.", tag:"Barba" },
+      { type: "btn2",   text: "Abrir caja →" },
+    ],
+  },
+];
+
+function PhoneScreen({ items }) {
+  return (
+    <div style={{ background:"#0A0A0A", borderRadius:20, padding:"10px 8px", display:"flex", flexDirection:"column", gap:6, height:"100%", boxSizing:"border-box" }}>
+      {items.map((item, i) => {
+        if (item.type === "header") return (
+          <div key={i} style={{ display:"flex", alignItems:"center", gap:6, padding:"4px 4px 8px", borderBottom:"1px solid #1A1A1A" }}>
+            <img src="/LogoC.png" alt="" style={{ width:16, height:16, objectFit:"contain" }} />
+            <span style={{ fontWeight:800, fontSize:11, color:"#fff" }}>{item.text}</span>
+          </div>
+        );
+        if (item.type === "step") return (
+          <div key={i} style={{ background:"#141414", borderRadius:10, padding:"8px 10px" }}>
+            <p style={{ fontSize:11, fontWeight:700, color:"#fff", marginBottom:2 }}>{item.text}</p>
+            <p style={{ fontSize:13, fontWeight:900, color:O }}>{item.price}</p>
+          </div>
+        );
+        if (item.type === "slot") return (
+          <div key={i} style={{ background:"rgba(255,107,44,0.08)", border:"1px solid rgba(255,107,44,0.25)", borderRadius:10, padding:"8px 10px", textAlign:"center" }}>
+            <p style={{ fontSize:11, fontWeight:700, color:O }}>{item.text}</p>
+          </div>
+        );
+        if (item.type === "btn") return (
+          <div key={i} style={{ background:O, borderRadius:10, padding:"9px", textAlign:"center", marginTop:"auto" }}>
+            <p style={{ fontSize:10, fontWeight:800, color:"#fff" }}>{item.text}</p>
+          </div>
+        );
+        if (item.type === "btn2") return (
+          <div key={i} style={{ background:"#141414", border:"1px solid #2A2A2A", borderRadius:10, padding:"8px", textAlign:"center", marginTop:"auto" }}>
+            <p style={{ fontSize:10, fontWeight:700, color:O }}>{item.text}</p>
+          </div>
+        );
+        if (item.type === "stat") return (
+          <div key={i} style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:5 }}>
+            {item.vals.map(([v,l]) => (
+              <div key={l} style={{ background:"#141414", borderRadius:9, padding:"7px 8px" }}>
+                <p style={{ fontSize:13, fontWeight:900, color:"#fff" }}>{v}</p>
+                <p style={{ fontSize:8, color:"#444", marginTop:1 }}>{l}</p>
+              </div>
+            ))}
+          </div>
+        );
+        if (item.type === "earns") return (
+          <div key={i} style={{ background:"rgba(34,197,94,0.07)", border:"1px solid rgba(34,197,94,0.2)", borderRadius:10, padding:"8px 10px", textAlign:"center" }}>
+            <p style={{ fontSize:9, color:"#888", marginBottom:2 }}>{item.text}</p>
+            <p style={{ fontSize:16, fontWeight:900, color:"#22c55e" }}>{item.val}</p>
+          </div>
+        );
+        if (item.type === "row") return (
+          <div key={i} style={{ display:"flex", alignItems:"center", gap:6, padding:"5px 6px", background:"#141414", borderRadius:8 }}>
+            <span style={{ fontSize:9, fontWeight:800, color:O, width:28, flexShrink:0 }}>{item.time}</span>
+            <span style={{ fontSize:9, color:"#888", flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{item.name}</span>
+            <span style={{ fontSize:8, color:"#555", flexShrink:0 }}>{item.tag}</span>
+          </div>
+        );
+        return null;
+      })}
+    </div>
+  );
+}
+
+function PhoneShowcase() {
+  return (
+    <section className="phones-section" style={{ padding:"20px 20px 100px", overflow:"hidden" }}>
+      <Reveal>
+        <p style={{ textAlign:"center", color:"#333", fontSize:12, fontWeight:700, letterSpacing:2, textTransform:"uppercase", marginBottom:60 }}>
+          Una app. Tres portales.
+        </p>
+      </Reveal>
+      <div style={{ display:"flex", justifyContent:"center", alignItems:"flex-end", gap:24, maxWidth:700, margin:"0 auto" }}>
+        {PHONES.map((ph, i) => (
+          <div key={i} className={i === 1 ? "" : ""}
+            style={{
+              animation: ph.anim,
+              transform: `rotate(${ph.rotate}) translateY(${ph.offset})`,
+              flexShrink: 0,
+              position:"relative",
+              zIndex: i === 1 ? 2 : 1,
+              scale: ph.scale ? String(ph.scale) : "1",
+            }}>
+            {/* Glow */}
+            <div style={{ position:"absolute", inset:-20, borderRadius:50, background:`radial-gradient(circle, ${ph.glow} 0%, transparent 70%)`, filter:"blur(20px)", pointerEvents:"none" }} />
+            {/* Phone frame */}
+            <div style={{
+              width: i === 1 ? 155 : 130,
+              height: i === 1 ? 310 : 260,
+              background:"#0E0E0E",
+              borderRadius:28,
+              border:"2px solid #2A2A2A",
+              padding:8,
+              boxShadow:`0 30px 80px rgba(0,0,0,0.8), 0 0 0 1px #111`,
+              position:"relative",
+            }}>
+              {/* Notch */}
+              <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:40, height:6, background:"#0E0E0E", borderRadius:"0 0 6px 6px", zIndex:10, borderBottom:"2px solid #2A2A2A" }} />
+              <PhoneScreen items={ph.screen} />
+            </div>
+            {/* Label */}
+            <p style={{ textAlign:"center", fontSize:11, color:"#444", fontWeight:600, marginTop:14, letterSpacing:0.5 }}>{ph.label}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 // ── Supplier Banner ───────────────────────────────────────────
@@ -397,52 +553,8 @@ export default function SaasLandingPage() {
         </a>
       </section>
 
-      {/* ── MOCKUP — solo desktop ── */}
-      <section className="mockup-section" style={{ padding:"0 24px 100px" }}>
-        <Reveal>
-          <div style={{ maxWidth:1000, margin:"0 auto" }}>
-            <div style={{ background:"#0C0C0C", border:"1px solid #1A1A1A", borderRadius:22, padding:3, overflow:"hidden", boxShadow:"0 50px 130px rgba(0,0,0,.7)" }}>
-              <div style={{ background:"#141414", borderRadius:"19px 19px 0 0", padding:"10px 16px", display:"flex", alignItems:"center", gap:8 }}>
-                <div style={{ display:"flex", gap:6 }}>
-                  {["#ef4444","#f59e0b","#22c55e"].map(c => <div key={c} style={{ width:10, height:10, borderRadius:"50%", background:c }} />)}
-                </div>
-                <div style={{ flex:1, background:"#0C0C0C", borderRadius:6, padding:"4px 12px", fontSize:11, color:"#333", textAlign:"center" }}>clippr.app/admin</div>
-              </div>
-              <div style={{ padding:18, display:"grid", gridTemplateColumns:"155px 1fr", gap:14, minHeight:260 }}>
-                <div style={{ background:"#080808", borderRadius:12, padding:14 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:16 }}>
-                    <img src="/LogoC.png" alt="" style={{ width:20, height:20, objectFit:"contain" }} />
-                    <span className="display" style={{ fontSize:15, color:"#fff" }}>Clippr</span>
-                  </div>
-                  {["Dashboard","Reservas","Barberos","Servicios","Caja"].map((item,i) => (
-                    <div key={item} style={{ padding:"7px 10px", borderRadius:8, marginBottom:3, background:i===0?"rgba(255,107,44,.1)":"transparent", color:i===0?O:"#2E2E2E", fontSize:11, fontWeight:i===0?700:400 }}>{item}</div>
-                  ))}
-                </div>
-                <div>
-                  <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:8, marginBottom:12 }}>
-                    {[["18","Reservas"],["$245k","Ingresos"],["6","Domicilios"],["12","Clientes"]].map(([v,l]) => (
-                      <div key={l} style={{ background:"#080808", borderRadius:10, padding:10 }}>
-                        <p style={{ fontSize:16, fontWeight:900, color:"#fff" }}>{v}</p>
-                        <p style={{ fontSize:9, color:"#2E2E2E", marginTop:2 }}>{l}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ background:"#080808", borderRadius:10, padding:12 }}>
-                    <p style={{ fontSize:10, color:"#2E2E2E", marginBottom:8, fontWeight:700, letterSpacing:1 }}>RESERVAS DE HOY</p>
-                    {[["09:00","Carlos M.","Fade","$35.000"],["10:30","Ana P.","Corte + barba","$45.000"],["11:30","David R.","📍 Domicilio","$60.000"]].map(([h,c,s,p]) => (
-                      <div key={h} style={{ display:"flex", alignItems:"center", gap:10, padding:"7px 0", borderBottom:"1px solid #0F0F0F" }}>
-                        <span style={{ fontSize:11, fontWeight:800, color:"#fff", width:34, flexShrink:0 }}>{h}</span>
-                        <span style={{ fontSize:11, color:"#3A3A3A", flex:1 }}>{c} · {s}</span>
-                        <span style={{ fontSize:11, fontWeight:800, color:O }}>{p}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Reveal>
-      </section>
+      {/* ── 3 PHONES ── */}
+      <PhoneShowcase />
 
       {/* ── FEATURES ── */}
       <section id="features" style={{ padding:"72px 20px 88px", background:"#050505" }}>
