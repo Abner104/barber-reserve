@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Clock, ChevronLeft, Check, Users, Plus, Minus } from "lucide-react";
 import { useBookingStore } from "../../../../store/bookingStore";
 import { getServices } from "../../services/bookingService";
+import { useRef, useEffect } from "react";
 
 const CSS = `
   @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
@@ -32,6 +33,16 @@ export default function StepService() {
   const totalPrice    = getTotal();
   const totalDuration = getTotalDuration();
   const canContinue   = selected.length > 0;
+  const ctaRef        = useRef(null);
+  const prevCount     = useRef(selected.length);
+
+  // Scroll al botón continuar cuando se selecciona el primer servicio
+  useEffect(() => {
+    if (selected.length === 1 && prevCount.current === 0 && ctaRef.current) {
+      ctaRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+    prevCount.current = selected.length;
+  }, [selected.length]);
 
   return (
     <div style={{ animation: "fadeUp .4s ease" }}>
@@ -162,7 +173,7 @@ export default function StepService() {
         </div>
       )}
 
-      <button onClick={() => setStep(step + 1)} disabled={!canContinue}
+      <button ref={ctaRef} onClick={() => setStep(step + 1)} disabled={!canContinue}
         style={{
           width: "100%", padding: "16px", borderRadius: 14, fontSize: 15, fontWeight: 800,
           cursor: canContinue ? "pointer" : "not-allowed",

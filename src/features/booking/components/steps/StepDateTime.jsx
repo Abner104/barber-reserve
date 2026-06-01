@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import { format, addDays, startOfDay, isToday, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth } from "date-fns";
@@ -18,6 +18,13 @@ export default function StepDateTime() {
   const padStart = (getDay(startOfMonth(viewMonth)) + 6) % 7;
   const durationMin = getTotalDuration();
 
+  // Pre-seleccionar hoy al entrar al paso si no hay fecha elegida
+  useEffect(() => {
+    if (!date) {
+      setDate(format(today, "yyyy-MM-dd"));
+    }
+  }, []);
+
   const { data: slots = [], isLoading: loadingSlots } = useQuery({
     queryKey: ["barber-slots", barber?.id, date, durationMin, type],
     queryFn:  () => getAvailableSlots({ barberId: barber.id, date, durationMin, type }),
@@ -32,6 +39,14 @@ export default function StepDateTime() {
   }
 
   const canContinue = !!date && !!slot;
+  const slotsRef = useRef(null);
+
+  // Scroll a los slots cuando aparecen tras elegir fecha
+  useEffect(() => {
+    if (!loadingSlots && slots.length > 0 && slotsRef.current) {
+      slotsRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [loadingSlots, date]);
 
   return (
     <div style={{ animation: "fadeUp .4s ease" }}>
@@ -93,7 +108,7 @@ export default function StepDateTime() {
 
       {/* Horas del barbero */}
       {date && (
-        <div style={{ marginBottom: 28 }}>
+        <div ref={slotsRef} style={{ marginBottom: 28 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
             <Clock size={14} color="var(--brand)" />
             <p style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 600 }}>
