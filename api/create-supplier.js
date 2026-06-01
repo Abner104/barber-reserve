@@ -1,72 +1,68 @@
+export const config = { api: { bodyParser: true } };
+
 export default async function handler(req, res) {
-  if (req.method !== "POST") { res.status(405).end(); return; }
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  if (req.method === "OPTIONS") { res.status(200).end(); return; }
+  if (req.method !== "POST") { res.status(405).json({ error: "Method not allowed" }); return; }
 
-  const { email, password, fullName, supplierName, description, whatsapp } = req.body ?? {};
-
-  if (!email || !password || !fullName || !supplierName) {
-    res.status(400).json({ error: "Faltan campos obligatorios" });
-    return;
-  }
-
-  const SUPABASE_URL      = process.env.SUPABASE_URL;
-  const SUPABASE_SERVICE  = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const SUPABASE_URL     = process.env.SUPABASE_URL;
+  const SUPABASE_SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE) {
-    res.status(500).json({ error: "Variables de entorno no configuradas" });
+    res.status(500).json({ error: "Env vars SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY no configuradas" });
     return;
   }
 
-  const headers = {
+  let body = req.body;
+  // Vercel a veces entrega el body como string si Content-Type no matchea
+  if (typeof body === "string") {
+    try { body = JSON.parse(body); } catch { body = {}; }
+  }
+
+  const { email, password, fullName, supplierName, description, whatsapp } = body ?? {};
+
+  if (!email || !password || !fullName || !supplierName) {
+    res.status(400).json({ error: "Faltan campos: email, password, fullName, supplierName" });
+    return;
+  }
+
+  const base = {
     "Content-Type":  "application/json",
     "Authorization": `Bearer ${SUPABASE_SERVICE}`,
     "apikey":        SUPABASE_SERVICE,
   };
 
   try {
-    // 1. Crear usuario en Supabase Auth
-    const authRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
-      method:  "POST",
-      headers,
-      body: JSON.stringify({
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: { full_name: fullName },
-      }),
+    // 1. Crear usuario auth
+    const authRes  = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+      method: "POST", headers: base,
+      body: JSON.stringify({ email, password, email_confirm: true, user_metadata: { full_name: fullName } }),
     });
     const authData = await authRes.json();
-    if (!authRes.ok) {
-      throw new Error(authData.message ?? authData.error ?? "Error al crear usuario");
-    }
+    if (!authRes.ok) throw new Error(authData.msg ?? authData.message ?? authData.error_description ?? JSON.stringify(authData));
+
     const userId = authData.id;
 
-    // 2. Actualizar perfil con rol supplier
-    await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
-      method:  "PATCH",
-      headers: { ...headers, "Prefer": "return=minimal" },
-      body: JSON.stringify({ role: "supplier", full_name: fullName }),
+    // 2. Upsert perfil con rol supplier (puede que el trigger lo cree, puede que no)
+    await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
+      method: "POST",
+      headers: { ...base, "Prefer": "resolution=merge-duplicates" },
+      body: JSON.stringify({ id: userId, full_name: fullName, role: "supplier" }),
     });
 
-    // 3. Crear registro en tabla suppliers
-    const supplierRes = await fetch(`${SUPABASE_URL}/rest/v1/suppliers`, {
-      method:  "POST",
-      headers: { ...headers, "Prefer": "return=representation" },
-      body: JSON.stringify({
-        profile_id:  userId,
-        name:        supplierName,
-        description: description || null,
-        whatsapp:    whatsapp    || null,
-        is_active:   true,
-      }),
+    // 3. Insertar en suppliers
+    const supRes  = await fetch(`${SUPABASE_URL}/rest/v1/suppliers`, {
+      method: "POST",
+      headers: { ...base, "Prefer": "return=representation" },
+      body: JSON.stringify({ profile_id: userId, name: supplierName, description: description || null, whatsapp: whatsapp || null, is_active: true }),
     });
-    const supplierData = await supplierRes.json();
-    if (!supplierRes.ok) {
-      throw new Error(supplierData.message ?? "Error al crear el proveedor");
-    }
+    const supData = await supRes.json();
+    if (!supRes.ok) throw new Error(supData.message ?? supData.hint ?? JSON.stringify(supData));
 
-    res.status(200).json({ supplier: supplierData[0] ?? supplierData });
+    res.status(200).json({ supplier: Array.isArray(supData) ? supData[0] : supData });
 
   } catch (e) {
+    console.error("[create-supplier]", e.message);
     res.status(400).json({ error: e.message });
   }
 }
