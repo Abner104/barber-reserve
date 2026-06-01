@@ -3,10 +3,9 @@ import { Scissors, User, Calendar, Clock, MapPin } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useBookingStore } from "../../../store/bookingStore";
-import { getDistanceKm, calcDeliveryFee } from "../../../lib/mapbox";
 
 export default function BookingSummaryPanel() {
-  const { type, services, barber, date, slot, address, shopConfig, getTotal } = useBookingStore();
+  const { type, services, barber, date, slot, address, getTotal, deliveryFee: storedFee } = useBookingStore();
 
   if (!type) return (
     <div style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 14, padding: 16 }}>
@@ -16,15 +15,7 @@ export default function BookingSummaryPanel() {
     </div>
   );
 
-  const origin = barber?.lat && barber?.lng
-    ? { lat: barber.lat, lng: barber.lng }
-    : shopConfig?.lat && shopConfig?.lng
-    ? { lat: shopConfig.lat, lng: shopConfig.lng }
-    : { lat: -33.4489, lng: -70.6693 };
-
-  const feePerKm    = shopConfig?.delivery_fee_per_km ?? 650;
-  const distanceKm  = type === "delivery" && address.lat ? getDistanceKm(origin, { lat: address.lat, lng: address.lng }) : null;
-  const deliveryFee = distanceKm != null ? calcDeliveryFee(distanceKm, 0, feePerKm) : 0;
+  const deliveryFee = type === "delivery" ? (storedFee ?? 0) : 0;
   const servicePrice = getTotal();
   const total        = servicePrice + deliveryFee;
   const barberName   = barber?.full_name;

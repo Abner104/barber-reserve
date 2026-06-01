@@ -55,7 +55,7 @@ async function searchNominatim(query) {
 }
 
 export default function StepAddress() {
-  const { address, setAddress, step, setStep, prevStep, shopConfig, barber } = useBookingStore();
+  const { address, setAddress, setDeliveryFee, step, setStep, prevStep, shopConfig, barber } = useBookingStore();
 
   const [input, setInput]               = useState(address.line || "");
   const [suggestions, setSuggestions]   = useState([]);
@@ -83,11 +83,16 @@ export default function StepAddress() {
   const [loadingDist, setLoadingDist] = useState(false);
 
   useEffect(() => {
-    if (!address.lat) { setDistanceKm(null); return; }
+    if (!address.lat) { setDistanceKm(null); setDeliveryFee(0); return; }
     let cancelled = false;
     setLoadingDist(true);
     getDistanceKm(origin, { lat: address.lat, lng: address.lng })
-      .then(km => { if (!cancelled) setDistanceKm(km); })
+      .then(km => {
+        if (cancelled) return;
+        setDistanceKm(km);
+        const fee = calcDeliveryFee(km, 0, feePerKm);
+        setDeliveryFee(fee);
+      })
       .finally(() => { if (!cancelled) setLoadingDist(false); });
     return () => { cancelled = true; };
   }, [address.lat, address.lng]);

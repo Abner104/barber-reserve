@@ -7,7 +7,6 @@ import { ChevronLeft, MapPin, User, Scissors, Calendar, Clock, Loader2, Eye, Eye
 import { toast } from "sonner";
 import { useBookingStore } from "../../../../store/bookingStore";
 import { createBooking } from "../../services/bookingService";
-import { getDistanceKm, calcDeliveryFee } from "../../../../lib/mapbox";
 import { supabase } from "../../../../lib/supabase";
 import { uploadImage } from "../../../../components/shared/ImageUpload";
 
@@ -76,7 +75,7 @@ async function notifyClient(bookingRecord, clientInfo, serviceInfo, barberName) 
 }
 
 export default function StepConfirm() {
-  const { type, services, people, barber, date, slot, address, clientInfo, setClientInfo, setStep, prevStep, shopConfig, getTotalDuration, getTotal } = useBookingStore();
+  const { type, services, people, barber, date, slot, address, clientInfo, setClientInfo, setStep, prevStep, shopConfig, getTotalDuration, getTotal, deliveryFee: storedFee } = useBookingStore();
   const [form, setForm]         = useState(clientInfo);
   const [errors, setErrors]     = useState({});
   const [showPhone, setShowPhone] = useState(false);
@@ -108,15 +107,7 @@ export default function StepConfirm() {
     finally { setUploading(false); }
   }
 
-  const origin = barber?.lat && barber?.lng
-    ? { lat: Number(barber.lat), lng: Number(barber.lng) }
-    : shopConfig?.lat && shopConfig?.lng
-    ? { lat: shopConfig.lat, lng: shopConfig.lng }
-    : { lat: -33.4489, lng: -70.6693 };
-
-  const feePerKm     = shopConfig?.delivery_fee_per_km ?? 650;
-  const distanceKm   = type === "delivery" && address.lat ? getDistanceKm(origin, { lat: address.lat, lng: address.lng }) : null;
-  const deliveryFee  = distanceKm != null ? calcDeliveryFee(distanceKm, 0, feePerKm) : 0;
+  const deliveryFee  = type === "delivery" ? (storedFee ?? 0) : 0;
   const peopleCount  = people || 1;
   const servicePrice = getTotal();
   const total        = servicePrice + deliveryFee;

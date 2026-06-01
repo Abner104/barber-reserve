@@ -11,6 +11,7 @@ const INITIAL = {
   date: null,
   slot: null,
   address: { line: "", lat: null, lng: null, place_name: "" },
+  deliveryFee: 0,   // calculado async en StepAddress con Google Distance Matrix
   clientInfo: { full_name: "", phone: "", notes: "" },
 };
 
@@ -35,6 +36,7 @@ export const useBookingStore = create((set, get) => ({
   setDate: (date) => set({ date, slot: null }),
   setSlot: (slot) => set({ slot }),
   setAddress: (address) => set({ address }),
+  setDeliveryFee: (deliveryFee) => set({ deliveryFee }),
   setClientInfo: (clientInfo) => set({ clientInfo }),
 
   reset: () => set((s) => ({ ...INITIAL, shopId: s.shopId, shopConfig: s.shopConfig })),
