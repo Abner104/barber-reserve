@@ -8,7 +8,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  const key = process.env.VITE_GOOGLE_MAPS_KEY;
+  const key = process.env.VITE_GOOGLE_MAPS_KEY || "AIzaSyAZX3traKk62o14A4-NtvCoOKtu5rIg-7s";
   if (!key) { res.status(500).json({ error: "No API key" }); return; }
 
   const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${olat},${olng}&destinations=${dlat},${dlng}&mode=driving&language=es&key=${key}`;

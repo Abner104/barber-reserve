@@ -5,13 +5,8 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") { res.status(200).end(); return; }
   if (req.method !== "POST") { res.status(405).json({ error: "Method not allowed" }); return; }
 
-  const SUPABASE_URL     = process.env.SUPABASE_URL;
-  const SUPABASE_SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!SUPABASE_URL || !SUPABASE_SERVICE) {
-    res.status(500).json({ error: "Env vars SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY no configuradas" });
-    return;
-  }
+  const SUPABASE_URL     = process.env.SUPABASE_URL     || "https://jyggjagnnwfmqyezilzv.supabase.co";
+  const SUPABASE_SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp5Z2dqYWdubndmbXF5ZXppbHp2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODQ4MDIxOSwiZXhwIjoyMDk0MDU2MjE5fQ.KZUqfNA8WbLmOXk0V_zcSDJJdBpg3iIRPd4gpKwlP88";
 
   let body = req.body;
   // Vercel a veces entrega el body como string si Content-Type no matchea
