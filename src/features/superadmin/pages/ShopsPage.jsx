@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ExternalLink, Power, Clock, ChevronDown, ChevronUp, Users, Calendar, TrendingUp, DollarSign, Plus } from "lucide-react";
+import { ExternalLink, Power, Clock, ChevronDown, ChevronUp, Users, Calendar, TrendingUp, DollarSign, Plus, KeyRound } from "lucide-react";
 import { getAllShops, getShopStats, updateShopPlan, deleteShop } from "../services/superAdminService";
 import { formatCurrency } from "../../../lib/utils";
 import { supabase } from "../../../lib/supabase";
@@ -159,7 +159,47 @@ function ShopDetail({ shop, planMut, expired, plan }) {
     },
   });
 
-  const [showPayForm, setShowPayForm] = useState(false);
+  const [showPayForm, setShowPayForm]   = useState(false);
+  const [showPwdForm, setShowPwdForm]   = useState(false);
+  const [newPassword, setNewPassword]   = useState("");
+  const [savingPwd, setSavingPwd]       = useState(false);
+
+  // Obtener el user_id del dueño de esta barbería
+  const { data: ownerProfile } = useQuery({
+    queryKey: ["sa-shop-owner", shop.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .eq("shop_id", shop.id)
+        .eq("role", "admin")
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  async function handleResetPassword(e) {
+    e.preventDefault();
+    if (!newPassword || newPassword.length < 6) { toast.error("Mínimo 6 caracteres"); return; }
+    if (!ownerProfile?.id) { toast.error("No se encontró el usuario admin de esta barbería"); return; }
+    setSavingPwd(true);
+    try {
+      const res = await fetch("/api/reset-user-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: ownerProfile.id, newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success(`Contraseña de ${ownerProfile.full_name || shop.name} actualizada ✓`);
+      setNewPassword("");
+      setShowPwdForm(false);
+    } catch (e) {
+      toast.error(e.message ?? "Error al cambiar la contraseña");
+    } finally {
+      setSavingPwd(false);
+    }
+  }
   const [payForm, setPayForm] = useState({ amount: "", method: "transfer", note: "" });
   const [savingPay, setSavingPay] = useState(false);
 
@@ -235,6 +275,36 @@ function ShopDetail({ shop, planMut, expired, plan }) {
             <Power size={14} />
             {shop.is_active ? "Suspender barbería" : "Reactivar barbería"}
           </button>
+        </div>
+
+        {/* Cambiar contraseña del admin */}
+        <div style={{ marginTop: 16 }}>
+          <button onClick={() => { setShowPwdForm(f => !f); setNewPassword(""); }}
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 9, background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.3)", color: "#818cf8", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+            <KeyRound size={14} />
+            {showPwdForm ? "Cancelar" : "Cambiar contraseña del admin"}
+          </button>
+          {showPwdForm && (
+            <form onSubmit={handleResetPassword} style={{ marginTop: 10, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <input
+                type="text"
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                placeholder="Nueva contraseña (mín. 6 caracteres)"
+                autoFocus
+                style={{ padding: "8px 12px", borderRadius: 9, background: "#0F0F0F", border: "1px solid #2A2A2A", color: "#fff", fontSize: 13, outline: "none", flex: 1, minWidth: 220 }}
+              />
+              <button type="submit" disabled={savingPwd}
+                style={{ padding: "8px 16px", borderRadius: 9, background: "#4f46e5", border: "none", color: "#fff", cursor: "pointer", fontWeight: 700, fontSize: 13, opacity: savingPwd ? 0.7 : 1, whiteSpace: "nowrap" }}>
+                {savingPwd ? "Guardando..." : "Confirmar"}
+              </button>
+            </form>
+          )}
+          {ownerProfile && (
+            <p style={{ fontSize: 11, color: "#3f3f3f", marginTop: 5 }}>
+              Admin: {ownerProfile.full_name || "—"} · ID: {ownerProfile.id.slice(0,8)}...
+            </p>
+          )}
         </div>
 
         {/* Info trial */}
