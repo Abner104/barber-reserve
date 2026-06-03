@@ -687,25 +687,25 @@ function DayScheduleEditor({ day, label, active, slots, startTime, endTime, onTo
               <p style={{ fontSize: 11, color: "var(--text-faint)", marginBottom: 6 }}>
                 Usá formato 24h — ej: <strong style={{color:"var(--text)"}}>22:30</strong> para las 10:30 PM
               </p>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
                 <input
                   type="time"
                   value={rangeStart}
                   onChange={e => setRangeStart(e.target.value)}
                   style={{ flex: 1, padding: "10px 8px", borderRadius: 10, background: "var(--card-bg)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 15 }}
                 />
-                <span style={{ color: "var(--text-faint)", fontWeight: 700, flexShrink: 0 }}>hasta</span>
+                <span style={{ color: "var(--text-faint)", fontWeight: 700, flexShrink: 0 }}>–</span>
                 <input
                   type="time"
                   value={rangeEnd}
                   onChange={e => setRangeEnd(e.target.value)}
                   style={{ flex: 1, padding: "10px 8px", borderRadius: 10, background: "var(--card-bg)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 15 }}
                 />
-                <button onClick={() => onSaveRange(rangeStart, rangeEnd)}
-                  style={{ padding: "10px 14px", borderRadius: 10, background: O, color: "#fff", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13, flexShrink: 0 }}>
-                  Guardar
-                </button>
               </div>
+              <button onClick={() => onSaveRange(rangeStart, rangeEnd)}
+                style={{ width: "100%", padding: "12px", borderRadius: 10, background: O, color: "#fff", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 14 }}>
+                Guardar horario
+              </button>
               {rangeEnd && rangeStart && rangeEnd <= rangeStart && (
                 <p style={{ fontSize: 12, color: "#ef4444" }}>⚠️ La hora de fin debe ser mayor que la de inicio</p>
               )}
