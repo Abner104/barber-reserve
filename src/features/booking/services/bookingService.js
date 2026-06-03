@@ -128,10 +128,15 @@ export async function getAvailableSlots({ barberId, date, durationMin, type }) {
     );
   }
 
-  // MODO 1: Slots específicos — construir con timezone Chile
+  // Hora actual en Chile — no mostrar slots pasados si es hoy
+  const nowChile  = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Santiago" }));
+  const isToday   = date === format(nowChile, "yyyy-MM-dd");
+
+  // MODO 1: Slots específicos
   if (wh.available_slots && wh.available_slots.length > 0) {
     return wh.available_slots.filter(slot => {
       const cursor = new Date(`${date}T${slot}:00-04:00`);
+      if (isToday && cursor <= nowChile) return false; // ya pasó
       return !isBlocked(cursor);
     });
   }
@@ -143,7 +148,10 @@ export async function getAvailableSlots({ barberId, date, durationMin, type }) {
   let cursor      = workStart;
 
   while (addMinutes(cursor, effectiveDuration) <= workEnd) {
-    if (!isBlocked(cursor)) slots.push(format(cursor, "HH:mm"));
+    // Filtrar slots ya pasados si es hoy
+    if (!isToday || cursor > nowChile) {
+      if (!isBlocked(cursor)) slots.push(format(cursor, "HH:mm"));
+    }
     cursor = addMinutes(cursor, slotInterval);
   }
 
