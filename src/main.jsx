@@ -15,10 +15,23 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(
+// Ocultar splash screen cuando React monta
+function hideSplash() {
+  const splash = document.getElementById("splash");
+  if (!splash) return;
+  splash.style.opacity = "0";
+  setTimeout(() => { splash.style.display = "none"; }, 400);
+}
+// Fallback máximo 3 segundos aunque React tarde
+setTimeout(hideSplash, 3000);
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(
   <React.StrictMode>
     <Providers>
       <App />
     </Providers>
   </React.StrictMode>
 );
+// Ocultar splash en cuanto React renderiza
+requestAnimationFrame(() => requestAnimationFrame(hideSplash));

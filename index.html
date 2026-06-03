@@ -32,6 +32,19 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
 </head>
 <body>
+  <!-- Splash screen PWA -->
+  <div id="splash" style="position:fixed;inset:0;background:#0A0A0A;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;z-index:9999;transition:opacity 0.4s ease">
+    <img src="/LogoC.png" alt="Clippr" style="width:90px;height:90px;object-fit:contain;filter:drop-shadow(0 0 32px rgba(255,107,44,0.6));animation:splashFloat 2s ease-in-out infinite" />
+    <span style="font-family:system-ui,sans-serif;font-weight:900;font-size:28px;color:#fff;letter-spacing:-1px">Clippr</span>
+    <div style="width:120px;height:3px;background:#1a1a1a;border-radius:2px;overflow:hidden;margin-top:8px">
+      <div style="height:100%;width:40%;background:#FF6B2C;border-radius:2px;animation:splashBar 1.2s ease-in-out infinite"></div>
+    </div>
+    <style>
+      @keyframes splashFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+      @keyframes splashBar   { 0%{transform:translateX(-100%)} 100%{transform:translateX(350%)} }
+    </style>
+  </div>
+
   <div id="root"></div>
   <script type="module" src="/src/main.jsx"></script>
 </body>
