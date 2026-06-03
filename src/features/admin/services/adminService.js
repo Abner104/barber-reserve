@@ -20,31 +20,47 @@ function todayChile() {
 export async function getDashboardStats() {
   const sid   = resolveShopId();
   const today = todayChile();
-  // Rango del día en hora local de Santiago (UTC-4)
   const dayStart = `${today}T00:00:00-04:00`;
   const dayEnd   = `${today}T23:59:59-04:00`;
 
-  const [bookingsToday, deliveriesToday, newClients, completedBookings] = await Promise.all([
+  // Mes actual
+  const monthStart = `${today.slice(0, 7)}-01T00:00:00-04:00`;
+
+  const [bookingsToday, deliveriesToday, newClients, todayBookingsData, monthBookingsData, pendingData] = await Promise.all([
     supabase.from("bookings").select("id", { count: "exact" })
       .eq("shop_id", sid)
       .gte("scheduled_at", dayStart).lte("scheduled_at", dayEnd)
       .in("status", ["pending", "confirmed", "in_progress", "completed"]),
     supabase.from("bookings").select("id", { count: "exact" })
       .eq("shop_id", sid).eq("type", "delivery")
-      .gte("scheduled_at", dayStart).lte("scheduled_at", dayEnd),
+      .gte("scheduled_at", dayStart).lte("scheduled_at", dayEnd)
+      .in("status", ["pending", "confirmed", "in_progress", "completed"]),
     supabase.from("clients").select("id", { count: "exact" })
       .eq("shop_id", sid).gte("created_at", dayStart),
+    // Ingresos hoy — todas las reservas activas del día
+    supabase.from("bookings").select("price")
+      .eq("shop_id", sid)
+      .gte("scheduled_at", dayStart).lte("scheduled_at", dayEnd)
+      .in("status", ["pending", "confirmed", "in_progress", "completed"]),
+    // Ingresos del mes — completadas
     supabase.from("bookings").select("price")
       .eq("shop_id", sid).eq("status", "completed")
-      .gte("scheduled_at", dayStart).lte("scheduled_at", dayEnd),
+      .gte("scheduled_at", monthStart),
+    // Reservas pendientes de confirmar
+    supabase.from("bookings").select("id", { count: "exact" })
+      .eq("shop_id", sid).eq("status", "pending"),
   ]);
 
-  const revenue = (completedBookings.data || []).reduce((s, b) => s + Number(b.price), 0);
+  const revenueToday = (todayBookingsData.data || []).reduce((s, b) => s + Number(b.price), 0);
+  const revenueMonth = (monthBookingsData.data || []).reduce((s, b) => s + Number(b.price), 0);
+
   return {
     bookingsToday:   bookingsToday.count    ?? 0,
     deliveriesToday: deliveriesToday.count  ?? 0,
     newClients:      newClients.count       ?? 0,
-    revenueToday:    revenue,
+    revenueToday,
+    revenueMonth,
+    pendingCount:    pendingData.count      ?? 0,
   };
 }
 

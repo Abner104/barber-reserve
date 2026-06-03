@@ -101,10 +101,12 @@ export default function DashboardPage() {
           [1,2,3,4].map(i => <div key={i} className="shimmer" style={{ height: 100 }} />)
         ) : (
           <>
-            <StatCard icon={<Calendar size={20} />} label="Reservas hoy"    value={stats?.bookingsToday ?? 0} />
-            <StatCard icon={<TrendingUp size={20} />} label="Ingresos hoy"  value={stats ? formatCurrency(stats.revenueToday) : "$0"} accent />
-            <StatCard icon={<MapPin size={20} />} label="Domicilios"        value={stats?.deliveriesToday ?? 0} />
-            <StatCard icon={<Users size={20} />} label="Clientes nuevos"    value={stats?.newClients ?? 0} />
+            <StatCard icon={<Calendar size={20} />}   label="Reservas hoy"      value={stats?.bookingsToday ?? 0} />
+            <StatCard icon={<TrendingUp size={20} />} label="Ingresos hoy"      value={stats ? formatCurrency(stats.revenueToday) : "$0"} accent />
+            <StatCard icon={<TrendingUp size={20} />} label="Ingresos del mes"  value={stats ? formatCurrency(stats.revenueMonth) : "$0"} accent />
+            <StatCard icon={<Minus size={20} />}      label="Pendientes"         value={stats?.pendingCount ?? 0} warn={stats?.pendingCount > 0} />
+            <StatCard icon={<MapPin size={20} />}     label="Domicilios hoy"    value={stats?.deliveriesToday ?? 0} />
+            <StatCard icon={<Users size={20} />}      label="Clientes nuevos"   value={stats?.newClients ?? 0} />
           </>
         )}
       </div>
@@ -228,21 +230,20 @@ export default function DashboardPage() {
   );
 }
 
-function StatCard({ icon, label, value, accent }) {
+function StatCard({ icon, label, value, accent, warn }) {
+  const bg    = accent ? "linear-gradient(135deg, rgba(255,107,44,0.08), rgba(255,107,44,0.03))"
+                       : warn   ? "rgba(245,158,11,0.05)" : "var(--card-bg)";
+  const border = accent ? "rgba(255,107,44,0.3)" : warn ? "rgba(245,158,11,0.3)" : "var(--card-border)";
+  const color  = accent ? O : warn ? "#f59e0b" : "var(--text)";
   return (
-    <div style={{
-      background: accent ? "linear-gradient(135deg, rgba(255,107,44,0.08), rgba(255,107,44,0.03))" : "var(--card-bg)",
-      border: `1px solid ${accent ? "rgba(255,107,44,0.3)" : "var(--card-border)"}`,
-      borderRadius: 14, padding: "20px",
-      transition: "transform 0.15s ease, box-shadow 0.15s ease",
-    }}
+    <div style={{ background: bg, border: `1px solid ${border}`, borderRadius: 14, padding: "20px", transition: "transform 0.15s ease, box-shadow 0.15s ease" }}
       onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.2)"; }}
       onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-        <span style={{ color: accent ? O : "var(--text-faint)" }}>{icon}</span>
+        <span style={{ color }}>{icon}</span>
       </div>
-      <p style={{ fontSize: 28, fontWeight: 800, color: accent ? O : "var(--text)", marginBottom: 4 }}>{value}</p>
+      <p style={{ fontSize: 28, fontWeight: 800, color, marginBottom: 4 }}>{value}</p>
       <p style={{ fontSize: 13, color: "var(--text-faint)" }}>{label}</p>
     </div>
   );
