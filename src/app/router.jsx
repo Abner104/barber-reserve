@@ -14,7 +14,9 @@ import SubscriptionPage   from "../pages/SubscriptionPage";
 import ResetPasswordPage  from "../pages/ResetPasswordPage";
 
 import DashboardPage from "../features/admin/pages/DashboardPage";
-import BarbersPage   from "../features/admin/pages/BarbersPage";
+import BarbersPage      from "../features/admin/pages/BarbersPage";
+import BarberStatsPage  from "../features/admin/pages/BarberStatsPage";
+import ClientsPage      from "../features/admin/pages/ClientsPage";
 import ServicesPage  from "../features/admin/pages/ServicesPage";
 import BookingsPage  from "../features/admin/pages/BookingsPage";
 import SettingsPage  from "../features/admin/pages/SettingsPage";
@@ -58,7 +60,9 @@ export const router = createBrowserRouter([
     children: [
       { index: true,       element: <DashboardPage /> },
       { path: "bookings",  element: <BookingsPage />  },
-      { path: "barbers",   element: <BarbersPage />   },
+      { path: "barbers",   element: <BarbersPage />      },
+      { path: "stats",     element: <BarberStatsPage /> },
+      { path: "clients",   element: <ClientsPage />     },
       { path: "services",  element: <ServicesPage />  },
       { path: "settings",  element: <SettingsPage />  },
       { path: "caja",      element: <CajaPage />      },

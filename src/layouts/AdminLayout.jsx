@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Outlet, Link, useLocation, useNavigate, Navigate } from "react-router-dom";
 import {
   Scissors, Calendar, Users, LayoutDashboard,
-  Settings, LogOut, Menu, X, ChevronRight, Zap, DollarSign, Package,
+  Settings, LogOut, Menu, X, ChevronRight, Zap, DollarSign, Package, TrendingUp, UserCheck,
 } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 import { useRealtimeBookings } from "../features/admin/hooks/useRealtimeBookings";
@@ -18,10 +18,12 @@ const NAV = [
   { to: "/admin",          icon: LayoutDashboard, label: "Dashboard", exact: true },
   { to: "/admin/bookings", icon: Calendar,      label: "Reservas"  },
   { to: "/admin/caja",     icon: DollarSign,    label: "Caja"      },
-  { to: "/admin/barbers",  icon: Users,         label: "Barberos"  },
-  { to: "/admin/services", icon: Scissors,         label: "Servicios" },
-  { to: "/admin/inventory",icon: Package,        label: "Inventario"},
-  { to: "/admin/settings", icon: Settings,         label: "Config"    },
+  { to: "/admin/barbers",  icon: Users,       label: "Barberos"    },
+  { to: "/admin/stats",    icon: TrendingUp,  label: "Rendimiento" },
+  { to: "/admin/clients",  icon: UserCheck,   label: "Clientes"    },
+  { to: "/admin/services", icon: Scissors,    label: "Servicios"   },
+  { to: "/admin/inventory",icon: Package,     label: "Inventario"  },
+  { to: "/admin/settings", icon: Settings,    label: "Config"      },
 ];
 
 export default function AdminLayout() {
