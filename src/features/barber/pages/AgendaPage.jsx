@@ -149,6 +149,21 @@ export default function AgendaPage() {
     else { refetchHours(); toast.success("Horario guardado ✅"); }
   }
 
+  async function saveRange(day, start_time, end_time) {
+    if (!profile) return;
+    const { error } = await supabase.from("working_hours").upsert({
+      shop_id:         profile.shop_id,
+      barber_id:       profile.id,
+      day,
+      start_time,
+      end_time,
+      is_active:       true,
+      available_slots: null, // null = modo automático
+    }, { onConflict: "barber_id,day" });
+    if (error) toast.error("Error: " + error.message);
+    else { refetchHours(); toast.success("Horario automático guardado ✅ — se repite todas las semanas"); }
+  }
+
   // Eventos para FullCalendar
   const allBookings = [...bookings, ...upcoming];
   const calEvents   = allBookings.map(b => ({
@@ -245,8 +260,11 @@ export default function AgendaPage() {
                     label={DAYS_ES[day]}
                     active={active}
                     slots={slots}
+                    startTime={h?.start_time?.slice(0,5) ?? "09:00"}
+                    endTime={h?.end_time?.slice(0,5) ?? "18:00"}
                     onToggle={() => toggleDay(day, h)}
                     onSave={newSlots => saveSlots(day, newSlots)}
+                    onSaveRange={(start, end) => saveRange(day, start, end)}
                     O={O}
                   />
                 );
@@ -464,19 +482,34 @@ export default function AgendaPage() {
 }
 
 // ── Editor de horario por día ─────────────────────────────────
-function DayScheduleEditor({ day, label, active, slots, onToggle, onSave, O }) {
+function DayScheduleEditor({ day, label, active, slots, startTime, endTime, onToggle, onSave, onSaveRange, O }) {
   const [newTime, setNewTime] = useState("");
   const [open, setOpen]       = useState(false);
+  // Si no hay slots manuales → modo automático
+  const isAuto = !slots || slots.length === 0;
+  const [autoMode, setAutoMode] = useState(isAuto);
+  const [rangeStart, setRangeStart] = useState(startTime || "09:00");
+  const [rangeEnd,   setRangeEnd]   = useState(endTime   || "18:00");
 
   function addSlot() {
-    if (!newTime || slots.includes(newTime)) return;
-    const sorted = [...slots, newTime].sort();
+    if (!newTime || slots?.includes(newTime)) return;
+    const sorted = [...(slots || []), newTime].sort();
     onSave(sorted);
     setNewTime("");
   }
 
   function removeSlot(s) {
-    onSave(slots.filter(x => x !== s));
+    onSave((slots || []).filter(x => x !== s));
+  }
+
+  function switchToAuto() {
+    setAutoMode(true);
+    onSaveRange(rangeStart, rangeEnd);
+  }
+
+  function switchToManual() {
+    setAutoMode(false);
+    onSave([]);
   }
 
   return (
@@ -492,8 +525,8 @@ function DayScheduleEditor({ day, label, active, slots, onToggle, onSave, O }) {
         </span>
         {active && (
           <>
-            <span style={{ fontSize: 12, color: slots.length ? O : "var(--text-faint)", fontWeight: 600 }}>
-              {slots.length > 0 ? `${slots.length} hora${slots.length > 1 ? "s" : ""}` : "Sin horas"}
+            <span style={{ fontSize: 12, color: O, fontWeight: 600 }}>
+              {autoMode ? `${rangeStart} – ${rangeEnd}` : slots?.length > 0 ? `${slots.length} hora${slots.length > 1 ? "s" : ""}` : "Sin horas"}
             </span>
             <button onClick={() => setOpen(!open)}
               style={{ fontSize: 11, color: O, background: "none", border: "none", cursor: "pointer", fontWeight: 700, padding: "2px 8px" }}>
@@ -503,39 +536,71 @@ function DayScheduleEditor({ day, label, active, slots, onToggle, onSave, O }) {
         )}
       </div>
 
-      {/* Panel de horas */}
+      {/* Panel de edición */}
       {active && open && (
-        <div style={{ padding: "0 14px 14px", borderTop: "1px solid var(--border)" }}>
-          {/* Horas agregadas */}
-          {slots.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12, marginBottom: 12 }}>
-              {slots.map(s => (
-                <div key={s} style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 10px", borderRadius: 10, background: "var(--card-bg)", border: `1px solid ${O}44` }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: O }}>{s}</span>
-                  <button onClick={() => removeSlot(s)}
-                    style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-faint)", padding: 0, display: "flex", alignItems: "center", lineHeight: 1 }}>
-                    ×
-                  </button>
-                </div>
-              ))}
+        <div style={{ padding: "12px 14px 14px", borderTop: "1px solid var(--border)" }}>
+
+          {/* Toggle modo automático / manual */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+            <button onClick={switchToAuto}
+              style={{ flex: 1, padding: "8px", borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: "pointer", border: "none", background: autoMode ? O : "var(--card-bg)", color: autoMode ? "#fff" : "var(--text-faint)" }}>
+              🔄 Automático
+            </button>
+            <button onClick={switchToManual}
+              style={{ flex: 1, padding: "8px", borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: "pointer", border: "none", background: !autoMode ? O : "var(--card-bg)", color: !autoMode ? "#fff" : "var(--text-faint)" }}>
+              ✏️ Manual
+            </button>
+          </div>
+
+          {/* MODO AUTOMÁTICO */}
+          {autoMode && (
+            <div>
+              <p style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 10 }}>
+                Los clientes pueden reservar cada {" "}
+                <strong style={{ color: "var(--text)" }}>30 min</strong> dentro de este rango.
+                Se repite automáticamente todas las semanas. ✅
+              </p>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <input type="time" value={rangeStart} onChange={e => setRangeStart(e.target.value)}
+                  style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: "var(--card-bg)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 15 }} />
+                <span style={{ color: "var(--text-faint)", fontWeight: 700 }}>–</span>
+                <input type="time" value={rangeEnd} onChange={e => setRangeEnd(e.target.value)}
+                  style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: "var(--card-bg)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 15 }} />
+                <button onClick={() => onSaveRange(rangeStart, rangeEnd)}
+                  style={{ padding: "10px 14px", borderRadius: 10, background: O, color: "#fff", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13, flexShrink: 0 }}>
+                  Guardar
+                </button>
+              </div>
             </div>
           )}
 
-          {slots.length === 0 && (
-            <p style={{ fontSize: 12, color: "var(--text-faint)", marginTop: 10, marginBottom: 10 }}>
-              Agrega las horas en que puedes atender este día.
-            </p>
+          {/* MODO MANUAL */}
+          {!autoMode && (
+            <div>
+              <p style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 10 }}>
+                Agregá cada hora disponible. Hay que actualizarlas manualmente.
+              </p>
+              {slots?.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+                  {slots.map(s => (
+                    <div key={s} style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 10px", borderRadius: 10, background: "var(--card-bg)", border: `1px solid ${O}44` }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: O }}>{s}</span>
+                      <button onClick={() => removeSlot(s)}
+                        style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-faint)", padding: 0, lineHeight: 1 }}>×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input type="time" value={newTime} onChange={e => setNewTime(e.target.value)}
+                  style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: "var(--card-bg)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 15 }} />
+                <button onClick={addSlot} disabled={!newTime || slots?.includes(newTime)}
+                  style={{ padding: "10px 16px", borderRadius: 10, background: newTime ? O : "var(--border)", color: newTime ? "#fff" : "var(--text-faint)", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13, flexShrink: 0 }}>
+                  + Agregar
+                </button>
+              </div>
+            </div>
           )}
-
-          {/* Input para agregar hora */}
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <input type="time" value={newTime} onChange={e => setNewTime(e.target.value)}
-              style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: "var(--card-bg)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 15, fontFamily: "inherit" }} />
-            <button onClick={addSlot} disabled={!newTime || slots.includes(newTime)}
-              style={{ padding: "10px 16px", borderRadius: 10, background: newTime && !slots.includes(newTime) ? O : "var(--border)", color: newTime && !slots.includes(newTime) ? "#fff" : "var(--text-faint)", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13, flexShrink: 0 }}>
-              + Agregar
-            </button>
-          </div>
         </div>
       )}
     </div>
