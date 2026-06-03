@@ -67,10 +67,10 @@ export default function WhatsAppQR({ barberId, barberName, barberPhone }) {
           pollRef.current = setTimeout(startSession, 25000);
           return;
         }
-        if (attempt < 10) retryRef.current = setTimeout(tryFetch, Math.min(attempt * 2000, 8000));
+        if (attempt < 15) retryRef.current = setTimeout(tryFetch, 2000);
         else { setStep("error"); setError("No se pudo generar el QR. Intenta nuevamente."); }
       } catch {
-        if (attempt < 10) retryRef.current = setTimeout(tryFetch, Math.min(attempt * 2000, 8000));
+        if (attempt < 15) retryRef.current = setTimeout(tryFetch, 2000);
         else { setStep("error"); setError("No se puede conectar al servicio de WhatsApp."); }
       }
     }
@@ -175,7 +175,8 @@ export default function WhatsAppQR({ barberId, barberName, barberPhone }) {
       {isLoading && (
         <div style={{ textAlign: "center", padding: "20px 0" }}>
           <Loader2 size={28} color="var(--brand)" style={{ animation: "spin 1s linear infinite", margin: "0 auto 10px" }} />
-          <p style={{ fontSize: 12, color: "var(--text-faint)" }}>Generando QR… puede tardar unos segundos</p>
+          <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 4 }}>Iniciando sesión de WhatsApp...</p>
+          <p style={{ fontSize: 12, color: "var(--text-faint)" }}>La primera vez puede tardar 20-30 segundos.</p>
         </div>
       )}
 
