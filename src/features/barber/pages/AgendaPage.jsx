@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { MapPin, Phone, ChevronDown, ChevronUp, MessageCircle, Calendar, List, Ban, X } from "lucide-react";
+import { MapPin, Phone, ChevronDown, ChevronUp, MessageCircle, Calendar, List, Ban, X, UserPlus } from "lucide-react";
 import FullCalendar from "@fullcalendar/react";
 import esLocale from "@fullcalendar/core/locales/es";
 import dayGridPlugin from "@fullcalendar/daygrid";
@@ -35,6 +35,9 @@ export default function AgendaPage() {
   const [horarioDia, setHorarioDia]     = useState(null);
   const [blockModal, setBlockModal]     = useState(false);
   const [blockForm, setBlockForm]       = useState({ date: "", reason: "" });
+  const [walkModal, setWalkModal]       = useState(false);
+  const [walkForm, setWalkForm]         = useState({ clientName: "", date: "", slot: "", serviceId: "", price: "" });
+  const [walkSaving, setWalkSaving]     = useState(false);
 
   const dateStr = selectedDate;
 
@@ -61,6 +64,15 @@ export default function AgendaPage() {
 
   const bookings  = dateStr ? dayBookings : upcoming;
   const isLoading = loadingProfile || (dateStr ? loadingDay : loadingUpcoming);
+
+  const { data: services = [] } = useQuery({
+    queryKey: ["barber-services-walk", profile?.shop_id],
+    queryFn:  async () => {
+      const { data } = await supabase.from("services").select("id, name, price, duration_min").eq("shop_id", profile.shop_id).eq("is_available", true).order("name");
+      return data ?? [];
+    },
+    enabled: !!profile?.shop_id,
+  });
 
   const statusMut = useMutation({
     mutationFn: ({ id, status }) => updateBookingStatus(id, status),
@@ -195,6 +207,51 @@ export default function AgendaPage() {
     else { toast.success("Día bloqueado ✅ — no recibirás reservas ese día"); setBlockModal(false); setBlockForm({ date: "", reason: "" }); }
   }
 
+  async function saveWalkIn() {
+    if (!walkForm.clientName || !walkForm.date || !walkForm.slot || !walkForm.serviceId || !profile?.id) return;
+    setWalkSaving(true);
+    try {
+      const svc = services.find(s => s.id === walkForm.serviceId);
+      const price = walkForm.price ? Number(walkForm.price) : (svc?.price ?? 0);
+      const scheduledAt = new Date(`${walkForm.date}T${walkForm.slot}:00-04:00`).toISOString();
+
+      // Buscar o crear cliente
+      let clientId;
+      const { data: existing } = await supabase.from("clients")
+        .select("id").eq("shop_id", profile.shop_id).eq("full_name", walkForm.clientName.trim()).maybeSingle();
+      if (existing) {
+        clientId = existing.id;
+      } else {
+        const { data: newClient } = await supabase.from("clients")
+          .insert({ shop_id: profile.shop_id, full_name: walkForm.clientName.trim(), phone: "" }).select("id").single();
+        clientId = newClient.id;
+      }
+
+      const { error } = await supabase.from("bookings").insert({
+        shop_id:      profile.shop_id,
+        barber_id:    profile.id,
+        client_id:    clientId,
+        service_id:   walkForm.serviceId,
+        type:         "in_store",
+        scheduled_at: scheduledAt,
+        duration_min: svc?.duration_min ?? 30,
+        price,
+        status:       "confirmed",
+        client_notes: "Walk-in",
+      });
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ["my-agenda"],   exact: false, refetchType: "all" });
+      qc.invalidateQueries({ queryKey: ["my-upcoming"], exact: false, refetchType: "all" });
+      toast.success("Reserva creada ✅");
+      setWalkModal(false);
+      setWalkForm({ clientName: "", date: "", slot: "", serviceId: "", price: "" });
+    } catch (e) {
+      toast.error(e.message ?? "Error al crear la reserva");
+    } finally {
+      setWalkSaving(false);
+    }
+  }
+
   function buildWaLink(b) {
     const phone = b.clients?.phone?.replace(/\D/g, "");
     if (!phone) return null;
@@ -294,11 +351,72 @@ export default function AgendaPage() {
         </button>
         <input type="date" value={dateStr ?? ""} onChange={e => setSelectedDate(e.target.value || null)}
           style={{ padding: "7px 12px", borderRadius: 20, background: "var(--surface2)", border: `1px solid ${dateStr && !isToday ? O : "var(--border)"}`, color: "var(--text)", fontSize: 13, cursor: "pointer" }} />
+        <button onClick={() => setWalkModal(true)}
+          style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 14px", borderRadius: 20, fontSize: 13, fontWeight: 600, border: `1px solid ${O}44`, background: `${O}11`, color: O, cursor: "pointer" }}>
+          <UserPlus size={13} /> Cliente en local
+        </button>
         <button onClick={() => setBlockModal(true)}
-          style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 14px", borderRadius: 20, fontSize: 13, fontWeight: 600, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.08)", color: "#ef4444", cursor: "pointer", marginLeft: "auto" }}>
+          style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 14px", borderRadius: 20, fontSize: 13, fontWeight: 600, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.08)", color: "#ef4444", cursor: "pointer" }}>
           <Ban size={13} /> Bloquear día
         </button>
       </div>
+
+      {/* Modal cliente en local */}
+      {walkModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 200, display: "flex", alignItems: "flex-end", justifyContent: "center" }}
+          onClick={() => setWalkModal(false)}>
+          <div style={{ background: "var(--card-bg)", borderRadius: "20px 20px 0 0", padding: 24, width: "100%", maxWidth: 480, maxHeight: "90vh", overflowY: "auto" }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <p style={{ fontSize: 17, fontWeight: 800, color: "var(--text)" }}>Cliente en local</p>
+              <button onClick={() => setWalkModal(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-faint)" }}><X size={18} /></button>
+            </div>
+
+            {[
+              { label: "NOMBRE DEL CLIENTE", key: "clientName", placeholder: "Ej: Juan Pérez", type: "text" },
+              { label: "FECHA", key: "date", placeholder: "", type: "date" },
+              { label: "HORA", key: "slot", placeholder: "Ej: 14:30", type: "time" },
+            ].map(({ label, key, placeholder, type }) => (
+              <div key={key} style={{ marginBottom: 14 }}>
+                <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>{label}</label>
+                <input type={type} value={walkForm[key]} onChange={e => setWalkForm(f => ({ ...f, [key]: e.target.value }))}
+                  placeholder={placeholder}
+                  style={{ width: "100%", padding: "11px 13px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14, boxSizing: "border-box", outline: "none" }} />
+              </div>
+            ))}
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>SERVICIO</label>
+              <select value={walkForm.serviceId} onChange={e => {
+                const svc = services.find(s => s.id === e.target.value);
+                setWalkForm(f => ({ ...f, serviceId: e.target.value, price: svc ? String(svc.price) : "" }));
+              }}
+                style={{ width: "100%", padding: "11px 13px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14, boxSizing: "border-box" }}>
+                <option value="">Seleccionar servicio...</option>
+                {services.map(s => <option key={s.id} value={s.id}>{s.name} — {formatCurrency(s.price)}</option>)}
+              </select>
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>PRECIO (opcional)</label>
+              <input type="number" value={walkForm.price} onChange={e => setWalkForm(f => ({ ...f, price: e.target.value }))}
+                placeholder="Se toma del servicio si se deja vacío"
+                style={{ width: "100%", padding: "11px 13px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14, boxSizing: "border-box", outline: "none" }} />
+            </div>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setWalkModal(false)}
+                style={{ flex: 1, padding: "12px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", fontWeight: 600, cursor: "pointer" }}>
+                Cancelar
+              </button>
+              <button onClick={saveWalkIn} disabled={walkSaving || !walkForm.clientName || !walkForm.date || !walkForm.slot || !walkForm.serviceId}
+                style={{ flex: 2, padding: "12px", borderRadius: 10, background: O, border: "none", color: "#fff", fontWeight: 700, cursor: "pointer", opacity: (walkSaving || !walkForm.clientName || !walkForm.date || !walkForm.slot || !walkForm.serviceId) ? 0.6 : 1 }}>
+                {walkSaving ? "Guardando..." : "Crear reserva"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal bloqueo */}
       {blockModal && (
