@@ -564,21 +564,30 @@ function DayScheduleEditor({ day, label, active, slots, startTime, endTime, onTo
           {autoMode && (
             <div>
               <p style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 10 }}>
-                Los clientes pueden reservar cada {" "}
-                <strong style={{ color: "var(--text)" }}>30 min</strong> dentro de este rango.
-                Se repite automáticamente todas las semanas. ✅
+                Slots cada 30 min dentro de este rango. Se repite todas las semanas. ✅
               </p>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <input type="time" value={rangeStart} onChange={e => setRangeStart(e.target.value)}
-                  style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: "var(--card-bg)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 15 }} />
-                <span style={{ color: "var(--text-faint)", fontWeight: 700 }}>–</span>
-                <input type="time" value={rangeEnd} onChange={e => setRangeEnd(e.target.value)}
-                  style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: "var(--card-bg)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 15 }} />
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <select value={rangeStart} onChange={e => setRangeStart(e.target.value)}
+                  style={{ flex: 1, padding: "10px 8px", borderRadius: 10, background: "var(--card-bg)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14 }}>
+                  {Array.from({length: 24}, (_, i) => `${String(i).padStart(2,"0")}:00`).map(h => (
+                    <option key={h} value={h}>{h}</option>
+                  ))}
+                </select>
+                <span style={{ color: "var(--text-faint)", fontWeight: 700, flexShrink: 0 }}>hasta</span>
+                <select value={rangeEnd} onChange={e => setRangeEnd(e.target.value)}
+                  style={{ flex: 1, padding: "10px 8px", borderRadius: 10, background: "var(--card-bg)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14 }}>
+                  {Array.from({length: 24}, (_, i) => `${String(i).padStart(2,"0")}:00`).map(h => (
+                    <option key={h} value={h}>{h}</option>
+                  ))}
+                </select>
                 <button onClick={() => onSaveRange(rangeStart, rangeEnd)}
                   style={{ padding: "10px 14px", borderRadius: 10, background: O, color: "#fff", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13, flexShrink: 0 }}>
                   Guardar
                 </button>
               </div>
+              {rangeEnd <= rangeStart && (
+                <p style={{ fontSize: 12, color: "#ef4444" }}>⚠️ La hora de fin debe ser mayor que la de inicio</p>
+              )}
             </div>
           )}
 
