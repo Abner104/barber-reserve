@@ -10,7 +10,7 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 export function usePushNotifications(barberId) {
-  const [permission, setPermission] = useState(Notification.permission);
+  const [permission, setPermission] = useState(() => typeof Notification !== "undefined" ? Notification.permission : "default");
   const [subscribed, setSubscribed] = useState(false);
   const [loading, setLoading]       = useState(false);
 
@@ -58,7 +58,7 @@ export function usePushNotifications(barberId) {
     } catch {}
   }
 
-  const supported = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  const supported = typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 
   return { supported, permission, subscribed, loading, subscribe, unsubscribe };
 }
