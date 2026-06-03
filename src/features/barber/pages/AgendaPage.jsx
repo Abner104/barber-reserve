@@ -130,36 +130,43 @@ export default function AgendaPage() {
 
   async function saveSlots(day, slots) {
     if (!profile) return;
-    const sorted = [...slots].sort();
+    const sorted   = [...slots].sort();
     const lastSlot = sorted[sorted.length - 1] ?? "09:00";
-    const [h, m]   = lastSlot.split(":").map(Number);
-    const t        = h * 60 + m + 30;
+    const [hh, mm] = lastSlot.split(":").map(Number);
+    const t        = hh * 60 + mm + 30;
     const end      = `${String(Math.floor(t/60)).padStart(2,"0")}:${String(t%60).padStart(2,"0")}`;
 
-    const { error } = await supabase.from("working_hours").upsert({
-      shop_id:         profile.shop_id,
-      barber_id:       profile.id,
-      day,
-      start_time:      sorted[0] ?? "09:00",
-      end_time:        end,
-      is_active:       true,
-      available_slots: sorted.length ? sorted : null,
-    }, { onConflict: "barber_id,day" });
+    const { data: existing } = await supabase.from("working_hours")
+      .select("id").eq("barber_id", profile.id).eq("day", day).maybeSingle();
+
+    let error;
+    if (existing?.id) {
+      ({ error } = await supabase.from("working_hours")
+        .update({ start_time: sorted[0] ?? "09:00", end_time: end, is_active: true, available_slots: sorted.length ? sorted : null })
+        .eq("id", existing.id));
+    } else {
+      ({ error } = await supabase.from("working_hours")
+        .insert({ shop_id: profile.shop_id, barber_id: profile.id, day, start_time: sorted[0] ?? "09:00", end_time: end, is_active: true, available_slots: sorted.length ? sorted : null }));
+    }
     if (error) { console.error("saveSlots error:", error); toast.error("Error: " + error.message); }
     else { refetchHours(); toast.success("Horario guardado ✅"); }
   }
 
   async function saveRange(day, start_time, end_time) {
     if (!profile) return;
-    const { error } = await supabase.from("working_hours").upsert({
-      shop_id:         profile.shop_id,
-      barber_id:       profile.id,
-      day,
-      start_time,
-      end_time,
-      is_active:       true,
-      available_slots: null, // null = modo automático
-    }, { onConflict: "barber_id,day" });
+    // Intentar UPDATE primero (fila ya existe), luego INSERT si no existe
+    const { data: existing } = await supabase.from("working_hours")
+      .select("id").eq("barber_id", profile.id).eq("day", day).maybeSingle();
+
+    let error;
+    if (existing?.id) {
+      ({ error } = await supabase.from("working_hours")
+        .update({ start_time, end_time, is_active: true, available_slots: null })
+        .eq("id", existing.id));
+    } else {
+      ({ error } = await supabase.from("working_hours")
+        .insert({ shop_id: profile.shop_id, barber_id: profile.id, day, start_time, end_time, is_active: true, available_slots: null }));
+    }
     if (error) toast.error("Error: " + error.message);
     else { refetchHours(); toast.success("Horario automático guardado ✅ — se repite todas las semanas"); }
   }
