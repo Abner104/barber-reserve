@@ -172,7 +172,7 @@ function ShopDetail({ shop, planMut, expired, plan }) {
         .from("profiles")
         .select("id, full_name")
         .eq("shop_id", shop.id)
-        .eq("role", "admin")
+        .in("role", ["admin", "owner"])
         .maybeSingle();
       return data;
     },
