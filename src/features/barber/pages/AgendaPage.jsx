@@ -569,14 +569,14 @@ function DayScheduleEditor({ day, label, active, slots, startTime, endTime, onTo
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
                 <select value={rangeStart} onChange={e => setRangeStart(e.target.value)}
                   style={{ flex: 1, padding: "10px 8px", borderRadius: 10, background: "var(--card-bg)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14 }}>
-                  {Array.from({length: 24}, (_, i) => `${String(i).padStart(2,"0")}:00`).map(h => (
+                  {Array.from({length: 48}, (_, i) => { const h = Math.floor(i/2); const m = i%2===0?"00":"30"; return `${String(h).padStart(2,"0")}:${m}`; }).map(h => (
                     <option key={h} value={h}>{h}</option>
                   ))}
                 </select>
                 <span style={{ color: "var(--text-faint)", fontWeight: 700, flexShrink: 0 }}>hasta</span>
                 <select value={rangeEnd} onChange={e => setRangeEnd(e.target.value)}
                   style={{ flex: 1, padding: "10px 8px", borderRadius: 10, background: "var(--card-bg)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14 }}>
-                  {Array.from({length: 24}, (_, i) => `${String(i).padStart(2,"0")}:00`).map(h => (
+                  {Array.from({length: 48}, (_, i) => { const h = Math.floor(i/2); const m = i%2===0?"00":"30"; return `${String(h).padStart(2,"0")}:${m}`; }).map(h => (
                     <option key={h} value={h}>{h}</option>
                   ))}
                 </select>
