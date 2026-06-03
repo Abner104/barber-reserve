@@ -270,6 +270,23 @@ export async function createBooking({ type, serviceId, barberId, date, slot, dur
   `).single();
   if (error) throw error;
 
+  // Enviar push notification al barbero
+  try {
+    const at   = new Date(`${date}T${slot}:00-04:00`);
+    const hora = at.toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", timeZone: "America/Santiago" });
+    const dia  = at.toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Santiago" });
+    await fetch("/api/push-notify", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        barberId: barberId,
+        title:    "🔔 Nueva reserva",
+        message:  `${clientInfo.full_name} · ${dia} a las ${hora}`,
+        url:      "/barber",
+      }),
+    });
+  } catch {}
+
   return data;
 }
 

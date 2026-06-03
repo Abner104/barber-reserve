@@ -6,8 +6,48 @@ import { getMyBarberProfile, updateMyAvailability } from "../services/barberServ
 import { supabase } from "../../../lib/supabase";
 import ImageUpload from "../../../components/shared/ImageUpload";
 import WhatsAppQR from "../../admin/components/WhatsAppQR";
+import { usePushNotifications } from "../../../hooks/usePushNotifications";
+import { Bell, BellOff } from "lucide-react";
 
 const O = "var(--brand, #FF6B2C)";
+
+function PushNotifSection({ barberId }) {
+  const { supported, permission, subscribed, loading, subscribe, unsubscribe } = usePushNotifications(barberId);
+  const O = "var(--brand, #FF6B2C)";
+
+  if (!supported) return null;
+
+  return (
+    <div style={{ marginBottom: 16, padding: "14px 16px", background: "var(--surface2)", borderRadius: 12, border: "1px solid var(--border)" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {subscribed ? <Bell size={16} color="#22c55e" /> : <BellOff size={16} color="var(--text-faint)" />}
+          <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>
+            Notificaciones en el celular
+          </p>
+        </div>
+        <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: subscribed ? "rgba(34,197,94,0.1)" : "rgba(113,113,122,0.1)", color: subscribed ? "#22c55e" : "var(--text-faint)" }}>
+          {subscribed ? "Activo" : "Inactivo"}
+        </span>
+      </div>
+      <p style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 10, lineHeight: 1.5 }}>
+        {subscribed ? "Recibirás una notificación instantánea cuando llegue una reserva nueva." : "Activá las notificaciones para recibir alertas cuando llegue una reserva."}
+      </p>
+      {permission === "denied" ? (
+        <p style={{ fontSize: 12, color: "#ef4444" }}>⚠️ Notificaciones bloqueadas en este navegador. Habilitarlas en Configuración del sitio.</p>
+      ) : subscribed ? (
+        <button onClick={unsubscribe} style={{ fontSize: 12, color: "var(--text-faint)", background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 14px", cursor: "pointer" }}>
+          Desactivar notificaciones
+        </button>
+      ) : (
+        <button onClick={subscribe} disabled={loading} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", borderRadius: 10, background: O, color: "#fff", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13, opacity: loading ? 0.7 : 1 }}>
+          {loading ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Bell size={14} />}
+          {loading ? "Activando..." : "Activar notificaciones"}
+        </button>
+      )}
+    </div>
+  );
+}
 
 export default function PerfilPage() {
   const qc = useQueryClient();
@@ -258,6 +298,9 @@ export default function PerfilPage() {
           </div>
         </div>
       </div>
+
+      {/* Push Notifications */}
+      {barber?.id && <PushNotifSection barberId={barber.id} />}
 
       {/* WhatsApp — el barbero conecta su propio WS */}
       {barber?.id && (
