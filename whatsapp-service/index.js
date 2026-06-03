@@ -22,12 +22,23 @@ app.use(express.json());
 
 const sessions = {};
 
+// Cachear la versión de Baileys — evita llamada HTTP en cada sesión nueva
+let cachedVersion = null;
+async function getBaileysVersion() {
+  if (cachedVersion) return cachedVersion;
+  const { version } = await fetchLatestBaileysVersion();
+  cachedVersion = version;
+  return version;
+}
+
 async function startSession(barberId) {
+  if (sessions[barberId]?.status === "connecting" || sessions[barberId]?.status === "qr_ready") return;
+
   const authDir = `./sessions/${barberId}`;
   if (!existsSync(authDir)) mkdirSync(authDir, { recursive: true });
 
   const { state, saveCreds } = await useMultiFileAuthState(authDir);
-  const { version }          = await fetchLatestBaileysVersion();
+  const version              = await getBaileysVersion();
 
   const sock = makeWASocket({
     version,
@@ -71,14 +82,28 @@ async function startSession(barberId) {
 
 app.get("/qr/:barberId", async (req, res) => {
   const { barberId } = req.params;
-  if (!sessions[barberId]) startSession(barberId).catch(console.error);
-  const session = sessions[barberId];
-  if (session?.status === "connected") return res.json({ status: "connected", qr: null });
-  let waited = 0;
-  while (!session?.qr && waited < 20000) {
-    await new Promise(r => setTimeout(r, 500));
-    waited += 500;
+
+  // Si no hay sesión, arrancarla y esperar
+  if (!sessions[barberId]) {
+    startSession(barberId).catch(console.error);
+    // Dar tiempo a que se inicialice el objeto en sessions[]
+    await new Promise(r => setTimeout(r, 300));
   }
+
+  if (sessions[barberId]?.status === "connected") {
+    return res.json({ status: "connected", qr: null });
+  }
+
+  // Polling interno: esperar hasta 25s a que aparezca el QR
+  let waited = 0;
+  while (waited < 25000) {
+    const s = sessions[barberId];
+    if (s?.status === "connected") return res.json({ status: "connected", qr: null });
+    if (s?.qr) return res.json({ status: "qr_ready", qr: s.qr });
+    await new Promise(r => setTimeout(r, 400));
+    waited += 400;
+  }
+
   const s = sessions[barberId];
   res.json({ status: s?.status ?? "connecting", qr: s?.qr ?? null });
 });
