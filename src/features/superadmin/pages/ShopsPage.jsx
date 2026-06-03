@@ -164,34 +164,19 @@ function ShopDetail({ shop, planMut, expired, plan }) {
   const [newPassword, setNewPassword]   = useState("");
   const [savingPwd, setSavingPwd]       = useState(false);
 
-  // Obtener el user_id del dueño de esta barbería
-  const { data: ownerProfile } = useQuery({
-    queryKey: ["sa-shop-owner", shop.id],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("id, full_name")
-        .eq("shop_id", shop.id)
-        .or("role.eq.admin,role.eq.owner")
-        .maybeSingle();
-      return data;
-    },
-  });
-
   async function handleResetPassword(e) {
     e.preventDefault();
     if (!newPassword || newPassword.length < 6) { toast.error("Mínimo 6 caracteres"); return; }
-    if (!ownerProfile?.id) { toast.error("No se encontró el usuario admin de esta barbería"); return; }
     setSavingPwd(true);
     try {
       const res = await fetch("/api/reset-user-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: ownerProfile.id, newPassword }),
+        body: JSON.stringify({ shopId: shop.id, newPassword }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      toast.success(`Contraseña de ${ownerProfile.full_name || shop.name} actualizada ✓`);
+      toast.success(`Contraseña de ${shop.name} actualizada ✓`);
       setNewPassword("");
       setShowPwdForm(false);
     } catch (e) {
@@ -299,11 +284,6 @@ function ShopDetail({ shop, planMut, expired, plan }) {
                 {savingPwd ? "Guardando..." : "Confirmar"}
               </button>
             </form>
-          )}
-          {ownerProfile && (
-            <p style={{ fontSize: 11, color: "#3f3f3f", marginTop: 5 }}>
-              Admin: {ownerProfile.full_name || "—"} · ID: {ownerProfile.id.slice(0,8)}...
-            </p>
           )}
         </div>
 

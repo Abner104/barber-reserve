@@ -7,14 +7,41 @@ export default async function handler(req, res) {
   let body = req.body;
   if (typeof body === "string") { try { body = JSON.parse(body); } catch { body = {}; } }
 
-  const { userId, newPassword } = body ?? {};
-  if (!userId || !newPassword || newPassword.length < 6) {
-    res.status(400).json({ error: "userId y newPassword (mín. 6 caracteres) son requeridos" });
+  const { userId, shopId, newPassword } = body ?? {};
+  if (!newPassword || newPassword.length < 6) {
+    res.status(400).json({ error: "newPassword (mín. 6 caracteres) es requerido" });
+    return;
+  }
+
+  const headers = {
+    "Content-Type":  "application/json",
+    "Authorization": `Bearer ${SUPABASE_SERVICE}`,
+    "apikey":        SUPABASE_SERVICE,
+  };
+
+  let targetUserId = userId;
+
+  // Si no viene userId pero sí shopId, buscar el owner del shop
+  if (!targetUserId && shopId) {
+    const profileRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/profiles?shop_id=eq.${shopId}&role=in.(admin,owner)&select=id,full_name&limit=1`,
+      { headers }
+    );
+    const profiles = await profileRes.json();
+    if (!profiles?.[0]?.id) {
+      res.status(404).json({ error: "No se encontró el usuario admin de esta barbería" });
+      return;
+    }
+    targetUserId = profiles[0].id;
+  }
+
+  if (!targetUserId) {
+    res.status(400).json({ error: "Se requiere userId o shopId" });
     return;
   }
 
   try {
-    const r = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
+    const r = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${targetUserId}`, {
       method: "PUT",
       headers: {
         "Content-Type":  "application/json",
