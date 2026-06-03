@@ -154,6 +154,7 @@ export default function AgendaPage() {
 
   async function saveRange(day, start_time, end_time) {
     if (!profile) return;
+    if (end_time <= start_time) { toast.error("La hora de fin debe ser mayor que la de inicio"); return; }
     // Intentar UPDATE primero (fila ya existe), luego INSERT si no existe
     const { data: existing } = await supabase.from("working_hours")
       .select("id").eq("barber_id", profile.id).eq("day", day).maybeSingle();
