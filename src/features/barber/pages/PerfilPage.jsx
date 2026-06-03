@@ -14,37 +14,86 @@ const O = "var(--brand, #FF6B2C)";
 function PushNotifSection({ barberId }) {
   const { supported, permission, subscribed, loading, subscribe, unsubscribe } = usePushNotifications(barberId);
   const O = "var(--brand, #FF6B2C)";
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isInstalled = window.matchMedia("(display-mode: standalone)").matches;
 
-  if (!supported) return null;
-
-  return (
-    <div style={{ marginBottom: 16, padding: "14px 16px", background: "var(--surface2)", borderRadius: 12, border: "1px solid var(--border)" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {subscribed ? <Bell size={16} color="#22c55e" /> : <BellOff size={16} color="var(--text-faint)" />}
-          <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>
-            Notificaciones en el celular
-          </p>
+  // Si ya está suscrito — mostrar estado activo simple
+  if (subscribed) {
+    return (
+      <div style={{ marginBottom: 16, padding: "14px 16px", background: "rgba(34,197,94,0.06)", borderRadius: 12, border: "1px solid rgba(34,197,94,0.2)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Bell size={16} color="#22c55e" />
+            <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>Notificaciones activas ✅</p>
+          </div>
+          <button onClick={unsubscribe} style={{ fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer" }}>Desactivar</button>
         </div>
-        <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: subscribed ? "rgba(34,197,94,0.1)" : "rgba(113,113,122,0.1)", color: subscribed ? "#22c55e" : "var(--text-faint)" }}>
-          {subscribed ? "Activo" : "Inactivo"}
-        </span>
+        <p style={{ fontSize: 12, color: "var(--text-faint)", marginTop: 4 }}>Te avisamos cuando llega una reserva nueva.</p>
       </div>
-      <p style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 10, lineHeight: 1.5 }}>
-        {subscribed ? "Recibirás una notificación instantánea cuando llegue una reserva nueva." : "Activá las notificaciones para recibir alertas cuando llegue una reserva."}
+    );
+  }
+
+  // iOS sin instalar — guía para agregar a pantalla de inicio
+  if (isIOS && !isInstalled) {
+    return (
+      <div style={{ marginBottom: 16, padding: "16px", background: "rgba(255,107,44,0.06)", borderRadius: 12, border: "1px solid rgba(255,107,44,0.25)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+          <Bell size={16} color={O} />
+          <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>Activar notificaciones en iPhone</p>
+        </div>
+        <p style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 12, lineHeight: 1.6 }}>
+          Para recibir alertas de reservas en tu iPhone, primero agregá la app a tu pantalla de inicio:
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {[
+            "1️⃣  Tocá el botón compartir (cuadrado con flecha) en Safari",
+            "2️⃣  Elegí \"Agregar a pantalla de inicio\"",
+            "3️⃣  Abrí la app desde el ícono que aparece",
+            "4️⃣  Volvé a este perfil y activá las notificaciones",
+          ].map((step, i) => (
+            <div key={i} style={{ fontSize: 13, color: "var(--text)", lineHeight: 1.5 }}>{step}</div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Sin soporte (navegador muy viejo)
+  if (!supported) {
+    return (
+      <div style={{ marginBottom: 16, padding: "12px 16px", background: "var(--surface2)", borderRadius: 12, border: "1px solid var(--border)" }}>
+        <p style={{ fontSize: 12, color: "var(--text-faint)" }}>⚠️ Tu navegador no soporta notificaciones. Usá Chrome o Safari actualizado.</p>
+      </div>
+    );
+  }
+
+  // Notificaciones bloqueadas
+  if (permission === "denied") {
+    return (
+      <div style={{ marginBottom: 16, padding: "12px 16px", background: "rgba(239,68,68,0.06)", borderRadius: 12, border: "1px solid rgba(239,68,68,0.2)" }}>
+        <p style={{ fontSize: 13, fontWeight: 700, color: "#ef4444", marginBottom: 4 }}>Notificaciones bloqueadas</p>
+        <p style={{ fontSize: 12, color: "var(--text-faint)", lineHeight: 1.5 }}>
+          Habilitarlas en: <strong>Configuración del navegador → Permisos del sitio → Notificaciones → Permitir</strong>
+        </p>
+      </div>
+    );
+  }
+
+  // Listo para activar
+  return (
+    <div style={{ marginBottom: 16, padding: "16px", background: "rgba(255,107,44,0.06)", borderRadius: 12, border: "1px solid rgba(255,107,44,0.25)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <BellOff size={16} color={O} />
+        <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>Activá las notificaciones</p>
+      </div>
+      <p style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 12, lineHeight: 1.5 }}>
+        Recibís una alerta instantánea en tu celular cada vez que llegue una reserva nueva — aunque la app esté cerrada.
       </p>
-      {permission === "denied" ? (
-        <p style={{ fontSize: 12, color: "#ef4444" }}>⚠️ Notificaciones bloqueadas en este navegador. Habilitarlas en Configuración del sitio.</p>
-      ) : subscribed ? (
-        <button onClick={unsubscribe} style={{ fontSize: 12, color: "var(--text-faint)", background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 14px", cursor: "pointer" }}>
-          Desactivar notificaciones
-        </button>
-      ) : (
-        <button onClick={subscribe} disabled={loading} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", borderRadius: 10, background: O, color: "#fff", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13, opacity: loading ? 0.7 : 1 }}>
-          {loading ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Bell size={14} />}
-          {loading ? "Activando..." : "Activar notificaciones"}
-        </button>
-      )}
+      <button onClick={subscribe} disabled={loading}
+        style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px", borderRadius: 10, background: O, color: "#fff", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 14, opacity: loading ? 0.7 : 1 }}>
+        {loading ? <Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} /> : <Bell size={15} />}
+        {loading ? "Activando..." : "Activar notificaciones ahora"}
+      </button>
     </div>
   );
 }
