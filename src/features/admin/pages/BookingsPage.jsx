@@ -55,8 +55,9 @@ export default function BookingsPage() {
   const [filterBarber, setFilterBarber] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [detailId, setDetailId]   = useState(null);
-  const [cancelModal, setCancelModal] = useState(null); // booking a cancelar
+  const [cancelModal, setCancelModal] = useState(null);
   const [cancelReason, setCancelReason] = useState("");
+  const [showAll, setShowAll] = useState(false);
 
   // Rango de fechas — null significa "todas las próximas"
   const { from, to } = useMemo(() => {
@@ -68,16 +69,16 @@ export default function BookingsPage() {
       };
     }
     if (!selectedDate) {
-      // Sin filtro: desde ahora en adelante
-      return { from: new Date().toISOString(), to: null };
+      // Sin filtro: desde ahora en adelante (o todo si showAll)
+      return { from: showAll ? null : new Date().toISOString(), to: null };
     }
     const d = format(selectedDate, "yyyy-MM-dd");
     return { from: `${d}T00:00:00-04:00`, to: `${d}T23:59:59-04:00` };
   }, [view, selectedDate]);
 
   const { data: bookings = [], isLoading } = useQuery({
-    queryKey: ["admin-bookings", from, to, filterBarber, filterStatus],
-    queryFn:  () => getBookings({ from, to: to ?? undefined, barberId: filterBarber || undefined, status: filterStatus || undefined }),
+    queryKey: ["admin-bookings", from, to, filterBarber, filterStatus, showAll],
+    queryFn:  () => getBookings({ from: from ?? undefined, to: to ?? undefined, barberId: filterBarber || undefined, status: filterStatus || undefined }),
     refetchInterval: 30000,
   });
 
@@ -116,7 +117,7 @@ export default function BookingsPage() {
 
   const dateLabel = selectedDate
     ? format(selectedDate, "EEEE d 'de' MMMM", { locale: es })
-    : "Todas las próximas";
+    : showAll ? "Todas las reservas" : "Próximas reservas";
 
   return (
     <div className="admin-page" style={{ maxWidth: "min(1100px, 100%)" }}>
@@ -177,6 +178,12 @@ export default function BookingsPage() {
           <option value="">Todos los estados</option>
           {Object.entries(BOOKING_STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
+        <button
+          onClick={() => { setShowAll(s => !s); setSelectedDate(null); }}
+          style={{ padding: "8px 14px", borderRadius: 9, background: showAll ? O : "var(--card-bg)", border: `1px solid ${showAll ? O : "var(--border)"}`, color: showAll ? "#fff" : "var(--text-faint)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+        >
+          {showAll ? "Solo próximas" : "Ver historial"}
+        </button>
 
         {/* contador */}
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, color: "var(--text-faint)", fontSize: 13 }}>
