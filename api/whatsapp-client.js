@@ -1,7 +1,6 @@
-// Envía mensajes al cliente (confirmación, recordatorio, cancelación)
-import { sendWhatsApp } from "./whatsapp-send.js";
+const { sendWhatsApp } = require("./whatsapp-send.js");
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== "POST") { res.status(405).end(); return; }
   let body = req.body;
   if (typeof body === "string") { try { body = JSON.parse(body); } catch { body = {}; } }
@@ -9,10 +8,8 @@ export default async function handler(req, res) {
   const { phone, type, clientName, serviceName, barberName, shopName, date, time, reason } = body ?? {};
   if (!phone || !type) { res.status(400).json({ error: "phone y type requeridos" }); return; }
 
-  let msg = "";
-
-  if (type === "confirmed") {
-    msg = [
+  const msgs = {
+    confirmed: [
       `✅ *Reserva confirmada — ${shopName || "Barbería"}*`,
       ``,
       `Hola ${clientName || ""}! Tu reserva está confirmada 💈`,
@@ -22,9 +19,8 @@ export default async function handler(req, res) {
       `📅 ${date} a las ${time}`,
       ``,
       `Te esperamos. Si necesitás cancelar escribí acá.`,
-    ].join("\n");
-  } else if (type === "reminder") {
-    msg = [
+    ].join("\n"),
+    reminder: [
       `⏰ *Recordatorio — ${shopName || "Barbería"}*`,
       ``,
       `Hola ${clientName || ""}! Te recordamos tu reserva de hoy:`,
@@ -33,27 +29,26 @@ export default async function handler(req, res) {
       `👤 Con: ${barberName}`,
       ``,
       `¡Te esperamos! 💈`,
-    ].join("\n");
-  } else if (type === "cancelled") {
-    msg = [
+    ].join("\n"),
+    cancelled: [
       `❌ *Reserva cancelada — ${shopName || "Barbería"}*`,
       ``,
-      `Hola ${clientName || ""}, lamentablemente tu reserva fue cancelada.`,
-      reason ? `\nMotivo: ${reason}` : "",
+      `Hola ${clientName || ""}, tu reserva fue cancelada.`,
+      reason ? `Motivo: ${reason}` : "",
       ``,
-      `Podés reagendar en: clipprreserve.com`,
-    ].filter(Boolean).join("\n");
-  } else if (type === "noshow") {
-    msg = [
+      `Reagendá en: clipprreserve.com`,
+    ].filter(Boolean).join("\n"),
+    noshow: [
       `😔 *${shopName || "Barbería"}*`,
       ``,
-      `Hola ${clientName || ""}, notamos que no pudiste venir a tu reserva de hoy.`,
+      `Hola ${clientName || ""}, notamos que no pudiste venir hoy.`,
       ``,
-      `Cuando quieras podés reagendar en: clipprreserve.com`,
-    ].join("\n");
-  }
+      `Reagendá cuando quieras: clipprreserve.com`,
+    ].join("\n"),
+  };
 
-  if (!msg) { res.status(400).json({ error: "Tipo de mensaje no válido" }); return; }
+  const msg = msgs[type];
+  if (!msg) { res.status(400).json({ error: "Tipo no válido" }); return; }
 
   try {
     await sendWhatsApp(phone, msg);
@@ -61,4 +56,4 @@ export default async function handler(req, res) {
   } catch (e) {
     res.status(400).json({ error: e.message });
   }
-}
+};
