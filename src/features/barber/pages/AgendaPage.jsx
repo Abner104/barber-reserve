@@ -38,6 +38,9 @@ export default function AgendaPage() {
   const [walkModal, setWalkModal]       = useState(false);
   const [walkForm, setWalkForm]         = useState({ clientName: "", date: "", slot: "", serviceId: "", price: "" });
   const [walkSaving, setWalkSaving]     = useState(false);
+  const [detailModal, setDetailModal]   = useState(null); // booking para ver detalles
+
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
 
   const dateStr = selectedDate;
 
@@ -277,19 +280,21 @@ export default function AgendaPage() {
             </div>
           )}
         </div>
-        {/* Toggle Lista / Calendario */}
-        <div style={{ display: "flex", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 10, padding: 3, gap: 3, flexShrink: 0 }}>
-          {[["list", <List size={14} />], ["calendar", <Calendar size={14} />]].map(([v, icon]) => (
-            <button key={v} onClick={() => setView(v)} style={{
-              padding: "6px 10px", borderRadius: 7, border: "none", cursor: "pointer",
-              background: view === v ? O : "transparent",
-              color: view === v ? "#fff" : "var(--text-faint)",
-              display: "flex", alignItems: "center",
-            }}>
-              {icon}
-            </button>
-          ))}
-        </div>
+        {/* Toggle Lista / Calendario — solo desktop */}
+        {!isMobile && (
+          <div style={{ display: "flex", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 10, padding: 3, gap: 3, flexShrink: 0 }}>
+            {[["list", <List size={14} />], ["calendar", <Calendar size={14} />]].map(([v, icon]) => (
+              <button key={v} onClick={() => setView(v)} style={{
+                padding: "6px 10px", borderRadius: 7, border: "none", cursor: "pointer",
+                background: view === v ? O : "transparent",
+                color: view === v ? "#fff" : "var(--text-faint)",
+                display: "flex", alignItems: "center",
+              }}>
+                {icon}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── HORARIO RÁPIDO ── */}
@@ -542,7 +547,7 @@ export default function AgendaPage() {
 
           return (
             <div key={b.id} style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 14, overflow: "hidden" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", cursor: "pointer" }} onClick={() => setExpanded(isOpen ? null : b.id)}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", cursor: "pointer" }} onClick={() => isMobile ? setDetailModal(b) : setExpanded(isOpen ? null : b.id)}>
                 {/* Hora */}
                 <div style={{ textAlign: "center", minWidth: 44, flexShrink: 0 }}>
                   <p style={{ fontWeight: 800, fontSize: 15, color: "var(--text)" }}>{format(new Date(b.scheduled_at), "HH:mm")}</p>
@@ -611,6 +616,96 @@ export default function AgendaPage() {
         })}
       </div>}
 
+      {/* ── MODAL DETALLE RESERVA (mobile) ── */}
+      {detailModal && (() => {
+        const b       = detailModal;
+        const sc      = BOOKING_STATUS_COLOR[b.status] ?? { bg: "var(--surface2)", text: "var(--text-faint)" };
+        const actions = STATUS_ACTIONS[b.status] ?? [];
+        const waLink  = buildWaLink(b);
+        const at      = new Date(b.scheduled_at);
+        const dia     = format(at, "EEEE d 'de' MMMM", { locale: es });
+        const hora    = format(at, "HH:mm");
+        return (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 300, display: "flex", alignItems: "flex-end", justifyContent: "center" }}
+            onClick={() => setDetailModal(null)}>
+            <div style={{ background: "var(--card-bg)", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 520, maxHeight: "85vh", overflowY: "auto", padding: 24 }}
+              onClick={e => e.stopPropagation()}>
+
+              {/* Handle */}
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: "var(--border)", margin: "0 auto 20px" }} />
+
+              {/* Estado badge */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+                <div>
+                  <p style={{ fontWeight: 800, fontSize: 20, color: "var(--text)", marginBottom: 4 }}>{b.clients?.full_name}</p>
+                  <p style={{ fontSize: 14, color: "var(--text-faint)" }}>{b.services?.name}</p>
+                </div>
+                <span style={{ padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700, background: sc.bg, color: sc.text }}>
+                  {BOOKING_STATUS_LABEL[b.status]}
+                </span>
+              </div>
+
+              {/* Info */}
+              <div style={{ background: "var(--surface2)", borderRadius: 12, padding: "14px 16px", marginBottom: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 13, color: "var(--text-faint)" }}>📅 Fecha</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", textTransform: "capitalize" }}>{dia}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 13, color: "var(--text-faint)" }}>🕐 Hora</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{hora} · {b.duration_min}min</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 13, color: "var(--text-faint)" }}>💰 Precio</span>
+                  <span style={{ fontSize: 14, fontWeight: 800, color: O }}>{formatCurrency(b.price)}</span>
+                </div>
+                {b.type === "delivery" && b.address_line && (
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                    <span style={{ fontSize: 13, color: "#3b82f6", flexShrink: 0 }}>📍 Domicilio</span>
+                    <span style={{ fontSize: 12, color: "#3b82f6", textAlign: "right" }}>{b.address_line}</span>
+                  </div>
+                )}
+                {b.client_notes && (
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <span style={{ fontSize: 13, color: "var(--text-faint)", flexShrink: 0 }}>📝 Nota</span>
+                    <span style={{ fontSize: 12, color: "var(--text-faint)", fontStyle: "italic" }}>{b.client_notes}</span>
+                  </div>
+                )}
+                {b.clients?.phone && (
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 13, color: "var(--text-faint)" }}>📱 Teléfono</span>
+                    <a href={`tel:${b.clients.phone}`} style={{ fontSize: 13, color: O, fontWeight: 600 }}>{b.clients.phone}</a>
+                  </div>
+                )}
+              </div>
+
+              {/* Acciones */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {actions.map(a => (
+                  <button key={a.to}
+                    onClick={async () => {
+                      await handleActionClick(b, a);
+                      setDetailModal(null);
+                    }}
+                    style={{ width: "100%", padding: "13px", borderRadius: 12, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 15, background: `${a.color}18`, color: a.color }}>
+                    {a.label}
+                  </button>
+                ))}
+                {waLink && (
+                  <a href={waLink} target="_blank" rel="noopener noreferrer"
+                    style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "13px", borderRadius: 12, background: "rgba(37,211,102,0.1)", color: "#25d166", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>
+                    <MessageCircle size={16} /> Enviar recordatorio WS
+                  </a>
+                )}
+                <button onClick={() => setDetailModal(null)}
+                  style={{ width: "100%", padding: "13px", borderRadius: 12, border: "1px solid var(--border)", background: "none", color: "var(--text-faint)", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );
