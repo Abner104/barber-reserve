@@ -280,21 +280,19 @@ export default function AgendaPage() {
             </div>
           )}
         </div>
-        {/* Toggle Lista / Calendario — solo desktop */}
-        {!isMobile && (
-          <div style={{ display: "flex", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 10, padding: 3, gap: 3, flexShrink: 0 }}>
-            {[["list", <List size={14} />], ["calendar", <Calendar size={14} />]].map(([v, icon]) => (
-              <button key={v} onClick={() => setView(v)} style={{
-                padding: "6px 10px", borderRadius: 7, border: "none", cursor: "pointer",
-                background: view === v ? O : "transparent",
-                color: view === v ? "#fff" : "var(--text-faint)",
-                display: "flex", alignItems: "center",
-              }}>
-                {icon}
-              </button>
-            ))}
-          </div>
-        )}
+        {/* Toggle Lista / Calendario */}
+        <div style={{ display: "flex", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 10, padding: 3, gap: 3, flexShrink: 0 }}>
+          {[["list", <List size={14} />], ["calendar", <Calendar size={14} />]].map(([v, icon]) => (
+            <button key={v} onClick={() => setView(v)} style={{
+              padding: "6px 10px", borderRadius: 7, border: "none", cursor: "pointer",
+              background: view === v ? O : "transparent",
+              color: view === v ? "#fff" : "var(--text-faint)",
+              display: "flex", alignItems: "center",
+            }}>
+              {icon}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ── HORARIO RÁPIDO ── */}
@@ -479,46 +477,75 @@ export default function AgendaPage() {
           <style>{`
             .fc { color: var(--text); font-family: inherit; font-size: 13px; }
             .fc-theme-standard td, .fc-theme-standard th, .fc-theme-standard .fc-scrollgrid { border-color: var(--border) !important; }
-            .fc .fc-toolbar-title { font-size: 14px; font-weight: 800; color: var(--text); }
-            .fc .fc-button { background: var(--surface2) !important; border: 1px solid var(--border) !important; color: var(--text-muted) !important; font-size: 11px !important; border-radius: 6px !important; padding: 4px 8px !important; }
-            .fc .fc-button-active { background: var(--brand, #FF6B2C) !important; border-color: var(--brand, #FF6B2C) !important; color: #fff !important; box-shadow: none !important; }
-            .fc-daygrid-day-number, .fc-col-header-cell-cushion { color: var(--text-muted) !important; font-size: 11px; text-decoration: none !important; }
-            .fc-day-today { background: var(--brand-alpha, rgba(255,107,44,0.05)) !important; }
-            .fc-event { border-radius: 5px !important; padding: 1px 4px !important; font-size: 11px !important; font-weight: 600 !important; cursor: pointer !important; }
+            .fc .fc-toolbar-title { font-size: 15px; font-weight: 800; color: var(--text); }
+            .fc .fc-button {
+              background: var(--surface2) !important;
+              border: 1px solid var(--border) !important;
+              color: var(--text-muted) !important;
+              font-size: 12px !important;
+              border-radius: 8px !important;
+              padding: 6px 10px !important;
+              min-height: 36px !important;
+            }
+            .fc .fc-button-active, .fc .fc-button:focus {
+              background: var(--brand, #FF6B2C) !important;
+              border-color: var(--brand, #FF6B2C) !important;
+              color: #fff !important;
+              box-shadow: none !important;
+            }
+            .fc-daygrid-day-number { color: var(--text-muted) !important; font-size: 13px !important; text-decoration: none !important; padding: 6px !important; }
+            .fc-col-header-cell-cushion { color: var(--text-faint) !important; font-size: 11px !important; text-decoration: none !important; font-weight: 700 !important; padding: 8px 4px !important; text-transform: uppercase; letter-spacing: 0.5px; }
+            .fc-day-today .fc-daygrid-day-number { color: var(--brand, #FF6B2C) !important; font-weight: 800 !important; }
+            .fc-day-today { background: rgba(255,107,44,0.04) !important; }
+            .fc-event {
+              border-radius: 6px !important;
+              padding: 2px 5px !important;
+              font-size: 11px !important;
+              font-weight: 600 !important;
+              cursor: pointer !important;
+              border: none !important;
+              min-height: 22px !important;
+            }
+            .fc-event:hover { opacity: 0.85 !important; }
             .fc-view-harness, .fc-scrollgrid { background: var(--card-bg); }
-            .fc-toolbar.fc-header-toolbar { padding: 12px 14px 6px !important; margin-bottom: 0 !important; }
-            .fc-timegrid-slot { border-color: var(--border) !important; }
+            .fc-toolbar.fc-header-toolbar { padding: 14px 16px 10px !important; margin-bottom: 0 !important; }
+            .fc-timegrid-slot { border-color: var(--border) !important; min-height: 32px !important; }
             .fc-timegrid-slot-label { color: var(--text-faint) !important; font-size: 10px !important; }
+            .fc-timegrid-now-indicator-line { border-color: var(--brand, #FF6B2C) !important; border-width: 2px !important; }
+            .fc-timegrid-now-indicator-arrow { border-top-color: var(--brand, #FF6B2C) !important; }
+            .fc-daygrid-event-dot { border-color: var(--brand, #FF6B2C) !important; }
+            /* Mobile: día único por defecto */
+            @media (max-width: 640px) {
+              .fc .fc-toolbar-title { font-size: 13px !important; }
+              .fc .fc-button { padding: 5px 8px !important; font-size: 11px !important; min-height: 32px !important; }
+              .fc-timegrid-slot { min-height: 40px !important; }
+              .fc-event { font-size: 12px !important; padding: 3px 6px !important; }
+            }
           `}</style>
           <FullCalendar
             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-            initialView="timeGridWeek"
+            initialView={isMobile ? "timeGridDay" : "timeGridWeek"}
             locale={esLocale}
-            headerToolbar={{ left: "prev,next", center: "title", right: "dayGridMonth,timeGridWeek,timeGridDay" }}
+            headerToolbar={{
+              left:   "prev,next today",
+              center: "title",
+              right:  isMobile ? "timeGridDay,dayGridMonth" : "dayGridMonth,timeGridWeek,timeGridDay",
+            }}
             events={calEvents}
-            height={480}
+            height={isMobile ? 560 : 520}
             slotMinTime="07:00:00"
             slotMaxTime="23:00:00"
             slotDuration="00:30:00"
             allDaySlot={false}
             nowIndicator
-            dateClick={info => {
-              setSelectedDate(info.dateStr);
-              setView("list");
-            }}
             eventContent={info => (
-              <div style={{ padding: "2px 4px", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", fontSize: 11, cursor: "pointer" }}>
-                {info.timeText} {info.event.title}
+              <div style={{ padding: "2px 4px", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", cursor: "pointer" }}>
+                <strong>{info.timeText}</strong> {info.event.extendedProps.clients?.full_name ?? info.event.title}
               </div>
             )}
             eventClick={info => {
               const b = info.event.extendedProps;
-              // Cambiar a vista lista del día de esa reserva
-              const dateStr = format(new Date(b.scheduled_at), "yyyy-MM-dd");
-              setSelectedDate(dateStr);
-              setView("list");
-              // Expandir esa reserva
-              setTimeout(() => setExpanded(b.id), 100);
+              setDetailModal(b);
             }}
           />
         </div>
