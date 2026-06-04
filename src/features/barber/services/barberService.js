@@ -70,6 +70,24 @@ export async function getMyUpcomingBookings() {
   return data;
 }
 
+export async function getAllMyBookings() {
+  const barber = await getMyBarberId();
+  if (!barber) return [];
+  const { data, error } = await supabase
+    .from("bookings")
+    .select(`
+      id, scheduled_at, duration_min, status, type, price, delivery_fee,
+      address_line, client_notes, barber_notes,
+      clients(full_name, phone),
+      services(name)
+    `)
+    .eq("barber_id", barber.id)
+    .order("scheduled_at", { ascending: false })
+    .limit(100);
+  if (error) throw error;
+  return data;
+}
+
 export async function getMyAgenda(date) {
   const barber = await getMyBarberId();
   if (!barber) return [];

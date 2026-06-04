@@ -9,7 +9,7 @@ import esLocale from "@fullcalendar/core/locales/es";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
-import { getMyAgenda, getMyBarberProfile, getMyUpcomingBookings } from "../services/barberService";
+import { getMyAgenda, getMyBarberProfile, getMyUpcomingBookings, getAllMyBookings } from "../services/barberService";
 import { getBarberWorkingHours } from "../../admin/services/adminService";
 import { updateBookingStatus } from "../../admin/services/adminService";
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_COLOR } from "../../../lib/constants";
@@ -46,10 +46,10 @@ export default function AgendaPage() {
     queryFn:  getMyBarberProfile,
   });
 
-  // Sin filtro de fecha: todas las próximas pendientes/confirmadas
+  // Sin filtro de fecha: TODAS las reservas (historial completo)
   const { data: upcoming = [], isLoading: loadingUpcoming } = useQuery({
-    queryKey: ["my-upcoming", profile?.id],
-    queryFn:  getMyUpcomingBookings,
+    queryKey: ["my-all", profile?.id],
+    queryFn:  getAllMyBookings,
     enabled:  !!profile?.id,
     refetchInterval: 30000,
   });
