@@ -190,25 +190,11 @@ function WeekView({ currentDate, bookings, selectedDay, onSelectDay, onSwipe, on
 // ── Vista DÍA ─────────────────────────────────────────────────
 function DayView({ currentDate, bookings, onSwipe, onEventClick }) {
   const touchStart  = useRef(null);
-  const scrollRef   = useRef(null);
   const dayBookings = getDayBookings(bookings, currentDate);
   const now         = new Date();
   const nowH        = now.getHours();
   const nowM        = now.getMinutes();
   const isToday_    = isToday(currentDate);
-
-  // Scroll automático a la hora actual (o primera reserva)
-  useEffect(() => {
-    if (!scrollRef.current) return;
-    const targetH = isToday_
-      ? Math.max(nowH - 1, 7)
-      : dayBookings.length > 0
-        ? Math.max(new Date(dayBookings[0].scheduled_at).getHours() - 1, 7)
-        : 9;
-    const idx    = HOURS.indexOf(targetH);
-    const offset = idx * 64;
-    scrollRef.current.scrollTop = offset;
-  }, [currentDate]);
 
   const byHour = {};
   dayBookings.forEach(b => {
@@ -216,6 +202,38 @@ function DayView({ currentDate, bookings, onSwipe, onEventClick }) {
     if (!byHour[h]) byHour[h] = [];
     byHour[h].push(b);
   });
+
+  // Determinar rango de horas a mostrar
+  const firstBookingH = dayBookings.length > 0
+    ? new Date(dayBookings[0].scheduled_at).getHours()
+    : null;
+  const lastBookingH  = dayBookings.length > 0
+    ? new Date(dayBookings[dayBookings.length - 1].scheduled_at).getHours()
+    : null;
+
+  // Mostrar desde 1h antes de la primera reserva (o hora actual si hoy)
+  // hasta 1h después de la última reserva (mínimo 4 horas de rango)
+  let startH = 7;
+  let endH   = 23;
+  if (dayBookings.length > 0) {
+    startH = Math.max(7, firstBookingH - 1);
+    endH   = Math.min(23, lastBookingH + 2);
+    // Si es hoy, incluir la hora actual también
+    if (isToday_) {
+      startH = Math.min(startH, Math.max(7, nowH - 1));
+      endH   = Math.max(endH, nowH + 1);
+    }
+  } else if (isToday_) {
+    // Sin reservas hoy: mostrar desde hora actual -1
+    startH = Math.max(7, nowH - 1);
+    endH   = Math.min(23, nowH + 4);
+  } else {
+    // Otro día sin reservas: rango de mañana típico
+    startH = 9;
+    endH   = 20;
+  }
+
+  const visibleHours = HOURS.filter(h => h >= startH && h <= endH);
 
   function onTouchStart(e) { touchStart.current = e.touches[0].clientX; }
   function onTouchEnd(e) {
@@ -225,16 +243,23 @@ function DayView({ currentDate, bookings, onSwipe, onEventClick }) {
     touchStart.current = null;
   }
 
+  if (dayBookings.length === 0 && !isToday_) {
+    return (
+      <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+        <EmptyDay />
+      </div>
+    );
+  }
+
   return (
-    <div ref={scrollRef} style={{ overflowY: "auto", maxHeight: "62vh" }}
-      onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-      {HOURS.map(h => {
+    <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+      {visibleHours.map(h => {
         const hBookings = byHour[h] ?? [];
         const isPast    = isToday_ && h < nowH;
         return (
-          <div key={h} style={{ display: "flex", gap: 10, minHeight: 64, borderTop: "1px solid var(--border)", position: "relative" }}>
+          <div key={h} style={{ display: "flex", gap: 10, minHeight: hBookings.length > 0 ? "auto" : 56, borderTop: "1px solid var(--border)", position: "relative" }}>
             {/* Hora */}
-            <div style={{ width: 46, flexShrink: 0, paddingTop: 8, textAlign: "right", paddingRight: 4 }}>
+            <div style={{ width: 46, flexShrink: 0, paddingTop: 10, textAlign: "right", paddingRight: 4 }}>
               <span style={{ fontSize: 12, fontWeight: 600, color: isPast ? "rgba(255,255,255,0.15)" : "var(--text-muted)" }}>
                 {String(h).padStart(2,"0")}:00
               </span>
