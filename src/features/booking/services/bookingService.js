@@ -278,21 +278,53 @@ export async function createBooking({ type, serviceId, barberId, date, slot, dur
   `).single();
   if (error) throw error;
 
-  // Enviar push notification al barbero
+  // Notificaciones al barbero y cliente
   try {
-    const at   = new Date(`${date}T${slot}:00-04:00`);
-    const hora = at.toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", timeZone: "America/Santiago" });
-    const dia  = at.toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Santiago" });
-    await fetch("/api/push-notify", {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
+    const at      = new Date(`${date}T${slot}:00-04:00`);
+    const hora    = at.toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", timeZone: "America/Santiago" });
+    const dia     = at.toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Santiago" });
+    const precio  = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(price + (deliveryFee || 0));
+
+    // Push notification al barbero
+    fetch("/api/push-notify", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ barberId, title: "🔔 Nueva reserva", message: `${clientInfo.full_name} · ${dia} a las ${hora}`, url: "/barber" }),
+    }).catch(() => {});
+
+    // WhatsApp al barbero via Twilio
+    fetch("/api/whatsapp-notify", {
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        barberId: barberId,
-        title:    "🔔 Nueva reserva",
-        message:  `${clientInfo.full_name} · ${dia} a las ${hora}`,
-        url:      "/barber",
+        barberId,
+        clientName:  clientInfo.full_name,
+        serviceName: data.services?.name ?? "",
+        date:        dia,
+        time:        hora,
+        type,
+        address:     address?.line ?? "",
+        price:       precio,
       }),
-    });
+    }).catch(() => {});
+
+    // WhatsApp al cliente si tiene teléfono
+    if (clientInfo.phone) {
+      // Obtener datos del barbero y shop para el mensaje
+      const { data: barberData } = await supabase.from("barbers").select("full_name").eq("id", barberId).maybeSingle();
+      const { data: shopData }   = await supabase.from("barbershops").select("name").eq("id", shopId).maybeSingle();
+      fetch("/api/whatsapp-client", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone:       clientInfo.phone,
+          type:        "confirmed",
+          clientName:  clientInfo.full_name,
+          serviceName: data.services?.name ?? "",
+          barberName:  barberData?.full_name ?? "",
+          shopName:    shopData?.name ?? "Barbería",
+          date:        dia,
+          time:        hora,
+        }),
+      }).catch(() => {});
+    }
   } catch {}
 
   return data;
