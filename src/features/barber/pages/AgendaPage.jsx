@@ -502,10 +502,19 @@ export default function AgendaPage() {
               setView("list");
             }}
             eventContent={info => (
-              <div style={{ padding: "1px 3px", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", fontSize: 11 }}>
+              <div style={{ padding: "2px 4px", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", fontSize: 11, cursor: "pointer" }}>
                 {info.timeText} {info.event.title}
               </div>
             )}
+            eventClick={info => {
+              const b = info.event.extendedProps;
+              // Cambiar a vista lista del día de esa reserva
+              const dateStr = format(new Date(b.scheduled_at), "yyyy-MM-dd");
+              setSelectedDate(dateStr);
+              setView("list");
+              // Expandir esa reserva
+              setTimeout(() => setExpanded(b.id), 100);
+            }}
           />
         </div>
       )}
