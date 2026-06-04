@@ -4,11 +4,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { MapPin, Phone, ChevronDown, ChevronUp, MessageCircle, Calendar, List, Ban, X, UserPlus } from "lucide-react";
-import FullCalendar from "@fullcalendar/react";
-import esLocale from "@fullcalendar/core/locales/es";
-import dayGridPlugin from "@fullcalendar/daygrid";
-import timeGridPlugin from "@fullcalendar/timegrid";
-import interactionPlugin from "@fullcalendar/interaction";
+import BarberCalendar from "../components/BarberCalendar";
 import { getMyAgenda, getMyBarberProfile, getMyUpcomingBookings, getAllMyBookings } from "../services/barberService";
 import { getBarberWorkingHours } from "../../admin/services/adminService";
 import { updateBookingStatus } from "../../admin/services/adminService";
@@ -187,17 +183,7 @@ export default function AgendaPage() {
     else { refetchHours(); toast.success("Horario automático guardado ✅ — se repite todas las semanas"); }
   }
 
-  // Eventos para FullCalendar
-  const allBookings = [...bookings, ...upcoming];
-  const calEvents   = allBookings.map(b => ({
-    id:              b.id,
-    title:           `${b.clients?.full_name} · ${b.services?.name}`,
-    start:           b.scheduled_at,
-    end:             new Date(new Date(b.scheduled_at).getTime() + b.duration_min * 60000).toISOString(),
-    backgroundColor: b.type === "delivery" ? "#1d4ed8" : "var(--brand, #FF6B2C)",
-    borderColor:     "transparent",
-    extendedProps:   b,
-  }));
+  const allBookings = [...new Map([...bookings, ...upcoming].map(b => [b.id, b])).values()];
 
   async function saveBlock() {
     if (!blockForm.date || !profile?.id) return;
@@ -473,120 +459,14 @@ export default function AgendaPage() {
 
       {/* ── CALENDARIO ── */}
       {view === "calendar" && (
-        <div style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden", marginBottom: 16 }}>
-          <style>{`
-            .fc { color: var(--text); font-family: inherit; }
-            .fc-theme-standard td, .fc-theme-standard th, .fc-theme-standard .fc-scrollgrid { border-color: var(--border) !important; }
-            .fc .fc-toolbar-title { font-size: 16px; font-weight: 800; color: var(--text); }
-            .fc .fc-button {
-              background: var(--surface2) !important;
-              border: 1px solid var(--border) !important;
-              color: var(--text-muted) !important;
-              font-size: 12px !important;
-              border-radius: 8px !important;
-              padding: 7px 12px !important;
-              min-height: 38px !important;
-              font-weight: 600 !important;
-            }
-            .fc .fc-button-active, .fc .fc-button:focus {
-              background: var(--brand, #FF6B2C) !important;
-              border-color: var(--brand, #FF6B2C) !important;
-              color: #fff !important;
-              box-shadow: none !important;
-            }
-            /* Vista mes — celdas más grandes */
-            .fc-daygrid-day { min-height: 70px !important; }
-            .fc-daygrid-day-number {
-              color: var(--text-muted) !important;
-              font-size: 14px !important;
-              font-weight: 600 !important;
-              text-decoration: none !important;
-              padding: 8px !important;
-              width: 32px; height: 32px;
-              display: flex; align-items: center; justify-content: center;
-              border-radius: 50%;
-            }
-            .fc-day-today .fc-daygrid-day-number {
-              background: var(--brand, #FF6B2C) !important;
-              color: #fff !important;
-              font-weight: 800 !important;
-            }
-            .fc-col-header-cell-cushion {
-              color: var(--text-faint) !important;
-              font-size: 11px !important;
-              text-decoration: none !important;
-              font-weight: 700 !important;
-              padding: 10px 4px !important;
-              text-transform: uppercase;
-              letter-spacing: 1px;
-            }
-            .fc-day-today { background: rgba(255,107,44,0.03) !important; }
-            /* Eventos */
-            .fc-event {
-              border-radius: 6px !important;
-              padding: 3px 6px !important;
-              font-size: 12px !important;
-              font-weight: 600 !important;
-              cursor: pointer !important;
-              border: none !important;
-              min-height: 24px !important;
-            }
-            .fc-daygrid-event { margin: 1px 2px !important; }
-            .fc-event:hover { opacity: 0.85 !important; transform: scale(1.02); }
-            /* Vista día/semana slots */
-            .fc-view-harness, .fc-scrollgrid { background: var(--card-bg); }
-            .fc-toolbar.fc-header-toolbar { padding: 14px 16px 12px !important; margin-bottom: 0 !important; }
-            .fc-timegrid-slot { border-color: var(--border) !important; height: 52px !important; }
-            .fc-timegrid-slot-label {
-              color: var(--text-faint) !important;
-              font-size: 11px !important;
-              font-weight: 600 !important;
-              padding-right: 8px !important;
-            }
-            .fc-timegrid-now-indicator-line { border-color: var(--brand, #FF6B2C) !important; border-width: 2px !important; }
-            .fc-timegrid-now-indicator-arrow { border-top-color: var(--brand, #FF6B2C) !important; }
-            .fc-daygrid-more-link { color: var(--brand, #FF6B2C) !important; font-weight: 700 !important; font-size: 11px !important; }
-            /* Mobile */
-            @media (max-width: 640px) {
-              .fc .fc-toolbar-title { font-size: 14px !important; }
-              .fc .fc-button { padding: 7px 10px !important; font-size: 11px !important; min-height: 36px !important; }
-              .fc-daygrid-day { min-height: 60px !important; }
-              .fc-timegrid-slot { height: 60px !important; }
-              .fc-event { font-size: 13px !important; padding: 4px 8px !important; min-height: 28px !important; }
-              .fc-timegrid-slot-label { font-size: 12px !important; }
-            }
-          `}</style>
-          <FullCalendar
-            plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-            initialView={isMobile ? "timeGridDay" : "timeGridWeek"}
-            locale={esLocale}
-            headerToolbar={{
-              left:   "prev,next today",
-              center: "title",
-              right:  isMobile ? "timeGridDay,dayGridMonth" : "dayGridMonth,timeGridWeek,timeGridDay",
-            }}
-            events={calEvents}
-            height={isMobile ? "auto" : 580}
-            slotMinTime="07:00:00"
-            slotMaxTime="23:00:00"
-            slotDuration="00:30:00"
-            slotLabelInterval="01:00:00"
-            allDaySlot={false}
-            nowIndicator
-            dayMaxEvents={3}
-            eventContent={info => (
-              <div style={{ padding: "2px 4px", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", cursor: "pointer", lineHeight: 1.4 }}>
-                <span style={{ opacity: 0.8, fontSize: "0.85em" }}>{info.timeText} </span>
-                <strong>{info.event.extendedProps.clients?.full_name ?? info.event.title}</strong>
-              </div>
-            )}
-            eventClick={info => {
-              const b = info.event.extendedProps;
-              setDetailModal(b);
-            }}
+        <div style={{ marginBottom: 16 }}>
+          <BarberCalendar
+            bookings={[...upcoming, ...dayBookings]}
+            onEventClick={b => setDetailModal(b)}
           />
         </div>
       )}
+
 
       {/* ── LISTA ── */}
       {view === "list" && isLoading && [1,2,3].map(i => (
