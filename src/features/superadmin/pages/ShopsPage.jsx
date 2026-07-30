@@ -255,17 +255,17 @@ function ShopDetail({ shop, planMut, expired, plan }) {
   return (
     <div style={{ borderTop: "1px solid #1E1E1E", background: "#0F0F0F" }}>
       {/* Tabs */}
-      <div style={{ display: "flex", gap: 4, padding: "12px 18px 0", borderBottom: "1px solid #1E1E1E" }}>
+      <div style={{ display: "flex", gap: 4, padding: "12px 18px 0", borderBottom: "1px solid #1E1E1E", overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
         {TABS.map(t => {
           const Icon = t.icon;
           const active = tab === t.id;
           return (
             <button key={t.id} onClick={() => setTab(t.id)}
               style={{
-                display: "flex", alignItems: "center", gap: 6, padding: "9px 14px",
-                background: "none", border: "none", cursor: "pointer",
+                display: "flex", alignItems: "center", gap: 6, padding: "9px 12px",
+                background: "none", border: "none", cursor: "pointer", flexShrink: 0,
                 color: active ? "#FF6B2C" : "#666", fontSize: 13, fontWeight: active ? 700 : 500,
-                borderBottom: active ? "2px solid #FF6B2C" : "2px solid transparent",
+                borderBottom: active ? "2px solid #FF6B2C" : "2px solid transparent", whiteSpace: "nowrap",
               }}>
               <Icon size={14} /> {t.label}
             </button>
@@ -273,7 +273,7 @@ function ShopDetail({ shop, planMut, expired, plan }) {
         })}
       </div>
 
-      <div style={{ padding: "16px 18px" }}>
+      <div style={{ padding: "16px 18px", boxSizing: "border-box" }}>
         {tab === "resumen" && (
           <>
             {/* Stats */}
