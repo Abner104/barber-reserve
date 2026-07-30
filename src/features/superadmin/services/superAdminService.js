@@ -119,6 +119,13 @@ export async function updateShopPlan(shopId, plan, is_active) {
   return data;
 }
 
+export async function deleteShop(shopId) {
+  // Soft delete — solo desactivar
+  const { error } = await supabase
+    .from("barbershops").update({ is_active: false }).eq("id", shopId);
+  if (error) throw error;
+}
+
 async function settleReferralCommission(shop) {
   const { data: config } = await supabase
     .from("saas_config")
