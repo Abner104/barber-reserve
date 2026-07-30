@@ -76,6 +76,7 @@ export default function SupplierProductsPage() {
   }, [skuScanning, stopSkuCamera]);
 
   function openWizard() {
+    if (!supplier?.id) { toast.error("Cargando tu perfil de proveedor, intenta de nuevo en un momento"); return; }
     setForm({ ...EMPTY, supplier_id: supplier.id });
     setFormErrors({});
     setWizardStep(1);
