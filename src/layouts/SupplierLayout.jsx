@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import { Outlet, Link, useLocation, useNavigate, Navigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { Package, ShoppingBag, LogOut, Menu, X, ChevronRight, LayoutDashboard, Settings, ScanLine, Clock, Scissors } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
-import { getSupplierByProfileId, getSupplierById, getAllSuppliers } from "../features/supplier/services/supplierService";
+import { getAllSuppliers } from "../features/supplier/services/supplierService";
+import { useActiveSupplier } from "../hooks/useActiveSupplier";
 import { applyTheme, resetTheme } from "../lib/applyTheme";
 import BarberLoader from "../components/shared/BarberLoader";
 
@@ -22,34 +24,23 @@ const NAV = [
 export default function SupplierLayout() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const { signOut, profile, loading, user } = useAuthStore();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [supplier, setSupplier]     = useState(null);
-  const [supplierLoaded, setSupplierLoaded] = useState(false);
-  const [allSuppliers, setAllSuppliers]     = useState(null); // solo se carga si hace falta elegir
+  const [allSuppliers, setAllSuppliers] = useState(null); // solo se carga si hace falta elegir
   const isSuperAdmin = profile?.role === "super_admin";
-  const [impersonateId, setImpersonateId] = useState(() => sessionStorage.getItem(IMPERSONATE_KEY) || "");
+
+  const { data: supplier, isFetched: supplierLoaded } = useActiveSupplier();
 
   useEffect(() => {
-    if (!user?.id) return;
-    setSupplierLoaded(false);
-
-    const load = isSuperAdmin && impersonateId
-      ? getSupplierById(impersonateId)
-      : getSupplierByProfileId(user.id);
-
-    load.then(s => {
-      setSupplier(s ?? null);
-      if (s) applyTheme({
-        theme_mode:  s.theme_mode  || "dark",
-        theme_color: s.theme_color || DEFAULT_COLOR,
-        theme_font:  s.theme_font  || "Inter",
-      });
-    }).catch(() => setSupplier(null))
-      .finally(() => setSupplierLoaded(true));
-
+    if (!supplier) { resetTheme(); return; }
+    applyTheme({
+      theme_mode:  supplier.theme_mode  || "dark",
+      theme_color: supplier.theme_color || DEFAULT_COLOR,
+      theme_font:  supplier.theme_font  || "Inter",
+    });
     return () => { resetTheme(); };
-  }, [user?.id, isSuperAdmin, impersonateId]);
+  }, [supplier]);
 
   useEffect(() => {
     if (!isSuperAdmin || supplier || !supplierLoaded) return;
@@ -58,7 +49,7 @@ export default function SupplierLayout() {
 
   function chooseSupplier(id) {
     sessionStorage.setItem(IMPERSONATE_KEY, id);
-    setImpersonateId(id);
+    qc.invalidateQueries({ queryKey: ["active-supplier"] });
   }
 
   const brand = supplier?.theme_color || DEFAULT_COLOR;
@@ -154,7 +145,7 @@ export default function SupplierLayout() {
           </div>
         )}
         {isSuperAdmin && (
-          <button onClick={() => { sessionStorage.removeItem(IMPERSONATE_KEY); setImpersonateId(""); }} style={{
+          <button onClick={() => { sessionStorage.removeItem(IMPERSONATE_KEY); qc.invalidateQueries({ queryKey: ["active-supplier"] }); }} style={{
             display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", borderRadius: 10, marginBottom: 2,
             background: "none", border: "none", cursor: "pointer", color: "var(--text-faint)", fontSize: 13, width: "100%",
           }}>

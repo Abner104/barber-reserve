@@ -3,8 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, Package, X, AlertTriangle, ScanLine, ChevronRight, ChevronLeft, Check } from "lucide-react";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import { toast } from "sonner";
-import { useAuthStore } from "../../../store/authStore";
-import { getSupplierByProfileId, getSupplierProducts, upsertProduct, deleteProduct } from "../services/supplierService";
+import { getSupplierProducts, upsertProduct, deleteProduct } from "../services/supplierService";
+import { useActiveSupplier } from "../../../hooks/useActiveSupplier";
 import { uploadImage } from "../../../components/shared/ImageUpload";
 import { formatCurrency } from "../../../lib/utils";
 
@@ -18,7 +18,6 @@ const STEPS = [
 
 export default function SupplierProductsPage() {
   const qc = useQueryClient();
-  const { user } = useAuthStore();
   const [modal, setModal]               = useState(null);
   const [wizardStep, setWizardStep]     = useState(1);
   const [form, setForm]                 = useState(EMPTY);
@@ -31,11 +30,7 @@ export default function SupplierProductsPage() {
   const skuVideoRef = useRef(null);
   const skuControls = useRef(null);
 
-  const { data: supplier } = useQuery({
-    queryKey: ["supplier-profile", user?.id],
-    queryFn:  () => getSupplierByProfileId(user.id),
-    enabled:  !!user?.id,
-  });
+  const { data: supplier } = useActiveSupplier();
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["supplier-products", supplier?.id],

@@ -2,8 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Clock, CheckCircle, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
-import { useAuthStore } from "../../../store/authStore";
-import { getSupplierByProfileId } from "../services/supplierService";
+import { useActiveSupplier } from "../../../hooks/useActiveSupplier";
 import { supabase } from "../../../lib/supabase";
 import { formatCurrency } from "../../../lib/utils";
 
@@ -36,16 +35,11 @@ function daysLeft(createdAt, creditDays) {
 }
 
 export default function SupplierCreditsPage() {
-  const { user } = useAuthStore();
   const qc = useQueryClient();
   const [expanded, setExpanded] = useState(null);
   const [filter, setFilter] = useState("pending"); // pending | paid | all
 
-  const { data: supplier } = useQuery({
-    queryKey: ["supplier-profile", user?.id],
-    queryFn:  () => getSupplierByProfileId(user.id),
-    enabled:  !!user?.id,
-  });
+  const { data: supplier } = useActiveSupplier();
 
   const { data: credits = [], isLoading } = useQuery({
     queryKey: ["supplier-credits", supplier?.id],

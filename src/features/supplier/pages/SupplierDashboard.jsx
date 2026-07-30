@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Package, ShoppingBag, TrendingUp, Clock } from "lucide-react";
-import { useAuthStore } from "../../../store/authStore";
-import { getSupplierByProfileId, getSupplierOrders, getSupplierProducts } from "../services/supplierService";
+import { getSupplierOrders, getSupplierProducts } from "../services/supplierService";
+import { useActiveSupplier } from "../../../hooks/useActiveSupplier";
 import { formatCurrency } from "../../../lib/utils";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -18,13 +18,7 @@ const STATUS_COLOR = {
 };
 
 export default function SupplierDashboard() {
-  const { user } = useAuthStore();
-
-  const { data: supplier } = useQuery({
-    queryKey: ["supplier-profile", user?.id],
-    queryFn:  () => getSupplierByProfileId(user.id),
-    enabled:  !!user?.id,
-  });
+  const { data: supplier } = useActiveSupplier();
 
   const { data: orders = [] } = useQuery({
     queryKey: ["supplier-orders", supplier?.id],

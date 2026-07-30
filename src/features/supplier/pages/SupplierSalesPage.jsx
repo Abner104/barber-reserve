@@ -6,11 +6,11 @@ import {
 } from "lucide-react";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import { toast } from "sonner";
-import { useAuthStore } from "../../../store/authStore";
-import { getSupplierByProfileId, getSupplierProducts } from "../services/supplierService";
+import { getSupplierProducts } from "../services/supplierService";
 import { supabase } from "../../../lib/supabase";
 import { formatCurrency } from "../../../lib/utils";
 import { useSound } from "../../../hooks/useSound";
+import { useActiveSupplier } from "../../../hooks/useActiveSupplier";
 
 const O = "var(--brand, #FF6B2C)";
 
@@ -50,7 +50,6 @@ async function recordSale({ supplierId, items, paymentMethod, creditDays, client
 }
 
 export default function SupplierSalesPage() {
-  const { user } = useAuthStore();
   const qc = useQueryClient();
 
   const [cart, setCart]                 = useState([]);
@@ -72,11 +71,7 @@ export default function SupplierSalesPage() {
   const lastScannedRef = useRef("");
   const productsRef    = useRef([]);
 
-  const { data: supplier } = useQuery({
-    queryKey: ["supplier-profile", user?.id],
-    queryFn:  () => getSupplierByProfileId(user.id),
-    enabled:  !!user?.id,
-  });
+  const { data: supplier } = useActiveSupplier();
 
   const { data: products = [] } = useQuery({
     queryKey: ["supplier-products", supplier?.id],

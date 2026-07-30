@@ -4,8 +4,8 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Copy, ExternalLink, Users, TrendingUp, Clock, Plus, PlayCircle, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { useAuthStore } from "../../../store/authStore";
-import { getSupplierByProfileId, getSupplierReferrals, getSupplierCommissions, createReferredShop } from "../services/supplierService";
+import { getSupplierReferrals, getSupplierCommissions, createReferredShop } from "../services/supplierService";
+import { useActiveSupplier } from "../../../hooks/useActiveSupplier";
 import { formatCurrency } from "../../../lib/utils";
 
 const O = "var(--brand, #FF6B2C)";
@@ -27,17 +27,12 @@ const COMMISSION_COLOR = {
 const EMPTY_FORM = { shopName: "", ownerName: "", ownerEmail: "", city: "", phone: "" };
 
 export default function SupplierReferralsPage() {
-  const { user } = useAuthStore();
   const qc = useQueryClient();
   const [showForm, setShowForm]   = useState(false);
   const [form, setForm]           = useState(EMPTY_FORM);
   const [credenciales, setCredenciales] = useState(null);
 
-  const { data: supplier } = useQuery({
-    queryKey: ["supplier-profile", user?.id],
-    queryFn:  () => getSupplierByProfileId(user.id),
-    enabled:  !!user?.id,
-  });
+  const { data: supplier } = useActiveSupplier();
 
   const { data: referrals = [] } = useQuery({
     queryKey: ["supplier-referrals", supplier?.id],

@@ -1,16 +1,14 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useState } from "react";
 import { Link2, Copy, Check, Loader2 } from "lucide-react";
-import { useAuthStore } from "../../../store/authStore";
-import { getSupplierByProfileId } from "../services/supplierService";
+import { useActiveSupplier } from "../../../hooks/useActiveSupplier";
 import { supabase } from "../../../lib/supabase";
 import WhatsAppQR from "../../admin/components/WhatsAppQR";
 import ImageUpload from "../../../components/shared/ImageUpload";
 import { applyTheme } from "../../../lib/applyTheme";
 
 const O = "var(--brand, #FF6B2C)";
-const DEFAULT_COLOR = "#FF6B2C";
 
 const FONTS  = ["Inter", "Poppins", "Montserrat", "Raleway", "Oswald"];
 const COLORS = ["#FF6B2C", "#6366F1", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#14B8A6"];
@@ -28,30 +26,13 @@ async function uploadSupplierImage(file, supplierId, folder) {
 
 export default function SupplierSettingsPage() {
   const qc = useQueryClient();
-  const { user } = useAuthStore();
   const [copied, setCopied]           = useState(false);
   const [saving, setSaving]           = useState(false);
   const [uploadingLogo, setUploadingLogo]     = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [form, setForm] = useState(null);
 
-  const { data: supplier, isLoading } = useQuery({
-    queryKey: ["supplier-profile", user?.id],
-    queryFn:  () => getSupplierByProfileId(user.id),
-    enabled:  !!user?.id,
-    onSuccess: (data) => {
-      if (data && !form) setForm({
-        name:        data.name        ?? "",
-        description: data.description ?? "",
-        whatsapp:    data.whatsapp    ?? "",
-        logo_url:    data.logo_url    ?? "",
-        banner_url:  data.banner_url  ?? "",
-        theme_color: data.theme_color ?? DEFAULT_COLOR,
-        theme_font:  data.theme_font  ?? "Inter",
-        theme_mode:  data.theme_mode  ?? "dark",
-      });
-    },
-  });
+  const { data: supplier, isLoading } = useActiveSupplier();
 
   if (supplier && !form) {
     setForm({
@@ -118,7 +99,7 @@ export default function SupplierSettingsPage() {
         .eq("id", supplier.id);
       if (error) throw error;
       applyTheme({ theme_mode: form.theme_mode, theme_color: form.theme_color, theme_font: form.theme_font });
-      qc.invalidateQueries({ queryKey: ["supplier-profile"] });
+      qc.invalidateQueries({ queryKey: ["active-supplier"] });
       qc.invalidateQueries({ queryKey: ["public-supplier"] });
       toast.success("Perfil actualizado");
     } catch { toast.error("Error al guardar"); }

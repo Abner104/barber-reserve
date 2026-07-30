@@ -4,8 +4,8 @@ import { es } from "date-fns/locale";
 import { useState } from "react";
 import { ChevronDown, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
-import { useAuthStore } from "../../../store/authStore";
-import { getSupplierByProfileId, getSupplierOrders, updateOrderStatus } from "../services/supplierService";
+import { getSupplierOrders, updateOrderStatus } from "../services/supplierService";
+import { useActiveSupplier } from "../../../hooks/useActiveSupplier";
 import { formatCurrency } from "../../../lib/utils";
 
 const O = "var(--brand, #FF6B2C)";
@@ -24,15 +24,10 @@ const ACCENT_COLOR = { pending: "#fbbf24", processing: "#60a5fa", shipped: "#c08
 
 export default function SupplierOrdersPage() {
   const qc = useQueryClient();
-  const { user } = useAuthStore();
   const [openId, setOpenId] = useState(null);
   const [filterStatus, setFilterStatus] = useState("");
 
-  const { data: supplier } = useQuery({
-    queryKey: ["supplier-profile", user?.id],
-    queryFn:  () => getSupplierByProfileId(user.id),
-    enabled:  !!user?.id,
-  });
+  const { data: supplier } = useActiveSupplier();
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["supplier-orders", supplier?.id],
