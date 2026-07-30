@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, Eye, EyeOff, Check } from "lucide-react";
 import { toast } from "sonner";
@@ -18,6 +18,8 @@ async function fetchPricing() {
 
 export default function RegisterPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const refSupplierId = searchParams.get("ref"); // id del proveedor que refirió (?ref=<supplier_id> en el link)
   const [step, setStep] = useState(1); // 1: datos cuenta, 2: datos barbería
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -78,9 +80,17 @@ export default function RegisterPage() {
           theme_color: "#FF6B2C",
           theme_font:  "Inter",
           trial_ends_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          referred_by_supplier_id: refSupplierId || null,
         })
         .select("id").single();
       if (shopError) throw shopError;
+
+      if (refSupplierId) {
+        await supabase.from("referral_commissions").insert({
+          supplier_id: refSupplierId,
+          shop_id:     shopData.id,
+        });
+      }
 
       // 3. Crear perfil del owner (upsert para sobrescribir trigger automático)
       const { error: profileError } = await supabase

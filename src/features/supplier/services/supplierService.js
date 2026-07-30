@@ -101,3 +101,24 @@ export async function getFirstSupplier() {
   if (error) throw error;
   return data;
 }
+
+// ── Referidos ──────────────────────────────────────────────
+export async function getSupplierReferrals(supplierId) {
+  const { data, error } = await supabase
+    .from("barbershops")
+    .select("id, name, slug, plan, created_at, trial_ends_at, subscribed_at")
+    .eq("referred_by_supplier_id", supplierId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function getSupplierCommissions(supplierId) {
+  const { data, error } = await supabase
+    .from("referral_commissions")
+    .select("*, barbershops(name, slug)")
+    .eq("supplier_id", supplierId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}

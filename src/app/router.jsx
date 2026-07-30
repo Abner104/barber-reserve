@@ -8,6 +8,7 @@ import SaasLandingPage   from "../pages/SaasLandingPage";
 import NotFoundPage      from "../pages/NotFoundPage";
 import ShopLandingPage  from "../pages/ShopLandingPage";
 import ShopBookingPage  from "../pages/ShopBookingPage";
+import ClientBookingsPage from "../pages/ClientBookingsPage";
 import LoginPage          from "../pages/LoginPage";
 import RegisterPage       from "../pages/RegisterPage";
 import SubscriptionPage   from "../pages/SubscriptionPage";
@@ -28,6 +29,7 @@ import ShopsPage               from "../features/superadmin/pages/ShopsPage";
 import PricingPage             from "../features/superadmin/pages/PricingPage";
 import SuppliersPage           from "../features/superadmin/pages/SuppliersPage";
 import SuperAdminSettingsPage  from "../features/superadmin/pages/SuperAdminSettingsPage";
+import PaymentsCalendarPage    from "../features/superadmin/pages/PaymentsCalendarPage";
 
 import SupplierDashboard     from "../features/supplier/pages/SupplierDashboard";
 import SupplierProductsPage  from "../features/supplier/pages/SupplierProductsPage";
@@ -35,6 +37,7 @@ import SupplierOrdersPage    from "../features/supplier/pages/SupplierOrdersPage
 import SupplierSettingsPage  from "../features/supplier/pages/SupplierSettingsPage";
 import SupplierSalesPage     from "../features/supplier/pages/SupplierSalesPage";
 import SupplierCreditsPage   from "../features/supplier/pages/SupplierCreditsPage";
+import SupplierReferralsPage from "../features/supplier/pages/SupplierReferralsPage";
 import SupplierCatalogPage   from "../pages/SupplierCatalogPage";
 
 import AgendaPage     from "../features/barber/pages/AgendaPage";
@@ -80,6 +83,7 @@ export const router = createBrowserRouter([
       { path: "suppliers",    element: <SuppliersPage />          },
       { path: "pricing",      element: <PricingPage />            },
       { path: "settings",     element: <SuperAdminSettingsPage /> },
+      { path: "payments",     element: <PaymentsCalendarPage /> },
     ],
   },
 
@@ -93,6 +97,7 @@ export const router = createBrowserRouter([
       { path: "orders",      element: <SupplierOrdersPage />    },
       { path: "sales",       element: <SupplierSalesPage />     },
       { path: "credits",     element: <SupplierCreditsPage />   },
+      { path: "referrals",   element: <SupplierReferralsPage /> },
       { path: "settings",    element: <SupplierSettingsPage />  },
     ],
   },
@@ -114,8 +119,9 @@ export const router = createBrowserRouter([
   { path: "/catalogo/:slug", element: <SupplierCatalogPage /> },
 
   // ── BARBERÍAS por slug — AL FINAL para no interceptar rutas fijas ──
-  { path: "/:slug",         element: <ShopLandingPage /> },
-  { path: "/:slug/booking", element: <ShopBookingPage /> },
+  { path: "/:slug",             element: <ShopLandingPage /> },
+  { path: "/:slug/booking",     element: <ShopBookingPage /> },
+  { path: "/:slug/mis-reservas", element: <ClientBookingsPage /> },
 
   // ── 404 ──
   { path: "*", element: <NotFoundPage /> },

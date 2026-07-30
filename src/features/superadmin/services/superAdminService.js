@@ -1,5 +1,34 @@
 import { supabase } from "../../../lib/supabase";
 
+// ── AUDITORÍA ────────────────────────────────────────────────
+// Registra una acción sensible del super-admin. No bloquea el flujo si falla.
+export async function logAudit({ action, shopId, shopName, detail }) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from("superadmin_audit_log").insert({
+      actor_id:    user?.id ?? null,
+      actor_email: user?.email ?? null,
+      action,
+      shop_id:     shopId ?? null,
+      shop_name:   shopName ?? null,
+      detail:      detail ?? null,
+    });
+  } catch (e) {
+    console.error("[logAudit]", e);
+  }
+}
+
+export async function getShopAuditLog(shopId) {
+  const { data, error } = await supabase
+    .from("superadmin_audit_log")
+    .select("id, actor_email, action, detail, created_at")
+    .eq("shop_id", shopId)
+    .order("created_at", { ascending: false })
+    .limit(20);
+  if (error) throw error;
+  return data ?? [];
+}
+
 export async function getAllShops() {
   const { data, error } = await supabase
     .from("barbershops")
@@ -82,14 +111,40 @@ export async function updateShopPlan(shopId, plan, is_active) {
   const { data, error } = await supabase
     .from("barbershops").update(updates).eq("id", shopId).select().single();
   if (error) throw error;
+
+  if (plan === "pro" && data.referred_by_supplier_id) {
+    await settleReferralCommission(data);
+  }
+
   return data;
 }
 
-export async function deleteShop(shopId) {
-  // Soft delete — solo desactivar
-  const { error } = await supabase
-    .from("barbershops").update({ is_active: false }).eq("id", shopId);
-  if (error) throw error;
+async function settleReferralCommission(shop) {
+  const { data: config } = await supabase
+    .from("saas_config")
+    .select("base_price, price_per_barber")
+    .eq("id", 1)
+    .maybeSingle();
+
+  const { count: barberCount } = await supabase
+    .from("profiles")
+    .select("id", { count: "exact", head: true })
+    .eq("shop_id", shop.id)
+    .eq("role", "barber");
+
+  const base   = config?.base_price       ?? 11990;
+  const perBar = config?.price_per_barber ?? 2990;
+  const firstPayment = base + Math.max(0, (barberCount ?? 1) - 1) * perBar;
+  const rate = 0.40;
+
+  await supabase.from("referral_commissions").upsert({
+    supplier_id: shop.referred_by_supplier_id,
+    shop_id: shop.id,
+    rate,
+    first_payment_amount: firstPayment,
+    commission_amount: Math.round(firstPayment * rate),
+    status: "pending",
+  }, { onConflict: "supplier_id,shop_id" });
 }
 
 // ── SAAS CONFIG ──────────────────────────────────────────────
