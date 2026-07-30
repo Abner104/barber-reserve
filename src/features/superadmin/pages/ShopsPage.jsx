@@ -526,6 +526,8 @@ function PaymentRow({ payment: p, shopId, onUpdated }) {
 }
 
 function BookingsByBarber({ shopId }) {
+  const [openBarber, setOpenBarber] = useState(null);
+
   const { data: bookings = [], isLoading, error } = useQuery({
     queryKey: ["sa-bookings-barber", shopId],
     queryFn: async () => {
@@ -565,31 +567,40 @@ function BookingsByBarber({ shopId }) {
       {isLoading ? <p style={{ fontSize: 12, color: "#555" }}>Cargando...</p> :
         error ? <p style={{ fontSize: 12, color: "#ef4444" }}>Error al cargar: {error.message}</p> :
         bookings.length === 0 ? <p style={{ fontSize: 12, color: "#3f3f3f" }}>Sin reservas aún.</p> :
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {Object.entries(byBarber).map(([barberName, bks]) => (
-            <div key={barberName}>
-              <p style={{ fontSize: 12, fontWeight: 700, color: "#FF6B2C", marginBottom: 6 }}>
-                ✂️ {barberName} · {bks.length} reservas
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {bks.map(b => (
-                  <div key={b.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 10px", background: "#141414", borderRadius: 8, gap: 8 }}>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center", minWidth: 0 }}>
-                      <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 10, background: STATUS_COLOR[b.status] + "22", color: STATUS_COLOR[b.status], fontWeight: 700, whiteSpace: "nowrap" }}>
-                        {STATUS_LABEL[b.status] ?? b.status}
-                      </span>
-                      <span style={{ fontSize: 12, color: "#ddd", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {b.clients?.full_name ?? "—"} · {b.services?.name ?? "—"}
-                      </span>
-                    </div>
-                    <span style={{ fontSize: 11, color: "#555", whiteSpace: "nowrap" }}>
-                      {new Date(b.scheduled_at).toLocaleDateString("es-CL", { day: "numeric", month: "short" })}
-                    </span>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {Object.entries(byBarber).map(([barberName, bks]) => {
+            const isOpen = openBarber === barberName;
+            return (
+              <div key={barberName} style={{ background: "#141414", borderRadius: 10, overflow: "hidden" }}>
+                <button onClick={() => setOpenBarber(isOpen ? null : barberName)}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "10px 12px", background: "none", border: "none", cursor: "pointer" }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#FF6B2C" }}>
+                    ✂️ {barberName} · {bks.length} reservas
+                  </span>
+                  {isOpen ? <ChevronUp size={14} color="#555" /> : <ChevronDown size={14} color="#555" />}
+                </button>
+                {isOpen && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "0 10px 10px" }}>
+                    {bks.map(b => (
+                      <div key={b.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 10px", background: "#0F0F0F", borderRadius: 8, gap: 8 }}>
+                        <div style={{ display: "flex", gap: 8, alignItems: "center", minWidth: 0 }}>
+                          <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 10, background: STATUS_COLOR[b.status] + "22", color: STATUS_COLOR[b.status], fontWeight: 700, whiteSpace: "nowrap" }}>
+                            {STATUS_LABEL[b.status] ?? b.status}
+                          </span>
+                          <span style={{ fontSize: 12, color: "#ddd", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {b.clients?.full_name ?? "—"} · {b.services?.name ?? "—"}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: 11, color: "#555", whiteSpace: "nowrap" }}>
+                          {new Date(b.scheduled_at).toLocaleDateString("es-CL", { day: "numeric", month: "short" })}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       }
     </div>
