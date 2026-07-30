@@ -91,6 +91,25 @@ export async function getSupplierByProfileId(profileId) {
   return data;
 }
 
+export async function getAllSuppliers() {
+  const { data, error } = await supabase
+    .from("suppliers")
+    .select("id, name, logo_url")
+    .order("name");
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function getSupplierById(id) {
+  const { data, error } = await supabase
+    .from("suppliers")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 export async function getFirstSupplier() {
   const { data, error } = await supabase
     .from("suppliers")

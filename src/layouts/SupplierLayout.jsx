@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import { Outlet, Link, useLocation, useNavigate, Navigate } from "react-router-dom";
 import { Package, ShoppingBag, LogOut, Menu, X, ChevronRight, LayoutDashboard, Settings, ScanLine, Clock, Scissors } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
-import { getSupplierByProfileId } from "../features/supplier/services/supplierService";
+import { getSupplierByProfileId, getSupplierById, getAllSuppliers } from "../features/supplier/services/supplierService";
 import { applyTheme, resetTheme } from "../lib/applyTheme";
 import BarberLoader from "../components/shared/BarberLoader";
 
 const DEFAULT_COLOR = "#FF6B2C";
+const IMPERSONATE_KEY = "sa_impersonate_supplier_id";
 
 const NAV = [
   { to: "/supplier",           icon: LayoutDashboard, label: "Panel",     exact: true },
@@ -24,20 +25,41 @@ export default function SupplierLayout() {
   const { signOut, profile, loading, user } = useAuthStore();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [supplier, setSupplier]     = useState(null);
+  const [supplierLoaded, setSupplierLoaded] = useState(false);
+  const [allSuppliers, setAllSuppliers]     = useState(null); // solo se carga si hace falta elegir
+  const isSuperAdmin = profile?.role === "super_admin";
+  const [impersonateId, setImpersonateId] = useState(() => sessionStorage.getItem(IMPERSONATE_KEY) || "");
 
   useEffect(() => {
     if (!user?.id) return;
-    getSupplierByProfileId(user.id).then(s => {
-      if (!s) return;
-      setSupplier(s);
-      applyTheme({
+    setSupplierLoaded(false);
+
+    const load = isSuperAdmin && impersonateId
+      ? getSupplierById(impersonateId)
+      : getSupplierByProfileId(user.id);
+
+    load.then(s => {
+      setSupplier(s ?? null);
+      if (s) applyTheme({
         theme_mode:  s.theme_mode  || "dark",
         theme_color: s.theme_color || DEFAULT_COLOR,
         theme_font:  s.theme_font  || "Inter",
       });
-    }).catch(() => {});
+    }).catch(() => setSupplier(null))
+      .finally(() => setSupplierLoaded(true));
+
     return () => { resetTheme(); };
-  }, [user?.id]);
+  }, [user?.id, isSuperAdmin, impersonateId]);
+
+  useEffect(() => {
+    if (!isSuperAdmin || supplier || !supplierLoaded) return;
+    getAllSuppliers().then(setAllSuppliers).catch(() => setAllSuppliers([]));
+  }, [isSuperAdmin, supplier, supplierLoaded]);
+
+  function chooseSupplier(id) {
+    sessionStorage.setItem(IMPERSONATE_KEY, id);
+    setImpersonateId(id);
+  }
 
   const brand = supplier?.theme_color || DEFAULT_COLOR;
   const logo  = supplier?.logo_url    || null;
@@ -48,6 +70,31 @@ export default function SupplierLayout() {
   if (!user) return <Navigate to="/login" replace />;
   if (profile && profile.role !== "supplier" && profile.role !== "super_admin") {
     return <Navigate to="/" replace />;
+  }
+
+  // Super admin sin proveedor propio: debe elegir cuál operar antes de ver el panel
+  if (isSuperAdmin && supplierLoaded && !supplier) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#0A0A0A", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+        <div style={{ width: "100%", maxWidth: 420 }}>
+          <p style={{ color: "#fff", fontSize: 20, fontWeight: 800, marginBottom: 6 }}>Elige un proveedor</p>
+          <p style={{ color: "#666", fontSize: 13, marginBottom: 24 }}>Estás en modo super admin. Selecciona qué proveedor quieres operar.</p>
+          {allSuppliers === null && <p style={{ color: "#555", fontSize: 13 }}>Cargando proveedores...</p>}
+          {allSuppliers?.length === 0 && <p style={{ color: "#555", fontSize: 13 }}>No hay proveedores creados. Crea uno en /superadmin/suppliers.</p>}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {allSuppliers?.map(s => (
+              <button key={s.id} onClick={() => chooseSupplier(s.id)}
+                style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", borderRadius: 12, background: "#141414", border: "1px solid #222", color: "#fff", cursor: "pointer", textAlign: "left", fontSize: 14, fontWeight: 600 }}>
+                {s.logo_url
+                  ? <img src={s.logo_url} alt={s.name} style={{ width: 32, height: 32, borderRadius: 8, objectFit: "cover" }} />
+                  : <div style={{ width: 32, height: 32, borderRadius: 8, background: "#FF6B2C", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900 }}>{s.name[0].toUpperCase()}</div>}
+                {s.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   function isActive(nav) {
@@ -103,8 +150,16 @@ export default function SupplierLayout() {
         {profile && (
           <div style={{ padding: "8px 12px", marginBottom: 4 }}>
             <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{profile.full_name || name}</p>
-            <p style={{ fontSize: 11, color: "var(--text-faint)" }}>supplier</p>
+            <p style={{ fontSize: 11, color: "var(--text-faint)" }}>{isSuperAdmin ? "viendo como super admin" : "supplier"}</p>
           </div>
+        )}
+        {isSuperAdmin && (
+          <button onClick={() => { sessionStorage.removeItem(IMPERSONATE_KEY); setImpersonateId(""); }} style={{
+            display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", borderRadius: 10, marginBottom: 2,
+            background: "none", border: "none", cursor: "pointer", color: "var(--text-faint)", fontSize: 13, width: "100%",
+          }}>
+            Cambiar proveedor
+          </button>
         )}
         <button onClick={handleSignOut} style={{
           display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", borderRadius: 10,
