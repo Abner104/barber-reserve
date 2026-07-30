@@ -185,6 +185,7 @@ function ShopDetail({ shop, planMut, expired, plan }) {
     queryFn: () => getShopAuditLog(shop.id),
   });
 
+  const [tab, setTab] = useState("resumen");
   const [showPayForm, setShowPayForm]   = useState(false);
   const [showPwdForm, setShowPwdForm]   = useState(false);
   const [newPassword, setNewPassword]   = useState("");
@@ -244,189 +245,223 @@ function ShopDetail({ shop, planMut, expired, plan }) {
 
   const inp = { background: "#0F0F0F", border: "1px solid #2A2A2A", borderRadius: 9, padding: "8px 12px", color: "#fff", fontSize: 13, outline: "none", cursor: "pointer" };
 
+  const TABS = [
+    { id: "resumen",  label: "Resumen",   icon: Users },
+    { id: "pagos",    label: "Pagos",     icon: DollarSign },
+    { id: "reservas", label: "Reservas",  icon: Calendar },
+    { id: "actividad",label: "Actividad", icon: History },
+  ];
+
   return (
-    <div style={{ borderTop: "1px solid #1E1E1E", padding: "16px 18px", background: "#0F0F0F" }}>
-      {/* Stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 10, marginBottom: 20 }}>
-        {[
-          { icon: <Users size={14} />,      label: "Barberos",   value: stats?.barbers ?? "—" },
-          { icon: <Calendar size={14} />,   label: "Reservas",   value: stats?.totalBookings ?? "—" },
-          { icon: <Users size={14} />,      label: "Clientes",   value: stats?.clients ?? "—" },
-          { icon: <TrendingUp size={14} />, label: "Ingresos",   value: stats ? formatCurrency(stats.revenue) : "—" },
-        ].map(s => (
-          <div key={s.label} style={{ background: "#141414", borderRadius: 10, padding: "10px 12px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 5, color: "#555", marginBottom: 4 }}>
-              {s.icon}<span style={{ fontSize: 11 }}>{s.label}</span>
+    <div style={{ borderTop: "1px solid #1E1E1E", background: "#0F0F0F" }}>
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 4, padding: "12px 18px 0", borderBottom: "1px solid #1E1E1E" }}>
+        {TABS.map(t => {
+          const Icon = t.icon;
+          const active = tab === t.id;
+          return (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              style={{
+                display: "flex", alignItems: "center", gap: 6, padding: "9px 14px",
+                background: "none", border: "none", cursor: "pointer",
+                color: active ? "#FF6B2C" : "#666", fontSize: 13, fontWeight: active ? 700 : 500,
+                borderBottom: active ? "2px solid #FF6B2C" : "2px solid transparent",
+              }}>
+              <Icon size={14} /> {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ padding: "16px 18px" }}>
+        {tab === "resumen" && (
+          <>
+            {/* Stats */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 10, marginBottom: 20 }}>
+              {[
+                { icon: <Users size={14} />,      label: "Barberos",   value: stats?.barbers ?? "—" },
+                { icon: <Calendar size={14} />,   label: "Reservas (mes)", value: stats?.totalBookings ?? "—" },
+                { icon: <Users size={14} />,      label: "Clientes",   value: stats?.clients ?? "—" },
+                { icon: <TrendingUp size={14} />, label: "Ingresos (mes)", value: stats ? formatCurrency(stats.revenue) : "—" },
+              ].map(s => (
+                <div key={s.label} style={{ background: "#141414", borderRadius: 10, padding: "10px 12px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 5, color: "#555", marginBottom: 4 }}>
+                    {s.icon}<span style={{ fontSize: 11 }}>{s.label}</span>
+                  </div>
+                  <p style={{ fontWeight: 700, fontSize: 18, color: "#fff" }}>{s.value}</p>
+                </div>
+              ))}
             </div>
-            <p style={{ fontWeight: 700, fontSize: 18, color: "#fff" }}>{s.value}</p>
-          </div>
-        ))}
-      </div>
 
-      {/* Gestión de plan */}
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-        <div>
-          <p style={{ fontSize: 11, color: "#555", marginBottom: 5 }}>Plan</p>
-          <select
-            value={shop.plan}
-            onChange={e => planMut.mutate({ shop, plan: e.target.value })}
-            style={inp}
-          >
-            <option value="trial">Trial</option>
-            <option value="basic">Basic</option>
-            <option value="pro">Pro</option>
-            <option value="enterprise">Enterprise</option>
-          </select>
-        </div>
-
-        <div style={{ marginTop: 16 }}>
-          <button
-            onClick={() => {
-              const msg = shop.is_active
-                ? `¿Suspender "${shop.name}"? Su sitio dejará de estar disponible para sus clientes hasta que la reactives.`
-                : `¿Reactivar "${shop.name}"? Su sitio volverá a estar disponible para sus clientes.`;
-              if (window.confirm(msg)) planMut.mutate({ shop, is_active: !shop.is_active });
-            }}
-            style={{
-              display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 9,
-              background: shop.is_active ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)",
-              border: `1px solid ${shop.is_active ? "rgba(239,68,68,0.3)" : "rgba(34,197,94,0.3)"}`,
-              color: shop.is_active ? "#ef4444" : "#22c55e",
-              cursor: "pointer", fontSize: 13, fontWeight: 600,
-            }}
-          >
-            <Power size={14} />
-            {shop.is_active ? "Suspender barbería" : "Reactivar barbería"}
-          </button>
-        </div>
-
-        {/* Cambiar contraseña del admin */}
-        <div style={{ marginTop: 16 }}>
-          <button onClick={() => { setShowPwdForm(f => !f); setNewPassword(""); }}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 9, background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.3)", color: "#818cf8", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
-            <KeyRound size={14} />
-            {showPwdForm ? "Cancelar" : "Cambiar contraseña del admin"}
-          </button>
-          {showPwdForm && (
-            <form onSubmit={handleResetPassword} style={{ marginTop: 10, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              <input
-                type="text"
-                value={newPassword}
-                onChange={e => setNewPassword(e.target.value)}
-                placeholder="Nueva contraseña (mín. 6 caracteres)"
-                autoFocus
-                style={{ padding: "8px 12px", borderRadius: 9, background: "#0F0F0F", border: "1px solid #2A2A2A", color: "#fff", fontSize: 13, outline: "none", flex: 1, minWidth: 220 }}
-              />
-              <button type="submit" disabled={savingPwd}
-                style={{ padding: "8px 16px", borderRadius: 9, background: "#4f46e5", border: "none", color: "#fff", cursor: "pointer", fontWeight: 700, fontSize: 13, opacity: savingPwd ? 0.7 : 1, whiteSpace: "nowrap" }}>
-                {savingPwd ? "Guardando..." : "Confirmar"}
-              </button>
-            </form>
-          )}
-        </div>
-
-        {/* Info trial */}
-        {shop.plan === "trial" && shop.trial_ends_at && (
-          <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 16, color: expired ? "#ef4444" : "#f59e0b", fontSize: 12 }}>
-            <Clock size={13} />
-            Trial {expired ? "expiró" : "expira"} el{" "}
-            {new Date(shop.trial_ends_at).toLocaleDateString("es-CL")}
-          </div>
-        )}
-      </div>
-
-      {/* ── Pagos ── */}
-      <div style={{ marginTop: 20, borderTop: "1px solid #1E1E1E", paddingTop: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#aaa" }}>
-            <DollarSign size={14} />
-            <span style={{ fontSize: 13, fontWeight: 600 }}>Historial de pagos</span>
-          </div>
-          <button onClick={() => setShowPayForm(f => !f)}
-            style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, background: "rgba(255,107,44,0.1)", border: "1px solid rgba(255,107,44,0.3)", color: "#FF6B2C", cursor: "pointer", fontSize: 12, fontWeight: 700 }}>
-            <Plus size={13} /> Registrar pago
-          </button>
-        </div>
-
-        {/* Formulario de pago */}
-        {showPayForm && (
-          <div style={{ background: "#141414", border: "1px solid #2A2A2A", borderRadius: 12, padding: 14, marginBottom: 12 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+            {/* Gestión de plan */}
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
               <div>
-                <label style={{ display: "block", fontSize: 11, color: "#555", marginBottom: 4 }}>MONTO ($)</label>
-                <input type="number" value={payForm.amount} onChange={e => setPayForm(f => ({ ...f, amount: e.target.value }))}
-                  placeholder="11990" style={{ ...inp, width: "100%", boxSizing: "border-box" }} />
-              </div>
-              <div>
-                <label style={{ display: "block", fontSize: 11, color: "#555", marginBottom: 4 }}>MÉTODO</label>
-                <select value={payForm.method} onChange={e => setPayForm(f => ({ ...f, method: e.target.value }))} style={{ ...inp, width: "100%", boxSizing: "border-box" }}>
-                  {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                <p style={{ fontSize: 11, color: "#555", marginBottom: 5 }}>Plan</p>
+                <select
+                  value={shop.plan}
+                  onChange={e => planMut.mutate({ shop, plan: e.target.value })}
+                  style={inp}
+                >
+                  <option value="trial">Trial</option>
+                  <option value="basic">Basic</option>
+                  <option value="pro">Pro</option>
+                  <option value="enterprise">Enterprise</option>
                 </select>
               </div>
+
+              <div style={{ marginTop: 16 }}>
+                <button
+                  onClick={() => {
+                    const msg = shop.is_active
+                      ? `¿Suspender "${shop.name}"? Su sitio dejará de estar disponible para sus clientes hasta que la reactives.`
+                      : `¿Reactivar "${shop.name}"? Su sitio volverá a estar disponible para sus clientes.`;
+                    if (window.confirm(msg)) planMut.mutate({ shop, is_active: !shop.is_active });
+                  }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 9,
+                    background: shop.is_active ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)",
+                    border: `1px solid ${shop.is_active ? "rgba(239,68,68,0.3)" : "rgba(34,197,94,0.3)"}`,
+                    color: shop.is_active ? "#ef4444" : "#22c55e",
+                    cursor: "pointer", fontSize: 13, fontWeight: 600,
+                  }}
+                >
+                  <Power size={14} />
+                  {shop.is_active ? "Suspender barbería" : "Reactivar barbería"}
+                </button>
+              </div>
+
+              {/* Info trial */}
+              {shop.plan === "trial" && shop.trial_ends_at && (
+                <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 16, color: expired ? "#ef4444" : "#f59e0b", fontSize: 12 }}>
+                  <Clock size={13} />
+                  Trial {expired ? "expiró" : "expira"} el{" "}
+                  {new Date(shop.trial_ends_at).toLocaleDateString("es-CL")}
+                </div>
+              )}
             </div>
-            <div style={{ marginBottom: 10 }}>
-              <label style={{ display: "block", fontSize: 11, color: "#555", marginBottom: 4 }}>NOTA (opcional)</label>
-              <input value={payForm.note} onChange={e => setPayForm(f => ({ ...f, note: e.target.value }))}
-                placeholder="Ej: Pagó con corte a domicilio..." style={{ ...inp, width: "100%", boxSizing: "border-box" }} />
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => setShowPayForm(false)} style={{ flex: 1, padding: "8px", borderRadius: 8, background: "transparent", border: "1px solid #2A2A2A", color: "#555", cursor: "pointer", fontSize: 13 }}>Cancelar</button>
-              <button onClick={registerPayment} disabled={savingPay}
-                style={{ flex: 2, padding: "8px", borderRadius: 8, background: "#FF6B2C", border: "none", color: "#fff", cursor: "pointer", fontWeight: 700, fontSize: 13, opacity: savingPay ? 0.7 : 1 }}>
-                {savingPay ? "Guardando..." : "Confirmar pago"}
+
+            {/* Info registro */}
+            <p style={{ fontSize: 11, color: "#3f3f3f", marginTop: 20, borderTop: "1px solid #1E1E1E", paddingTop: 14 }}>
+              Registrada el {new Date(shop.created_at).toLocaleDateString("es-CL")} ·
+              ID: {shop.id.slice(0, 8)}...
+            </p>
+          </>
+        )}
+
+        {tab === "pagos" && (
+          <div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#aaa" }}>
+                <DollarSign size={14} />
+                <span style={{ fontSize: 13, fontWeight: 600 }}>Historial de pagos</span>
+              </div>
+              <button onClick={() => setShowPayForm(f => !f)}
+                style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, background: "rgba(255,107,44,0.1)", border: "1px solid rgba(255,107,44,0.3)", color: "#FF6B2C", cursor: "pointer", fontSize: 12, fontWeight: 700 }}>
+                <Plus size={13} /> Registrar pago
               </button>
             </div>
-          </div>
-        )}
 
-        {/* Lista de pagos */}
-        {payments.length === 0 ? (
-          <p style={{ fontSize: 12, color: "#3f3f3f" }}>Sin pagos registrados aún.</p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {payments.map(p => (
-              <PaymentRow key={p.id} payment={p} shopId={shop.id} onUpdated={() => {
-                qc.invalidateQueries({ queryKey: ["sa-payments", shop.id] });
-                qc.invalidateQueries({ queryKey: ["sa-audit", shop.id] });
-              }} />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ── Reservas por barbero ── */}
-      <BookingsByBarber shopId={shop.id} />
-
-      {/* ── Actividad ── */}
-      <div style={{ marginTop: 20, borderTop: "1px solid #1E1E1E", paddingTop: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#aaa", marginBottom: 12 }}>
-          <History size={14} />
-          <span style={{ fontSize: 13, fontWeight: 600 }}>Actividad reciente</span>
-        </div>
-        {auditLog.length === 0 ? (
-          <p style={{ fontSize: 12, color: "#3f3f3f" }}>Sin actividad registrada aún.</p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {auditLog.map(a => (
-              <div key={a.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", background: "#141414", borderRadius: 8, gap: 10 }}>
-                <span style={{ fontSize: 12, color: "#ddd" }}>
-                  {(AUDIT_LABELS[a.action] ?? (() => a.action))(a.detail)}
-                  {a.actor_email ? <span style={{ color: "#555" }}> · {a.actor_email}</span> : null}
-                </span>
-                <span style={{ fontSize: 11, color: "#3f3f3f", whiteSpace: "nowrap" }}>
-                  {new Date(a.created_at).toLocaleDateString("es-CL", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-                </span>
+            {/* Formulario de pago */}
+            {showPayForm && (
+              <div style={{ background: "#141414", border: "1px solid #2A2A2A", borderRadius: 12, padding: 14, marginBottom: 12 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: 11, color: "#555", marginBottom: 4 }}>MONTO ($)</label>
+                    <input type="number" value={payForm.amount} onChange={e => setPayForm(f => ({ ...f, amount: e.target.value }))}
+                      placeholder="11990" style={{ ...inp, width: "100%", boxSizing: "border-box" }} />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: 11, color: "#555", marginBottom: 4 }}>MÉTODO</label>
+                    <select value={payForm.method} onChange={e => setPayForm(f => ({ ...f, method: e.target.value }))} style={{ ...inp, width: "100%", boxSizing: "border-box" }}>
+                      {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div style={{ marginBottom: 10 }}>
+                  <label style={{ display: "block", fontSize: 11, color: "#555", marginBottom: 4 }}>NOTA (opcional)</label>
+                  <input value={payForm.note} onChange={e => setPayForm(f => ({ ...f, note: e.target.value }))}
+                    placeholder="Ej: Pagó con corte a domicilio..." style={{ ...inp, width: "100%", boxSizing: "border-box" }} />
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => setShowPayForm(false)} style={{ flex: 1, padding: "8px", borderRadius: 8, background: "transparent", border: "1px solid #2A2A2A", color: "#555", cursor: "pointer", fontSize: 13 }}>Cancelar</button>
+                  <button onClick={registerPayment} disabled={savingPay}
+                    style={{ flex: 2, padding: "8px", borderRadius: 8, background: "#FF6B2C", border: "none", color: "#fff", cursor: "pointer", fontWeight: 700, fontSize: 13, opacity: savingPay ? 0.7 : 1 }}>
+                    {savingPay ? "Guardando..." : "Confirmar pago"}
+                  </button>
+                </div>
               </div>
-            ))}
+            )}
+
+            {/* Lista de pagos */}
+            {payments.length === 0 ? (
+              <p style={{ fontSize: 12, color: "#3f3f3f" }}>Sin pagos registrados aún.</p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {payments.map(p => (
+                  <PaymentRow key={p.id} payment={p} shopId={shop.id} onUpdated={() => {
+                    qc.invalidateQueries({ queryKey: ["sa-payments", shop.id] });
+                    qc.invalidateQueries({ queryKey: ["sa-audit", shop.id] });
+                  }} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === "reservas" && <BookingsByBarber shopId={shop.id} />}
+
+        {tab === "actividad" && (
+          <div>
+            {/* Cambiar contraseña del admin */}
+            <div style={{ marginBottom: 20, paddingBottom: 16, borderBottom: "1px solid #1E1E1E" }}>
+              <button onClick={() => { setShowPwdForm(f => !f); setNewPassword(""); }}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 9, background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.3)", color: "#818cf8", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+                <KeyRound size={14} />
+                {showPwdForm ? "Cancelar" : "Cambiar contraseña del admin"}
+              </button>
+              {showPwdForm && (
+                <form onSubmit={handleResetPassword} style={{ marginTop: 10, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <input
+                    type="text"
+                    value={newPassword}
+                    onChange={e => setNewPassword(e.target.value)}
+                    placeholder="Nueva contraseña (mín. 6 caracteres)"
+                    autoFocus
+                    style={{ padding: "8px 12px", borderRadius: 9, background: "#0F0F0F", border: "1px solid #2A2A2A", color: "#fff", fontSize: 13, outline: "none", flex: 1, minWidth: 220 }}
+                  />
+                  <button type="submit" disabled={savingPwd}
+                    style={{ padding: "8px 16px", borderRadius: 9, background: "#4f46e5", border: "none", color: "#fff", cursor: "pointer", fontWeight: 700, fontSize: 13, opacity: savingPwd ? 0.7 : 1, whiteSpace: "nowrap" }}>
+                    {savingPwd ? "Guardando..." : "Confirmar"}
+                  </button>
+                </form>
+              )}
+            </div>
+
+            {/* Auditoría */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#aaa", marginBottom: 12 }}>
+              <History size={14} />
+              <span style={{ fontSize: 13, fontWeight: 600 }}>Actividad reciente</span>
+            </div>
+            {auditLog.length === 0 ? (
+              <p style={{ fontSize: 12, color: "#3f3f3f" }}>Sin actividad registrada aún.</p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {auditLog.map(a => (
+                  <div key={a.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", background: "#141414", borderRadius: 8, gap: 10 }}>
+                    <span style={{ fontSize: 12, color: "#ddd" }}>
+                      {(AUDIT_LABELS[a.action] ?? (() => a.action))(a.detail)}
+                      {a.actor_email ? <span style={{ color: "#555" }}> · {a.actor_email}</span> : null}
+                    </span>
+                    <span style={{ fontSize: 11, color: "#3f3f3f", whiteSpace: "nowrap" }}>
+                      {new Date(a.created_at).toLocaleDateString("es-CL", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
-
-      {/* Info registro */}
-      <p style={{ fontSize: 11, color: "#3f3f3f", marginTop: 14 }}>
-        Registrada el {new Date(shop.created_at).toLocaleDateString("es-CL")} ·
-        ID: {shop.id.slice(0, 8)}...
-      </p>
     </div>
   );
 }
@@ -445,8 +480,10 @@ function PaymentRow({ payment: p, shopId, onUpdated }) {
       if (error) throw error;
       setEditing(false);
       onUpdated();
-    } catch { toast.error("No se pudo cambiar la fecha"); }
-    finally { setSaving(false); }
+      toast.success("Fecha actualizada");
+    } catch (e) {
+      toast.error("No se pudo cambiar la fecha: " + (e?.message ?? "error desconocido"));
+    } finally { setSaving(false); }
   }
 
   return (
@@ -489,8 +526,6 @@ function PaymentRow({ payment: p, shopId, onUpdated }) {
 }
 
 function BookingsByBarber({ shopId }) {
-  const [open, setOpen] = useState(false);
-
   const { data: bookings = [], isLoading, error } = useQuery({
     queryKey: ["sa-bookings-barber", shopId],
     queryFn: async () => {
@@ -502,7 +537,6 @@ function BookingsByBarber({ shopId }) {
       if (error) throw error;
       return data ?? [];
     },
-    enabled: open,
   });
 
   const STATUS_COLOR = { pending: "#f59e0b", confirmed: "#3b82f6", completed: "#22c55e", cancelled: "#ef4444", no_show: "#71717a" };
@@ -517,16 +551,14 @@ function BookingsByBarber({ shopId }) {
   }, {});
 
   return (
-    <div style={{ marginTop: 20, borderTop: "1px solid #1E1E1E", paddingTop: 16 }}>
-      <button onClick={() => setOpen(o => !o)}
-        style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: "#aaa", marginBottom: open ? 12 : 0 }}>
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#aaa", marginBottom: 12 }}>
         <Calendar size={14} />
         <span style={{ fontSize: 13, fontWeight: 600 }}>Reservas por barbero</span>
-        {open ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-      </button>
+        <span style={{ fontSize: 11, color: "#3f3f3f" }}>· últimas 50</span>
+      </div>
 
-      {open && (
-        isLoading ? <p style={{ fontSize: 12, color: "#555" }}>Cargando...</p> :
+      {isLoading ? <p style={{ fontSize: 12, color: "#555" }}>Cargando...</p> :
         error ? <p style={{ fontSize: 12, color: "#ef4444" }}>Error al cargar: {error.message}</p> :
         bookings.length === 0 ? <p style={{ fontSize: 12, color: "#3f3f3f" }}>Sin reservas aún.</p> :
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -555,7 +587,7 @@ function BookingsByBarber({ shopId }) {
             </div>
           ))}
         </div>
-      )}
+      }
     </div>
   );
 }

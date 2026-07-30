@@ -50,23 +50,24 @@ export async function getShopStats(shopId) {
     supabase.from("clients").select("id", { count: "exact" }).eq("shop_id", shopId),
   ]);
 
-  const completedBookings = (bookings.data || []).filter(b => b.status === "completed");
-  const revenue = completedBookings.reduce((s, b) => s + Number(b.price || 0), 0);
   const deliveries = (bookings.data || []).filter(b => b.type === "delivery").length;
 
-  // Reservas del último mes
-  const monthAgo = new Date();
-  monthAgo.setMonth(monthAgo.getMonth() - 1);
-  const recentBookings = (bookings.data || []).filter(b => new Date(b.created_at) > monthAgo).length;
+  // Mes calendario actual (día 1 hasta hoy)
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+  const bookingsThisMonth = (bookings.data || []).filter(b => new Date(b.created_at) >= monthStart);
+  const revenueThisMonth  = bookingsThisMonth
+    .filter(b => b.status === "completed")
+    .reduce((s, b) => s + Number(b.price || 0), 0);
 
   return {
     barbers:       barbers.count ?? 0,
     services:      services.count ?? 0,
-    totalBookings: bookings.count ?? 0,
+    totalBookings: bookingsThisMonth.length,
     clients:       clients.count ?? 0,
-    revenue,
+    revenue:       revenueThisMonth,
     deliveries,
-    recentBookings,
   };
 }
 
