@@ -529,11 +529,15 @@ function BookingsByBarber({ shopId }) {
   const { data: bookings = [], isLoading, error } = useQuery({
     queryKey: ["sa-bookings-barber", shopId],
     queryFn: async () => {
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+
       const { data, error } = await supabase.from("bookings")
-        .select("id, scheduled_at, status, price, barbers(full_name), services(name), clients(full_name)")
+        .select("id, scheduled_at, created_at, status, price, barbers(full_name), services(name), clients(full_name)")
         .eq("shop_id", shopId)
-        .order("scheduled_at", { ascending: false })
-        .limit(50);
+        .gte("created_at", monthStart.toISOString())
+        .order("scheduled_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
@@ -555,7 +559,7 @@ function BookingsByBarber({ shopId }) {
       <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#aaa", marginBottom: 12 }}>
         <Calendar size={14} />
         <span style={{ fontSize: 13, fontWeight: 600 }}>Reservas por barbero</span>
-        <span style={{ fontSize: 11, color: "#3f3f3f" }}>· últimas 50</span>
+        <span style={{ fontSize: 11, color: "#3f3f3f" }}>· este mes ({bookings.length})</span>
       </div>
 
       {isLoading ? <p style={{ fontSize: 12, color: "#555" }}>Cargando...</p> :
