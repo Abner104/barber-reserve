@@ -273,9 +273,7 @@ export async function createBooking({ type, serviceId, barberId, date, slot, dur
     }),
   };
 
-  const { data, error } = await supabase.from("bookings").insert(payload).select(`
-    *, clients(full_name, phone), services(name)
-  `).single();
+  const { data, error } = await supabase.rpc("create_public_booking", { payload });
   if (error) throw error;
 
   // Notificaciones al barbero y cliente
@@ -306,11 +304,12 @@ export async function createBooking({ type, serviceId, barberId, date, slot, dur
       }),
     }).catch(() => {});
 
-    // WhatsApp al cliente si tiene teléfono
+    // Notificaciones al cliente si tiene teléfono
     if (clientInfo.phone) {
-      // Obtener datos del barbero y shop para el mensaje
       const { data: barberData } = await supabase.from("barbers").select("full_name").eq("id", barberId).maybeSingle();
-      const { data: shopData }   = await supabase.from("barbershops").select("name").eq("id", shopId).maybeSingle();
+      const { data: shopData }   = await supabase.from("barbershops").select("name, slug").eq("id", shopId).maybeSingle();
+
+      // WhatsApp al cliente (sandbox por ahora)
       fetch("/api/whatsapp-client", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -320,8 +319,20 @@ export async function createBooking({ type, serviceId, barberId, date, slot, dur
           serviceName: data.services?.name ?? "",
           barberName:  barberData?.full_name ?? "",
           shopName:    shopData?.name ?? "Barbería",
+          shopSlug:    shopData?.slug ?? "",
           date:        dia,
           time:        hora,
+        }),
+      }).catch(() => {});
+
+      // SMS al cliente con confirmación y link para ver/cancelar
+      const manageUrl = shopData?.slug ? `clipprreserve.com/${shopData.slug}/mis-reservas` : "clipprreserve.com";
+      fetch("/api/whatsapp-client", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone:   clientInfo.phone,
+          type:    "sms",
+          message: `Reserva confirmada en ${shopData?.name ?? "la barbería"} - ${dia} a las ${hora} con ${barberData?.full_name ?? "tu barbero"}. Ver o cancelar: ${manageUrl}`,
         }),
       }).catch(() => {});
     }
