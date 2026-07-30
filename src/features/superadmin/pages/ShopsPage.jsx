@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ExternalLink, Power, Clock, ChevronDown, ChevronUp, Users, Calendar, TrendingUp, DollarSign, Plus, KeyRound } from "lucide-react";
-import { getAllShops, getShopStats, updateShopPlan, deleteShop } from "../services/superAdminService";
+import { ExternalLink, Power, Clock, ChevronDown, ChevronUp, Users, Calendar, TrendingUp, DollarSign, Plus, KeyRound, History } from "lucide-react";
+import { getAllShops, getShopStats, updateShopPlan, getShopAuditLog, logAudit } from "../services/superAdminService";
 import { formatCurrency } from "../../../lib/utils";
 import { supabase } from "../../../lib/supabase";
 
@@ -12,6 +12,14 @@ const PAYMENT_METHODS = [
   { value: "haircut",   label: "Con corte" },
   { value: "other",     label: "Otro" },
 ];
+
+const AUDIT_LABELS = {
+  plan_changed:        (d) => `Plan cambiado de "${d?.from ?? "—"}" a "${d?.to ?? "—"}"`,
+  shop_suspended:      () => "Barbería suspendida",
+  shop_reactivated:    () => "Barbería reactivada",
+  admin_password_reset:() => "Contraseña del admin restablecida",
+  payment_registered:  (d) => `Pago registrado · ${d?.amount ? formatCurrency(d.amount) : ""}${d?.method ? ` (${PAYMENT_METHODS.find(m => m.value === d.method)?.label ?? d.method})` : ""}`,
+};
 
 const O = "#FF6B2C";
 
@@ -33,8 +41,21 @@ export default function ShopsPage() {
   });
 
   const planMut = useMutation({
-    mutationFn: ({ shopId, plan, is_active }) => updateShopPlan(shopId, plan, is_active),
-    onSuccess: () => { qc.invalidateQueries(["sa-shops"]); toast.success("Plan actualizado"); },
+    mutationFn: async ({ shop, plan, is_active }) => {
+      const updated = await updateShopPlan(shop.id, plan, is_active);
+      if (plan !== undefined && plan !== shop.plan) {
+        logAudit({ action: "plan_changed", shopId: shop.id, shopName: shop.name, detail: { from: shop.plan, to: plan } });
+      }
+      if (is_active !== undefined && is_active !== shop.is_active) {
+        logAudit({ action: is_active ? "shop_reactivated" : "shop_suspended", shopId: shop.id, shopName: shop.name });
+      }
+      return updated;
+    },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries(["sa-shops"]);
+      qc.invalidateQueries({ queryKey: ["sa-audit", vars.shop.id] });
+      toast.success("Plan actualizado");
+    },
     onError:   () => toast.error("Error al actualizar el plan"),
   });
 
@@ -159,6 +180,11 @@ function ShopDetail({ shop, planMut, expired, plan }) {
     },
   });
 
+  const { data: auditLog = [] } = useQuery({
+    queryKey: ["sa-audit", shop.id],
+    queryFn: () => getShopAuditLog(shop.id),
+  });
+
   const [showPayForm, setShowPayForm]   = useState(false);
   const [showPwdForm, setShowPwdForm]   = useState(false);
   const [newPassword, setNewPassword]   = useState("");
@@ -167,6 +193,7 @@ function ShopDetail({ shop, planMut, expired, plan }) {
   async function handleResetPassword(e) {
     e.preventDefault();
     if (!newPassword || newPassword.length < 6) { toast.error("Mínimo 6 caracteres"); return; }
+    if (!window.confirm(`¿Cambiar la contraseña del admin de "${shop.name}"? La contraseña actual dejará de funcionar de inmediato.`)) return;
     setSavingPwd(true);
     try {
       const res = await fetch("/api/reset-user-password", {
@@ -176,11 +203,14 @@ function ShopDetail({ shop, planMut, expired, plan }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
+      await logAudit({ action: "admin_password_reset", shopId: shop.id, shopName: shop.name });
+      qc.invalidateQueries({ queryKey: ["sa-audit", shop.id] });
       toast.success(`Contraseña de ${shop.name} actualizada ✓`);
       setNewPassword("");
       setShowPwdForm(false);
     } catch (e) {
-      toast.error(e.message ?? "Error al cambiar la contraseña");
+      console.error(e);
+      toast.error("No se pudo cambiar la contraseña. Intentá de nuevo.");
     } finally {
       setSavingPwd(false);
     }
@@ -200,12 +230,15 @@ function ShopDetail({ shop, planMut, expired, plan }) {
         paid_at: new Date().toISOString(),
       });
       if (error) throw error;
+      await logAudit({ action: "payment_registered", shopId: shop.id, shopName: shop.name, detail: { amount: Number(payForm.amount), method: payForm.method } });
       qc.invalidateQueries({ queryKey: ["sa-payments", shop.id] });
+      qc.invalidateQueries({ queryKey: ["sa-audit", shop.id] });
       toast.success("Pago registrado ✓");
       setPayForm({ amount: "", method: "transfer", note: "" });
       setShowPayForm(false);
     } catch (e) {
-      toast.error(e.message ?? "Error al registrar");
+      console.error(e);
+      toast.error("No se pudo registrar el pago. Intentá de nuevo.");
     } finally { setSavingPay(false); }
   }
 
@@ -236,7 +269,7 @@ function ShopDetail({ shop, planMut, expired, plan }) {
           <p style={{ fontSize: 11, color: "#555", marginBottom: 5 }}>Plan</p>
           <select
             value={shop.plan}
-            onChange={e => planMut.mutate({ shopId: shop.id, plan: e.target.value })}
+            onChange={e => planMut.mutate({ shop, plan: e.target.value })}
             style={inp}
           >
             <option value="trial">Trial</option>
@@ -248,7 +281,12 @@ function ShopDetail({ shop, planMut, expired, plan }) {
 
         <div style={{ marginTop: 16 }}>
           <button
-            onClick={() => planMut.mutate({ shopId: shop.id, is_active: !shop.is_active })}
+            onClick={() => {
+              const msg = shop.is_active
+                ? `¿Suspender "${shop.name}"? Su sitio dejará de estar disponible para sus clientes hasta que la reactives.`
+                : `¿Reactivar "${shop.name}"? Su sitio volverá a estar disponible para sus clientes.`;
+              if (window.confirm(msg)) planMut.mutate({ shop, is_active: !shop.is_active });
+            }}
             style={{
               display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 9,
               background: shop.is_active ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)",
@@ -347,16 +385,36 @@ function ShopDetail({ shop, planMut, expired, plan }) {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {payments.map(p => (
-              <div key={p.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", background: "#141414", borderRadius: 8 }}>
-                <div>
-                  <span style={{ fontWeight: 700, color: "#22c55e", fontSize: 14 }}>{formatCurrency(p.amount)}</span>
-                  <span style={{ fontSize: 11, color: "#555", marginLeft: 8 }}>
-                    {PAYMENT_METHODS.find(m => m.value === p.method)?.label ?? p.method}
-                    {p.note ? ` · ${p.note}` : ""}
-                  </span>
-                </div>
-                <span style={{ fontSize: 11, color: "#3f3f3f" }}>
-                  {new Date(p.paid_at).toLocaleDateString("es-CL", { day: "numeric", month: "short", year: "numeric" })}
+              <PaymentRow key={p.id} payment={p} shopId={shop.id} onUpdated={() => {
+                qc.invalidateQueries({ queryKey: ["sa-payments", shop.id] });
+                qc.invalidateQueries({ queryKey: ["sa-audit", shop.id] });
+              }} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Reservas por barbero ── */}
+      <BookingsByBarber shopId={shop.id} />
+
+      {/* ── Actividad ── */}
+      <div style={{ marginTop: 20, borderTop: "1px solid #1E1E1E", paddingTop: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#aaa", marginBottom: 12 }}>
+          <History size={14} />
+          <span style={{ fontSize: 13, fontWeight: 600 }}>Actividad reciente</span>
+        </div>
+        {auditLog.length === 0 ? (
+          <p style={{ fontSize: 12, color: "#3f3f3f" }}>Sin actividad registrada aún.</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {auditLog.map(a => (
+              <div key={a.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", background: "#141414", borderRadius: 8, gap: 10 }}>
+                <span style={{ fontSize: 12, color: "#ddd" }}>
+                  {(AUDIT_LABELS[a.action] ?? (() => a.action))(a.detail)}
+                  {a.actor_email ? <span style={{ color: "#555" }}> · {a.actor_email}</span> : null}
+                </span>
+                <span style={{ fontSize: 11, color: "#3f3f3f", whiteSpace: "nowrap" }}>
+                  {new Date(a.created_at).toLocaleDateString("es-CL", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                 </span>
               </div>
             ))}
@@ -369,6 +427,135 @@ function ShopDetail({ shop, planMut, expired, plan }) {
         Registrada el {new Date(shop.created_at).toLocaleDateString("es-CL")} ·
         ID: {shop.id.slice(0, 8)}...
       </p>
+    </div>
+  );
+}
+
+function PaymentRow({ payment: p, shopId, onUpdated }) {
+  const [editing, setEditing] = useState(false);
+  const [date, setDate]       = useState(p.paid_at.slice(0, 10));
+  const [saving, setSaving]   = useState(false);
+
+  async function saveDate() {
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("shop_payments")
+        .update({ paid_at: new Date(date + "T12:00:00").toISOString() })
+        .eq("id", p.id);
+      if (error) throw error;
+      setEditing(false);
+      onUpdated();
+    } catch { toast.error("No se pudo cambiar la fecha"); }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", background: "#141414", borderRadius: 8, gap: 8 }}>
+      <div>
+        <span style={{ fontWeight: 700, color: "#22c55e", fontSize: 14 }}>{formatCurrency(p.amount)}</span>
+        <span style={{ fontSize: 11, color: "#555", marginLeft: 8 }}>
+          {PAYMENT_METHODS.find(m => m.value === p.method)?.label ?? p.method}
+          {p.note ? ` · ${p.note}` : ""}
+        </span>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        {editing ? (
+          <>
+            <input type="date" value={date} onChange={e => setDate(e.target.value)}
+              style={{ background: "#0F0F0F", border: "1px solid #2A2A2A", borderRadius: 6, color: "#fff", fontSize: 12, padding: "3px 6px" }} />
+            <button onClick={saveDate} disabled={saving}
+              style={{ padding: "3px 10px", borderRadius: 6, background: "#FF6B2C", border: "none", color: "#fff", fontSize: 12, cursor: "pointer", fontWeight: 700, opacity: saving ? 0.7 : 1 }}>
+              {saving ? "..." : "OK"}
+            </button>
+            <button onClick={() => setEditing(false)}
+              style={{ padding: "3px 8px", borderRadius: 6, background: "transparent", border: "1px solid #2A2A2A", color: "#555", fontSize: 12, cursor: "pointer" }}>
+              ✕
+            </button>
+          </>
+        ) : (
+          <>
+            <span style={{ fontSize: 11, color: "#3f3f3f" }}>
+              {new Date(p.paid_at).toLocaleDateString("es-CL", { day: "numeric", month: "short", year: "numeric" })}
+            </span>
+            <button onClick={() => setEditing(true)}
+              style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 6, background: "#1E1E1E", border: "1px solid #2A2A2A", cursor: "pointer", color: "#aaa", fontSize: 11 }}>
+              ✏️ Fecha
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function BookingsByBarber({ shopId }) {
+  const [open, setOpen] = useState(false);
+
+  const { data: bookings = [], isLoading, error } = useQuery({
+    queryKey: ["sa-bookings-barber", shopId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("bookings")
+        .select("id, scheduled_at, status, price, barbers(full_name), services(name), clients(full_name)")
+        .eq("shop_id", shopId)
+        .order("scheduled_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: open,
+  });
+
+  const STATUS_COLOR = { pending: "#f59e0b", confirmed: "#3b82f6", completed: "#22c55e", cancelled: "#ef4444", no_show: "#71717a" };
+  const STATUS_LABEL = { pending: "Pendiente", confirmed: "Confirmada", completed: "Completada", cancelled: "Cancelada", no_show: "No asistió" };
+
+  // Agrupar por barbero
+  const byBarber = bookings.reduce((acc, b) => {
+    const name = b.barbers?.full_name ?? "Sin barbero";
+    if (!acc[name]) acc[name] = [];
+    acc[name].push(b);
+    return acc;
+  }, {});
+
+  return (
+    <div style={{ marginTop: 20, borderTop: "1px solid #1E1E1E", paddingTop: 16 }}>
+      <button onClick={() => setOpen(o => !o)}
+        style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: "#aaa", marginBottom: open ? 12 : 0 }}>
+        <Calendar size={14} />
+        <span style={{ fontSize: 13, fontWeight: 600 }}>Reservas por barbero</span>
+        {open ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+      </button>
+
+      {open && (
+        isLoading ? <p style={{ fontSize: 12, color: "#555" }}>Cargando...</p> :
+        error ? <p style={{ fontSize: 12, color: "#ef4444" }}>Error al cargar: {error.message}</p> :
+        bookings.length === 0 ? <p style={{ fontSize: 12, color: "#3f3f3f" }}>Sin reservas aún.</p> :
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {Object.entries(byBarber).map(([barberName, bks]) => (
+            <div key={barberName}>
+              <p style={{ fontSize: 12, fontWeight: 700, color: "#FF6B2C", marginBottom: 6 }}>
+                ✂️ {barberName} · {bks.length} reservas
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {bks.map(b => (
+                  <div key={b.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 10px", background: "#141414", borderRadius: 8, gap: 8 }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", minWidth: 0 }}>
+                      <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 10, background: STATUS_COLOR[b.status] + "22", color: STATUS_COLOR[b.status], fontWeight: 700, whiteSpace: "nowrap" }}>
+                        {STATUS_LABEL[b.status] ?? b.status}
+                      </span>
+                      <span style={{ fontSize: 12, color: "#ddd", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {b.clients?.full_name ?? "—"} · {b.services?.name ?? "—"}
+                      </span>
+                    </div>
+                    <span style={{ fontSize: 11, color: "#555", whiteSpace: "nowrap" }}>
+                      {new Date(b.scheduled_at).toLocaleDateString("es-CL", { day: "numeric", month: "short" })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
