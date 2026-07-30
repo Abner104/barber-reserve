@@ -122,3 +122,61 @@ export async function getSupplierCommissions(supplierId) {
   if (error) throw error;
   return data ?? [];
 }
+
+function slugify(text) {
+  const base = text.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const suffix = Math.random().toString(36).slice(2, 6);
+  return `${base}-${suffix}`;
+}
+
+// Alta rápida de una barbería nueva desde el panel del proveedor.
+// Crea la cuenta del dueño con contraseña temporal, para compartir por WhatsApp.
+export async function createReferredShop({ supplierId, ownerName, ownerEmail, shopName, city, phone }) {
+  const tempPassword = Math.random().toString(36).slice(-8) + "B1!";
+
+  const { data: authData, error: authError } = await supabase.auth.signUp({
+    email: ownerEmail.trim(),
+    password: tempPassword,
+    options: { data: { full_name: ownerName } },
+  });
+  if (authError) throw authError;
+  const userId = authData.user?.id;
+  if (!userId) throw new Error("No se pudo crear el usuario");
+
+  const { data: shopData, error: shopError } = await supabase
+    .from("barbershops")
+    .insert({
+      name: shopName,
+      slug: slugify(shopName),
+      city, phone,
+      plan: "trial",
+      currency: "CLP",
+      timezone: "America/Santiago",
+      allows_delivery: true,
+      delivery_fee_base: 3000,
+      delivery_fee_per_km: 650,
+      theme_mode: "dark",
+      theme_color: "#FF6B2C",
+      theme_font: "Inter",
+      trial_ends_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      referred_by_supplier_id: supplierId,
+    })
+    .select("id, slug").single();
+  if (shopError) throw shopError;
+
+  await supabase.from("profiles").upsert({
+    id: userId, shop_id: shopData.id, role: "owner", full_name: ownerName, phone,
+  }, { onConflict: "id" });
+
+  await supabase.from("service_categories").insert([
+    { shop_id: shopData.id, name: "Cortes",      sort_order: 1 },
+    { shop_id: shopData.id, name: "Barba",       sort_order: 2 },
+    { shop_id: shopData.id, name: "Combos",      sort_order: 3 },
+    { shop_id: shopData.id, name: "Adicionales", sort_order: 4 },
+  ]);
+
+  await supabase.from("referral_commissions").insert({ supplier_id: supplierId, shop_id: shopData.id });
+
+  return { slug: shopData.slug, email: ownerEmail.trim(), password: tempPassword, name: ownerName };
+}
