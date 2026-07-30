@@ -4,7 +4,7 @@ import { Loader2, Eye, EyeOff, Fingerprint } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore } from "../store/authStore";
 import { supabase } from "../lib/supabase";
-import { isPlatformAuthAvailable, hasPasskeys, authenticatePasskey, registerPasskey } from "../lib/passkey";
+import { isPlatformAuthAvailable, hasPasskeys, authenticatePasskey } from "../lib/passkey";
 import PasskeyPrompt from "../components/shared/PasskeyPrompt";
 import BarberLoader from "../components/shared/BarberLoader";
 
@@ -37,14 +37,16 @@ export default function LoginPage() {
   const [forgotSending, setForgotSending]       = useState(false);
   const [forgotSent, setForgotSent]             = useState(false);
 
-  // Verificar si hay passkey guardada y el dispositivo la soporta
+  // Verificar si hay passkey real registrada y el dispositivo la soporta
   useEffect(() => {
-    const registered = localStorage.getItem("clippr_passkey_registered");
-    const userId     = localStorage.getItem("clippr_passkey_user");
-    if (!registered || !userId) return;
-    isPlatformAuthAvailable().then(avail => {
-      setPasskeyAvailable(avail);
-    });
+    const userId = localStorage.getItem("clippr_passkey_user");
+    if (!userId) return;
+    (async () => {
+      const avail = await isPlatformAuthAvailable();
+      if (!avail) return;
+      const has = await hasPasskeys(userId);
+      setPasskeyAvailable(has);
+    })();
   }, []);
 
   if (!loading && user && profile) {
@@ -61,23 +63,33 @@ export default function LoginPage() {
     setError("");
     try {
       await authenticatePasskey(userId);
-      // Autenticación biométrica ok — iniciar sesión con magic link o token guardado
-      // Como Supabase no tiene passkey nativo, usamos el email guardado + pedimos OTP silencioso
-      // En su lugar, guardamos la sesión en localStorage y la restauramos
+      // Biometría ok — restaurar sesión via refresh token
       const savedSession = localStorage.getItem("clippr_session");
-      if (savedSession) {
-        const session = JSON.parse(savedSession);
-        const { error } = await supabase.auth.setSession({
-          access_token:  session.access_token,
-          refresh_token: session.refresh_token,
-        });
-        if (error) throw new Error("Sesión expirada, ingresa con contraseña");
-        const { data: prof } = await supabase.from("profiles").select("role").eq("id", session.user.id).maybeSingle();
-        toast.success("¡Bienvenido! 🔐");
-        navigate(getRoleRoute(prof?.role), { replace: true });
-      } else {
-        throw new Error("Sesión expirada, ingresa con contraseña");
+      if (!savedSession) throw new Error("Sesión expirada, ingresá con contraseña una vez más");
+
+      const session = JSON.parse(savedSession);
+
+      // refreshSession renueva el access_token aunque haya expirado
+      const { data: refreshed, error: refreshErr } = await supabase.auth.refreshSession({
+        refresh_token: session.refresh_token,
+      });
+
+      if (refreshErr || !refreshed?.session) {
+        localStorage.removeItem("clippr_session");
+        localStorage.removeItem("clippr_passkey_registered");
+        throw new Error("Sesión expirada, ingresá con contraseña para reactivar la huella");
       }
+
+      // Guardar sesión renovada para la próxima vez
+      localStorage.setItem("clippr_session", JSON.stringify({
+        access_token:  refreshed.session.access_token,
+        refresh_token: refreshed.session.refresh_token,
+        user: { id: refreshed.session.user.id },
+      }));
+
+      const { data: prof } = await supabase.from("profiles").select("role").eq("id", refreshed.session.user.id).maybeSingle();
+      toast.success("¡Bienvenido! 🔐");
+      navigate(getRoleRoute(prof?.role), { replace: true });
     } catch (e) {
       setError(e.message || "No se pudo autenticar con huella");
       toast.error(e.message || "Error de autenticación");
@@ -112,18 +124,18 @@ export default function LoginPage() {
         .maybeSingle();
 
       const role = profileData?.role ?? null;
-      console.log("[Login] user id:", lu.id, "role:", role, "profile:", profileData);
 
       // Load into store for the rest of the app
       const { loadProfile } = useAuthStore.getState();
       loadProfile(lu); // fire-and-forget, store will hydrate
 
-      // Mostrar prompt de passkey si no lo ha visto y el dispositivo lo soporta
-      const skipped    = localStorage.getItem("clippr_passkey_skipped");
-      const registered = localStorage.getItem("clippr_passkey_registered");
-      if (!skipped && !registered) {
-        const avail = await isPlatformAuthAvailable();
-        if (avail) {
+      // Mostrar prompt de passkey si el dispositivo lo soporta y el usuario no tiene una passkey real registrada
+      const passkeySupported = !!window.PublicKeyCredential && window.isSecureContext;
+      const skippedThisSession = sessionStorage.getItem("clippr_passkey_skipped");
+      if (passkeySupported && !skippedThisSession) {
+        const platformAvail = await isPlatformAuthAvailable();
+        const alreadyHas    = platformAvail && await hasPasskeys(lu.id);
+        if (platformAvail && !alreadyHas) {
           setLoggedUser({ id: lu.id, email: form.email, role });
           setShowPrompt(true);
           setSubmitting(false);

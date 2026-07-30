@@ -27,7 +27,8 @@ export async function isPlatformAuthAvailable() {
   if (!isSupported()) return false;
   try {
     return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-  } catch {
+  } catch (e) {
+    console.error("[passkey] isPlatformAuthAvailable failed:", e);
     return false;
   }
 }
