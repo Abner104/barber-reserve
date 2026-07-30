@@ -1,15 +1,13 @@
 import { useState, useEffect } from "react";
 import { Outlet, Link, useLocation, useNavigate, Navigate } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
 import { Package, ShoppingBag, LogOut, Menu, X, ChevronRight, LayoutDashboard, Settings, ScanLine, Clock, Scissors } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 import { getAllSuppliers } from "../features/supplier/services/supplierService";
-import { useActiveSupplier } from "../hooks/useActiveSupplier";
+import { useActiveSupplier, IMPERSONATE_KEY, notifyImpersonateChanged } from "../hooks/useActiveSupplier";
 import { applyTheme, resetTheme } from "../lib/applyTheme";
 import BarberLoader from "../components/shared/BarberLoader";
 
 const DEFAULT_COLOR = "#FF6B2C";
-const IMPERSONATE_KEY = "sa_impersonate_supplier_id";
 
 const NAV = [
   { to: "/supplier",           icon: LayoutDashboard, label: "Panel",     exact: true },
@@ -24,7 +22,6 @@ const NAV = [
 export default function SupplierLayout() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const qc = useQueryClient();
   const { signOut, profile, loading, user } = useAuthStore();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [allSuppliers, setAllSuppliers] = useState(null); // solo se carga si hace falta elegir
@@ -49,7 +46,7 @@ export default function SupplierLayout() {
 
   function chooseSupplier(id) {
     sessionStorage.setItem(IMPERSONATE_KEY, id);
-    qc.invalidateQueries({ queryKey: ["active-supplier"] });
+    notifyImpersonateChanged();
   }
 
   const brand = supplier?.theme_color || DEFAULT_COLOR;
@@ -145,7 +142,7 @@ export default function SupplierLayout() {
           </div>
         )}
         {isSuperAdmin && (
-          <button onClick={() => { sessionStorage.removeItem(IMPERSONATE_KEY); qc.invalidateQueries({ queryKey: ["active-supplier"] }); }} style={{
+          <button onClick={() => { sessionStorage.removeItem(IMPERSONATE_KEY); notifyImpersonateChanged(); }} style={{
             display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", borderRadius: 10, marginBottom: 2,
             background: "none", border: "none", cursor: "pointer", color: "var(--text-faint)", fontSize: 13, width: "100%",
           }}>
