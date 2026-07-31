@@ -16,10 +16,9 @@ const O = "var(--brand, #FF6B2C)";
 
 
 const STATUS_ACTIONS = {
-  pending:     [{ to: "confirmed",   label: "Confirmar",   color: O         }],
-  confirmed:   [{ to: "in_progress", label: "Iniciar",     color: "#3b82f6" },
-                { to: "no_show",     label: "No vino",     color: "#f59e0b" }],
-  in_progress: [{ to: "completed",   label: "Completar ✓", color: "#22c55e" }],
+  pending:     [{ to: "confirmed", label: "Confirmar",  color: O         }],
+  confirmed:   [{ to: "completed", label: "Iniciar ✓",  color: "#22c55e" },
+                { to: "no_show",   label: "No vino",    color: "#f59e0b" }],
 };
 
 export default function AgendaPage() {
