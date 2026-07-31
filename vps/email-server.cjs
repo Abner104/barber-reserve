@@ -92,11 +92,14 @@ app.post("/send-email", async (req, res) => {
 
 app.get("/health", (req, res) => res.json({ ok: true }));
 
-// ── Cron de recordatorios (2h antes) — corre en loop, no depende de HTTP ──
+// ── Cron de recordatorios (~2h antes) — corre en loop, no depende de HTTP ──
+// Ventana normal: 105-135 min antes. Si la reserva se hizo tarde (menos de 135 min
+// de anticipación), el límite inferior "desde ahora" la agarra igual en el próximo
+// chequeo de 15 min, en vez de perderla por completo.
 async function runReminders() {
   const dbH = { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_SERVICE, "apikey": SUPABASE_SERVICE };
   const now  = Date.now();
-  const from = new Date(now + 105 * 60 * 1000).toISOString();
+  const from = new Date(now + 20 * 60 * 1000).toISOString();
   const to   = new Date(now + 135 * 60 * 1000).toISOString();
 
   const url = SUPABASE_URL + "/rest/v1/bookings"
