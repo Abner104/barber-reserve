@@ -526,19 +526,6 @@ export default function SettingsPage() {
             </Field>
           </Section>
 
-          {/* WhatsApp del negocio — alertas de inventario y notificaciones */}
-          <Section title="WhatsApp del negocio">
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 14px", background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 10 }}>
-              <span style={{ fontSize: 20, flexShrink: 0 }}>💬</span>
-              <div>
-                <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text)", marginBottom: 4 }}>Notificaciones activas via Twilio</p>
-                <p style={{ fontSize: 12, color: "var(--text-faint)", lineHeight: 1.5 }}>
-                  Cada barbero recibe sus reservas directo en WhatsApp. Para activarlo, el barbero va a <strong style={{ color: "var(--text)" }}>Mi Perfil → Conectar WhatsApp</strong> y verifica su número.
-                </p>
-              </div>
-            </div>
-          </Section>
-
           {/* Link a la página pública */}
           <Section title="Tu página pública">
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", background: "var(--surface2)", borderRadius: 10, border: "1px solid var(--border)" }}>
