@@ -20,7 +20,7 @@ function loadGoogleScript() {
     googleLoading = true;
 
     const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_KEY}&libraries=places&language=es&region=CL`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_KEY}&libraries=places&language=es&region=CL&loading=async`;
     script.async = true;
     script.defer = true;
     script.onload = () => {
@@ -65,6 +65,7 @@ export default function StepAddress() {
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   const autocompleteService = useRef(null);
+  const placesLibRef        = useRef(null);
   const geocoderRef         = useRef(null);
   const debounceRef         = useRef(null);
   const sessionToken        = useRef(null);
@@ -103,13 +104,19 @@ export default function StepAddress() {
   useEffect(() => {
     if (!GOOGLE_KEY) return;
     loadGoogleScript()
-      .then(() => {
-        autocompleteService.current = new window.google.maps.places.AutocompleteService();
-        geocoderRef.current         = new window.google.maps.Geocoder();
-        sessionToken.current        = new window.google.maps.places.AutocompleteSessionToken();
+      .then(async () => {
+        const places = await window.google.maps.importLibrary("places");
+        placesLibRef.current        = places;
+        autocompleteService.current = places.AutocompleteSuggestion;
+        sessionToken.current        = new places.AutocompleteSessionToken();
+        const geocoding = await window.google.maps.importLibrary("geocoding");
+        geocoderRef.current = new geocoding.Geocoder();
         setGoogleReady(true);
       })
-      .catch(() => setGoogleError(true));
+      .catch(err => {
+        console.error("[StepAddress] Google Maps failed to load:", err);
+        setGoogleError(true);
+      });
   }, []);
 
   // Búsqueda con debounce
@@ -121,28 +128,27 @@ export default function StepAddress() {
       setLoading(true);
       try {
         if (googleReady && autocompleteService.current) {
-          // Google Places Autocomplete — prioriza Chile
-          autocompleteService.current.getPlacePredictions(
-            {
-              input,
-              sessionToken: sessionToken.current,
-              componentRestrictions: { country: "cl" },
-              types: ["address"],
-            },
-            (predictions, status) => {
-              setLoading(false);
-              if (status !== window.google.maps.places.PlacesServiceStatus.OK || !predictions) {
-                setSuggestions([]);
-                return;
-              }
-              setSuggestions(predictions.map(p => ({
-                display:  p.structured_formatting.main_text,
-                full:     p.description,
-                placeId:  p.place_id,
-              })));
-              setShowSuggestions(true);
-            }
-          );
+          // Google Places Autocomplete (New) — prioriza Chile
+          const { suggestions: preds } = await autocompleteService.current.fetchAutocompleteSuggestions({
+            input,
+            sessionToken: sessionToken.current,
+            includedRegionCodes: ["cl"],
+            includedPrimaryTypes: ["street_address", "premise", "subpremise", "route"],
+          });
+          setLoading(false);
+          if (!preds || !preds.length) {
+            setSuggestions([]);
+            return;
+          }
+          setSuggestions(preds.map(p => {
+            const pred = p.placePrediction;
+            return {
+              display: pred.mainText?.text || pred.text?.text || "",
+              full:    pred.text?.text || "",
+              placeId: pred.placeId,
+            };
+          }));
+          setShowSuggestions(true);
         } else {
           // Fallback Nominatim
           const results = await searchNominatim(input);
@@ -150,7 +156,8 @@ export default function StepAddress() {
           setShowSuggestions(results.length > 0);
           setLoading(false);
         }
-      } catch {
+      } catch (err) {
+        console.error("[StepAddress] autocomplete failed:", err);
         setSuggestions([]);
         setLoading(false);
       }
@@ -168,7 +175,9 @@ export default function StepAddress() {
     if (s.placeId && geocoderRef.current) {
       setLoading(true);
       // Nuevo session token después de completar la sesión
-      sessionToken.current = new window.google.maps.places.AutocompleteSessionToken();
+      if (placesLibRef.current) {
+        sessionToken.current = new placesLibRef.current.AutocompleteSessionToken();
+      }
       geocoderRef.current.geocode({ placeId: s.placeId, language: "es" }, (results, status) => {
         setLoading(false);
         if (status === "OK" && results[0]) {
