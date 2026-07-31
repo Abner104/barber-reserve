@@ -313,8 +313,9 @@ export async function createBooking({ type, serviceId, barberId, date, slot, dur
       const { data: shopData }   = await supabase.from("barbershops").select("name, slug").eq("id", shopId).maybeSingle();
       const manageUrl = shopData?.slug ? `https://www.clipprreserve.com/${shopData.slug}/mis-reservas` : "https://www.clipprreserve.com";
 
-      if (clientInfo.email?.trim()) {
-        fetch("/api/send-email", {
+      const EMAIL_SERVICE_URL = import.meta.env.VITE_EMAIL_SERVICE_URL;
+      if (clientInfo.email?.trim() && EMAIL_SERVICE_URL) {
+        fetch(`${EMAIL_SERVICE_URL}/send-email`, {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             to:          clientInfo.email.trim(),
