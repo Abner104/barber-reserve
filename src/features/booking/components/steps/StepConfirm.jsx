@@ -147,6 +147,7 @@ export default function StepConfirm({ slug }) {
     const isChilean = /^(569\d{8}|9\d{8})$/.test(digits);
     const isIntl    = /^\d{7,15}$/.test(digits) && !isChilean;
     if (!isChilean && !isIntl) e.phone = "Ingresa un teléfono válido (ej: 912345678 o +56912345678)";
+    if (form.email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) e.email = "Ingresa un email válido";
     if (type === "delivery" && !proofUrl) e.proof = "Debes subir el comprobante de pago del domicilio";
     return e;
   }
@@ -231,6 +232,13 @@ export default function StepConfirm({ slug }) {
             </button>
           </div>
           {errors.phone && <p style={{ color: "#ef4444", fontSize: 12, marginTop: 6 }}>{errors.phone}</p>}
+        </div>
+
+        <div>
+          <label style={{ display: "block", fontSize: 12, color: "var(--text-muted)", marginBottom: 8, fontWeight: 700, letterSpacing: 0.5 }}>EMAIL <span style={{ fontWeight: 400, color: "var(--text-faint)", fontSize: 11 }}>(opcional — recordatorio y confirmación por correo)</span></label>
+          <input className="confirm-input" style={inp} type="email" value={form.email || ""}
+            onChange={e => setForm({ ...form, email: e.target.value })} placeholder="tu@email.com" />
+          {errors.email && <p style={{ color: "#ef4444", fontSize: 12, marginTop: 6 }}>{errors.email}</p>}
         </div>
 
         <div>

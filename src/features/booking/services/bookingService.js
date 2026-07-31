@@ -228,10 +228,13 @@ export async function createBooking({ type, serviceId, barberId, date, slot, dur
 
   if (existing) {
     clientId = existing.id;
+    if (clientInfo.email?.trim()) {
+      await supabase.from("clients").update({ email: clientInfo.email.trim() }).eq("id", clientId);
+    }
   } else {
     const { data: newClient, error: ce } = await supabase
       .from("clients")
-      .insert({ shop_id: shopId, full_name: clientInfo.full_name, phone: clientInfo.phone })
+      .insert({ shop_id: shopId, full_name: clientInfo.full_name, phone: clientInfo.phone, email: clientInfo.email?.trim() || null })
       .select("id")
       .single();
     if (ce) throw ce;
@@ -304,37 +307,56 @@ export async function createBooking({ type, serviceId, barberId, date, slot, dur
       }),
     }).catch(() => {});
 
-    // Notificaciones al cliente si tiene teléfono
-    if (clientInfo.phone) {
+    // Notificaciones al cliente
+    {
       const { data: barberData } = await supabase.from("barbers").select("full_name").eq("id", barberId).maybeSingle();
       const { data: shopData }   = await supabase.from("barbershops").select("name, slug").eq("id", shopId).maybeSingle();
+      const manageUrl = shopData?.slug ? `https://www.clipprreserve.com/${shopData.slug}/mis-reservas` : "https://www.clipprreserve.com";
 
-      // WhatsApp al cliente (sandbox por ahora)
-      fetch("/api/whatsapp-client", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone:       clientInfo.phone,
-          type:        "confirmed",
-          clientName:  clientInfo.full_name,
-          serviceName: data.services?.name ?? "",
-          barberName:  barberData?.full_name ?? "",
-          shopName:    shopData?.name ?? "Barbería",
-          shopSlug:    shopData?.slug ?? "",
-          date:        dia,
-          time:        hora,
-        }),
-      }).catch(() => {});
+      if (clientInfo.email?.trim()) {
+        fetch("/api/send-email", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            to:          clientInfo.email.trim(),
+            type:        "confirmation",
+            clientName:  clientInfo.full_name,
+            serviceName: data.services?.name ?? "",
+            barberName:  barberData?.full_name ?? "",
+            shopName:    shopData?.name ?? "Barbería",
+            date:        dia,
+            time:        hora,
+            manageUrl,
+          }),
+        }).catch(() => {});
+      }
 
-      // SMS al cliente con confirmación y link para ver/cancelar
-      const manageUrl = shopData?.slug ? `clipprreserve.com/${shopData.slug}/mis-reservas` : "clipprreserve.com";
-      fetch("/api/whatsapp-client", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone:   clientInfo.phone,
-          type:    "sms",
-          message: `Reserva confirmada en ${shopData?.name ?? "la barbería"} - ${dia} a las ${hora} con ${barberData?.full_name ?? "tu barbero"}. Ver o cancelar: ${manageUrl}`,
-        }),
-      }).catch(() => {});
+      if (clientInfo.phone) {
+        // WhatsApp al cliente (sandbox por ahora)
+        fetch("/api/whatsapp-client", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            phone:       clientInfo.phone,
+            type:        "confirmed",
+            clientName:  clientInfo.full_name,
+            serviceName: data.services?.name ?? "",
+            barberName:  barberData?.full_name ?? "",
+            shopName:    shopData?.name ?? "Barbería",
+            shopSlug:    shopData?.slug ?? "",
+            date:        dia,
+            time:        hora,
+          }),
+        }).catch(() => {});
+
+        // SMS al cliente con confirmación y link para ver/cancelar
+        fetch("/api/whatsapp-client", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            phone:   clientInfo.phone,
+            type:    "sms",
+            message: `Reserva confirmada en ${shopData?.name ?? "la barbería"} - ${dia} a las ${hora} con ${barberData?.full_name ?? "tu barbero"}. Ver o cancelar: ${manageUrl}`,
+          }),
+        }).catch(() => {});
+      }
     }
   } catch {}
 
