@@ -4,38 +4,7 @@ import { MapPin, ChevronLeft, Loader2, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { useBookingStore } from "../../../../store/bookingStore";
 import { getDistanceKm, calcDeliveryFee } from "../../../../lib/mapbox";
-
-const GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY;
-
-// ── Carga el script de Google Places una sola vez ─────────────
-let googleLoaded = false;
-let googleLoading = false;
-const loadCallbacks = [];
-
-function loadGoogleScript() {
-  return new Promise((resolve, reject) => {
-    if (googleLoaded && window.google?.maps?.places) { resolve(); return; }
-    loadCallbacks.push({ resolve, reject });
-    if (googleLoading) return;
-    googleLoading = true;
-
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_KEY}&libraries=places&language=es&region=CL&loading=async`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
-      googleLoaded = true;
-      loadCallbacks.forEach(cb => cb.resolve());
-      loadCallbacks.length = 0;
-    };
-    script.onerror = () => {
-      loadCallbacks.forEach(cb => cb.reject(new Error("Google Maps no cargó")));
-      loadCallbacks.length = 0;
-      googleLoading = false;
-    };
-    document.head.appendChild(script);
-  });
-}
+import { GOOGLE_KEY, loadPlacesAndGeocoding } from "../../../../lib/googlePlaces";
 
 // ── Fallback: Nominatim solo si no hay Google key ─────────────
 async function searchNominatim(query) {
@@ -64,11 +33,11 @@ export default function StepAddress() {
   const [googleError, setGoogleError]   = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  const autocompleteService = useRef(null);
-  const placesLibRef        = useRef(null);
-  const geocoderRef         = useRef(null);
-  const debounceRef         = useRef(null);
-  const sessionToken        = useRef(null);
+  const AutocompleteSuggestionRef   = useRef(null);
+  const AutocompleteSessionTokenRef = useRef(null);
+  const geocoderRef                 = useRef(null);
+  const debounceRef                 = useRef(null);
+  const sessionToken                = useRef(null);
 
   const brand = "var(--brand)";
   const isConfirmed = !!address.lat;
@@ -103,14 +72,12 @@ export default function StepAddress() {
   // Cargar Google Places al montar
   useEffect(() => {
     if (!GOOGLE_KEY) return;
-    loadGoogleScript()
-      .then(async () => {
-        const places = await window.google.maps.importLibrary("places");
-        placesLibRef.current        = places;
-        autocompleteService.current = places.AutocompleteSuggestion;
-        sessionToken.current        = new places.AutocompleteSessionToken();
-        const geocoding = await window.google.maps.importLibrary("geocoding");
-        geocoderRef.current = new geocoding.Geocoder();
+    loadPlacesAndGeocoding()
+      .then(({ AutocompleteSuggestion, AutocompleteSessionToken, geocoder }) => {
+        AutocompleteSuggestionRef.current   = AutocompleteSuggestion;
+        AutocompleteSessionTokenRef.current = AutocompleteSessionToken;
+        sessionToken.current = new AutocompleteSessionToken();
+        geocoderRef.current  = geocoder;
         setGoogleReady(true);
       })
       .catch(err => {
@@ -127,9 +94,9 @@ export default function StepAddress() {
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
       try {
-        if (googleReady && autocompleteService.current) {
+        if (googleReady && AutocompleteSuggestionRef.current) {
           // Google Places Autocomplete (New) — prioriza Chile
-          const { suggestions: preds } = await autocompleteService.current.fetchAutocompleteSuggestions({
+          const { suggestions: preds } = await AutocompleteSuggestionRef.current.fetchAutocompleteSuggestions({
             input,
             sessionToken: sessionToken.current,
             includedRegionCodes: ["cl"],
@@ -175,8 +142,8 @@ export default function StepAddress() {
     if (s.placeId && geocoderRef.current) {
       setLoading(true);
       // Nuevo session token después de completar la sesión
-      if (placesLibRef.current) {
-        sessionToken.current = new placesLibRef.current.AutocompleteSessionToken();
+      if (AutocompleteSessionTokenRef.current) {
+        sessionToken.current = new AutocompleteSessionTokenRef.current();
       }
       geocoderRef.current.geocode({ placeId: s.placeId, language: "es" }, (results, status) => {
         setLoading(false);

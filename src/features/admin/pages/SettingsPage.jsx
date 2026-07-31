@@ -7,7 +7,7 @@ import { supabase } from "../../../lib/supabase";
 import { SHOP_ID } from "../../../lib/constants";
 import ThemeProvider from "../../../components/shared/ThemeProvider";
 import ImageUpload from "../../../components/shared/ImageUpload";
-import WhatsAppQR from "../components/WhatsAppQR";
+import { GOOGLE_KEY, loadPlacesAndGeocoding } from "../../../lib/googlePlaces";
 
 const O = "var(--brand, #FF6B2C)";
 
@@ -71,35 +71,15 @@ async function updateShopSettings(shopId, updates) {
     ...(updates.cover_url   !== undefined && { cover_url:   updates.cover_url }),
   };
 
-  console.log("🔄 Guardando shop:", shopId, safe);
   const { data, error } = await supabase
     .from("barbershops")
     .update(safe)
     .eq("id", shopId)
     .select();
-  console.log("📦 Resultado update:", { data, error });
-  if (error) throw error;
+  if (error) throw new Error("No se pudo guardar la configuración. Intentá de nuevo.");
   if (!data || data.length === 0) {
-    throw new Error("El update no afectó ninguna fila. Verifica el RLS en Supabase.");
+    throw new Error("No se pudo guardar la configuración. Intentá de nuevo.");
   }
-}
-
-const GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY;
-let _googleLoaded = false, _googleLoading = false;
-const _cbs = [];
-function loadGoogleOnce() {
-  return new Promise((res, rej) => {
-    if (_googleLoaded && window.google?.maps?.places) { res(); return; }
-    _cbs.push({ res, rej });
-    if (_googleLoading) return;
-    _googleLoading = true;
-    const s = document.createElement("script");
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_KEY}&libraries=places&language=es&region=CL`;
-    s.async = true; s.defer = true;
-    s.onload  = () => { _googleLoaded = true; _cbs.forEach(c => c.res()); _cbs.length = 0; };
-    s.onerror = () => { _cbs.forEach(c => c.rej()); _cbs.length = 0; _googleLoading = false; };
-    document.head.appendChild(s);
-  });
 }
 
 function AddressAutocomplete({ value, lat, lng, onChange, style }) {
@@ -108,7 +88,8 @@ function AddressAutocomplete({ value, lat, lng, onChange, style }) {
   const [show, setShow]           = useState(false);
   const [loading, setLoading]     = useState(false);
   const [ready, setReady]         = useState(false);
-  const svcRef   = useRef(null);
+  const AutocompleteSuggestionRef   = useRef(null);
+  const AutocompleteSessionTokenRef = useRef(null);
   const geocRef  = useRef(null);
   const tokenRef = useRef(null);
   const debRef   = useRef(null);
@@ -116,36 +97,55 @@ function AddressAutocomplete({ value, lat, lng, onChange, style }) {
 
   useEffect(() => {
     if (!GOOGLE_KEY) return;
-    loadGoogleOnce().then(() => {
-      svcRef.current   = new window.google.maps.places.AutocompleteService();
-      geocRef.current  = new window.google.maps.Geocoder();
-      tokenRef.current = new window.google.maps.places.AutocompleteSessionToken();
-      setReady(true);
-    }).catch(() => {});
+    loadPlacesAndGeocoding()
+      .then(({ AutocompleteSuggestion, AutocompleteSessionToken, geocoder }) => {
+        AutocompleteSuggestionRef.current   = AutocompleteSuggestion;
+        AutocompleteSessionTokenRef.current = AutocompleteSessionToken;
+        tokenRef.current = new AutocompleteSessionToken();
+        geocRef.current  = geocoder;
+        setReady(true);
+      })
+      .catch(err => console.error("[SettingsPage] Google Maps failed to load:", err));
   }, []);
 
   useEffect(() => {
     clearTimeout(debRef.current);
     if (!input.trim() || input === value) { setSugg([]); return; }
-    debRef.current = setTimeout(() => {
-      if (!ready || !svcRef.current) return;
+    debRef.current = setTimeout(async () => {
+      if (!ready || !AutocompleteSuggestionRef.current) return;
       setLoading(true);
-      svcRef.current.getPlacePredictions(
-        { input, sessionToken: tokenRef.current, componentRestrictions: { country: "cl" }, types: ["address"] },
-        (preds, status) => {
-          setLoading(false);
-          if (status !== window.google.maps.places.PlacesServiceStatus.OK || !preds) { setSugg([]); return; }
-          setSugg(preds.map(p => ({ display: p.structured_formatting.main_text, full: p.description, placeId: p.place_id })));
-          setShow(true);
-        }
-      );
+      try {
+        const { suggestions: preds } = await AutocompleteSuggestionRef.current.fetchAutocompleteSuggestions({
+          input,
+          sessionToken: tokenRef.current,
+          includedRegionCodes: ["cl"],
+          includedPrimaryTypes: ["street_address", "premise", "subpremise", "route"],
+        });
+        setLoading(false);
+        if (!preds || !preds.length) { setSugg([]); return; }
+        setSugg(preds.map(p => {
+          const pred = p.placePrediction;
+          return {
+            display: pred.mainText?.text || pred.text?.text || "",
+            full:    pred.text?.text || "",
+            placeId: pred.placeId,
+          };
+        }));
+        setShow(true);
+      } catch (err) {
+        console.error("[SettingsPage] autocomplete failed:", err);
+        setSugg([]);
+        setLoading(false);
+      }
     }, 350);
     return () => clearTimeout(debRef.current);
   }, [input, ready]);
 
   function select(s) {
     setSugg([]); setShow(false); setInput(s.full);
-    tokenRef.current = new window.google.maps.places.AutocompleteSessionToken();
+    if (AutocompleteSessionTokenRef.current) {
+      tokenRef.current = new AutocompleteSessionTokenRef.current();
+    }
     geocRef.current.geocode({ placeId: s.placeId, language: "es" }, (results, status) => {
       if (status === "OK" && results[0]) {
         const loc = results[0].geometry.location;
@@ -524,16 +524,15 @@ export default function SettingsPage() {
 
           {/* WhatsApp del negocio — alertas de inventario y notificaciones */}
           <Section title="WhatsApp del negocio">
-            <p style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 12, lineHeight: 1.5 }}>
-              Conecta el WhatsApp del negocio para recibir alertas automáticas de <strong style={{ color: "var(--text)" }}>stock bajo</strong> en el inventario.
-              Es una sesión independiente de la de cada barbero.
-            </p>
-            {shop?.id && (
-              <WhatsAppQR
-                barberId={`shop_${shop.id}`}
-                barberName="Negocio"
-              />
-            )}
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 14px", background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 10 }}>
+              <span style={{ fontSize: 20, flexShrink: 0 }}>💬</span>
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text)", marginBottom: 4 }}>Notificaciones activas via Twilio</p>
+                <p style={{ fontSize: 12, color: "var(--text-faint)", lineHeight: 1.5 }}>
+                  Cada barbero recibe sus reservas directo en WhatsApp. Para activarlo, el barbero va a <strong style={{ color: "var(--text)" }}>Mi Perfil → Conectar WhatsApp</strong> y verifica su número.
+                </p>
+              </div>
+            </div>
           </Section>
 
           {/* Link a la página pública */}
