@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -45,7 +45,7 @@ export default function AgendaPage() {
     queryFn:  getMyBarberProfile,
   });
 
-  // Sin filtro de fecha: TODAS las reservas (historial completo)
+  // Sin filtro de fecha: reservas del mes en curso
   const { data: upcoming = [], isLoading: loadingUpcoming } = useQuery({
     queryKey: ["my-all", profile?.id],
     queryFn:  getAllMyBookings,
@@ -88,6 +88,15 @@ export default function AgendaPage() {
     statusMut.mutate({ id: b.id, status: action.to });
   }
 
+  useEffect(() => {
+    if (!expanded) return;
+    document.getElementById(`booking-${expanded}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [expanded]);
+
+  useEffect(() => {
+    if (showHorario) document.getElementById("horario-panel")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [showHorario]);
+
   // Sin barbero configurado
   if (!loadingProfile && !profile) return (
     <div style={{ textAlign: "center", padding: "60px 20px" }}>
@@ -105,7 +114,7 @@ export default function AgendaPage() {
   const totalSum = bookings.reduce((s, b) => s + Number(b.price || 0), 0);
   const pending  = bookings.filter(b => b.status === "pending").length;
   const O        = "var(--brand, #FF6B2C)";
-  const title    = !dateStr ? "Todas mis reservas" : isToday ? "Mi agenda hoy" : format(new Date(dateStr + "T12:00:00"), "EEEE d 'de' MMMM", { locale: es });
+  const title    = !dateStr ? "Mis reservas este mes" : isToday ? "Mi agenda hoy" : format(new Date(dateStr + "T12:00:00"), "EEEE d 'de' MMMM", { locale: es });
 
   // Horarios del barbero
   const { data: workingHours = [], refetch: refetchHours } = useQuery({
@@ -282,7 +291,7 @@ export default function AgendaPage() {
       </div>
 
       {/* ── HORARIO RÁPIDO ── */}
-      <div style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 14, marginBottom: 16, overflow: "hidden" }}>
+      <div id="horario-panel" style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 14, marginBottom: 16, overflow: "hidden" }}>
         <button
           onClick={() => setShowHorario(!showHorario)}
           style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: "none", border: "none", cursor: "pointer" }}
@@ -477,7 +486,7 @@ export default function AgendaPage() {
         <div style={{ textAlign: "center", padding: "48px 0", color: "var(--text-faint)" }}>
           <p style={{ fontSize: 36, marginBottom: 8 }}>✂️</p>
           <p style={{ fontSize: 14 }}>
-            {dateStr ? "No hay reservas para este día" : "No tienes reservas próximas"}
+            {dateStr ? "No hay reservas para este día" : "No tienes reservas este mes"}
           </p>
         </div>
       )}
@@ -490,7 +499,7 @@ export default function AgendaPage() {
           const waLink  = buildWaLink(b);
 
           return (
-            <div key={b.id} style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 14, overflow: "hidden" }}>
+            <div key={b.id} id={`booking-${b.id}`} style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 14, overflow: "hidden" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", cursor: "pointer" }} onClick={() => isMobile ? setDetailModal(b) : setExpanded(isOpen ? null : b.id)}>
                 {/* Hora */}
                 <div style={{ textAlign: "center", minWidth: 44, flexShrink: 0 }}>
@@ -659,11 +668,16 @@ export default function AgendaPage() {
 function DayScheduleEditor({ day, label, active, slots, startTime, endTime, onToggle, onSave, onSaveRange, O }) {
   const [newTime, setNewTime] = useState("");
   const [open, setOpen]       = useState(false);
+  const rootRef = useRef(null);
   // Si no hay slots manuales → modo automático
   const isAuto = !slots || slots.length === 0;
   const [autoMode, setAutoMode] = useState(isAuto);
   const [rangeStart, setRangeStart] = useState(startTime || "09:00");
   const [rangeEnd,   setRangeEnd]   = useState(endTime   || "18:00");
+
+  useEffect(() => {
+    if (open) rootRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [open]);
 
   function addSlot() {
     if (!newTime || slots?.includes(newTime)) return;
@@ -687,7 +701,7 @@ function DayScheduleEditor({ day, label, active, slots, startTime, endTime, onTo
   }
 
   return (
-    <div style={{ background: "var(--surface2)", borderRadius: 12, overflow: "hidden", border: `1px solid ${active ? "var(--brand-alpha)" : "transparent"}` }}>
+    <div ref={rootRef} style={{ background: "var(--surface2)", borderRadius: 12, overflow: "hidden", border: `1px solid ${active ? "var(--brand-alpha)" : "transparent"}` }}>
       {/* Fila principal */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px" }}>
         <button onClick={onToggle}

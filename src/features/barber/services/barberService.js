@@ -73,6 +73,14 @@ export async function getMyUpcomingBookings() {
 export async function getAllMyBookings() {
   const barber = await getMyBarberId();
   if (!barber) return [];
+
+  // Mes en curso (timezone Chile), no todo el historial
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Santiago" });
+  const monthStart = `${today.slice(0, 7)}-01T00:00:00-04:00`;
+  const [y, m] = today.slice(0, 7).split("-").map(Number);
+  const nextMonth = new Date(y, m, 1); // día 1 del mes siguiente en horario local del server
+  const monthEnd = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, "0")}-01T00:00:00-04:00`;
+
   const { data, error } = await supabase
     .from("bookings")
     .select(`
@@ -82,8 +90,10 @@ export async function getAllMyBookings() {
       services(name)
     `)
     .eq("barber_id", barber.id)
+    .gte("scheduled_at", monthStart)
+    .lt("scheduled_at", monthEnd)
     .order("scheduled_at", { ascending: false })
-    .limit(100);
+    .limit(200);
   if (error) throw error;
   return data;
 }
