@@ -271,7 +271,7 @@ export async function createBooking({ type, serviceId, barberId, date, slot, dur
     duration_min: durationMin,
     people_count: peopleCount,
     price,
-    status:       "pending",
+    status:       "confirmed",
     client_notes:      clientInfo.notes || null,
     payment_proof_url: proofUrl || null,
     ...(type === "delivery" && {
