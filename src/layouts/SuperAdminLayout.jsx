@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Outlet, Link, useLocation, useNavigate, Navigate } from "react-router-dom";
-import { Scissors, LayoutDashboard, Building2, LogOut, Menu, X, ChevronRight, Zap, Tag, Package, Settings } from "lucide-react";
+import { Scissors, LayoutDashboard, Building2, LogOut, Menu, X, ChevronRight, Zap, Tag, Package, Settings, CalendarDays } from "lucide-react";
 import BarberLoader from "../components/shared/BarberLoader";
 import { useAuthStore } from "../store/authStore";
 
@@ -9,6 +9,7 @@ const NAV = [
   { to: "/superadmin/shops",     icon: Building2,       label: "Barberías"   },
   { to: "/superadmin/suppliers", icon: Package,         label: "Proveedores" },
   { to: "/superadmin/pricing",   icon: Tag,             label: "Precios"     },
+  { to: "/superadmin/payments", icon: CalendarDays,    label: "Pagos"       },
   { to: "/superadmin/settings", icon: Settings,        label: "Config"      },
 ];
 
@@ -78,7 +79,7 @@ export default function SuperAdminLayout() {
             </div>
           </div>
         )}
-        <button onClick={async () => { try { await signOut(); } catch {} navigate("/login", { replace: true }); }} style={{
+        <button onClick={async () => { try { await signOut(); } catch {} navigate("/", { replace: true }); }} style={{
           display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", borderRadius: 10,
           background: "none", border: "none", cursor: "pointer", color: "#555", fontSize: 13, width: "100%",
         }}>

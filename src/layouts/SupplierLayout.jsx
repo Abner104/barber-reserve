@@ -91,7 +91,7 @@ export default function SupplierLayout() {
 
   async function handleSignOut() {
     try { await signOut(); } catch {}
-    navigate("/login", { replace: true });
+    navigate("/", { replace: true });
   }
 
   const SidebarContent = () => (

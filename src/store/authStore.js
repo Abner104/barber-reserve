@@ -29,7 +29,7 @@ export const useAuthStore = create((set, get) => ({
         // Redirigir si está en una ruta protegida
         const path = window.location.pathname;
         if (path.startsWith("/admin") || path.startsWith("/barber") || path.startsWith("/superadmin") || path.startsWith("/supplier")) {
-          window.location.href = "/login";
+          window.location.href = "/";
         }
         return;
       }

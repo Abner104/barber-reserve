@@ -193,7 +193,7 @@ export default function AdminLayout() {
 
   async function handleSignOut() {
     try { await signOut(); } catch {}
-    navigate("/login", { replace: true });
+    navigate("/", { replace: true });
   }
 
   function closeDrawer() { setDrawerOpen(false); }
