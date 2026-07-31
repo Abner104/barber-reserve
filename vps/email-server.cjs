@@ -3,11 +3,12 @@
  * Standalone — no depende de Baileys/WhatsApp. Expone HTTP para que el frontend
  * (clipprreserve.com) le pegue directo, y corre el cron de recordatorios en loop.
  *
- * Instalar deps: npm install express cors
- * Variables de entorno requeridas: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, RESEND_API_KEY
- * Ejecutar: node vps/email-server.js   (o con pm2 para que quede corriendo siempre)
+ * Instalar deps: npm install express cors dotenv
+ * Variables de entorno requeridas (en vps/.env): SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, RESEND_API_KEY
+ * Ejecutar: node vps/email-server.cjs   (o con pm2 para que quede corriendo siempre)
  */
 
+require("dotenv").config({ path: __dirname + "/.env" });
 const express = require("express");
 const cors    = require("cors");
 
