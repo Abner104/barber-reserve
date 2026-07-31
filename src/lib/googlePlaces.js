@@ -10,7 +10,7 @@ const loadCallbacks = [];
 
 export function loadGoogleScript() {
   return new Promise((resolve, reject) => {
-    if (googleLoaded && window.google?.maps?.places) { resolve(); return; }
+    if (googleLoaded && window.google?.maps?.importLibrary) { resolve(); return; }
     loadCallbacks.push({ resolve, reject });
     if (googleLoading) return;
     googleLoading = true;

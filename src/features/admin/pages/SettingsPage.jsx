@@ -163,7 +163,11 @@ function AddressAutocomplete({ value, lat, lng, onChange, style }) {
         <div style={{ padding: "0 11px", color: confirmed ? "var(--brand)" : "var(--text-faint)" }}><MapPin size={15} /></div>
         <input
           value={input}
-          onChange={e => { setInput(e.target.value); if (confirmed) clear(); }}
+          onChange={e => {
+            const next = e.target.value;
+            setInput(next);
+            if (confirmed) onChange({ address: next, lat: null, lng: null });
+          }}
           onFocus={() => suggestions.length > 0 && setShow(true)}
           onBlur={() => setTimeout(() => setShow(false), 180)}
           placeholder="Av. Providencia 1234, Santiago"
