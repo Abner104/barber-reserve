@@ -37,9 +37,9 @@ export default function BookingSummaryPanel() {
       )}
 
       {services?.length > 0 && (
-        <div style={{ borderTop: "1px solid #2A2A2A", marginTop: 4, paddingTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ borderTop: "1px solid var(--border)", marginTop: 4, paddingTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={{ color: "var(--text-muted)", fontSize: 12 }}>Total estimado</span>
-          <span style={{ color: "var(--brand)", fontWeight: 700, fontSize: 14 }}>{formatCurrency(total)}</span>
+          <span style={{ color: "var(--brand-text-on-tint, var(--brand))", fontWeight: 700, fontSize: 14 }}>{formatCurrency(total)}</span>
         </div>
       )}
     </div>
@@ -51,7 +51,7 @@ function Row({ icon, value, sub, orange }) {
     <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
       <span style={{ color: "var(--text-faint)", marginTop: 1, flexShrink: 0 }}>{icon}</span>
       <div>
-        <p style={{ fontSize: 12, lineHeight: 1.3, color: orange ? "var(--brand)" : "#D0D0D0", fontWeight: orange ? 600 : 400 }}>{value}</p>
+        <p style={{ fontSize: 12, lineHeight: 1.3, color: orange ? "var(--brand-text-on-tint, var(--brand))" : "var(--text)", fontWeight: orange ? 600 : 400 }}>{value}</p>
         {sub && <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 2 }}>{sub}</p>}
       </div>
     </div>

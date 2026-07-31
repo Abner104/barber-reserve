@@ -56,7 +56,7 @@ export default function StepDateTime() {
         <ChevronLeft size={15} /> Atrás
       </button>
 
-      <p style={{ color: "var(--brand)", fontSize: 11, fontWeight: 700, letterSpacing: 2.5, textTransform: "uppercase", marginBottom: 10 }}>Elige tu momento</p>
+      <p style={{ color: "var(--brand-text-on-tint, var(--brand))", fontSize: 11, fontWeight: 700, letterSpacing: 2.5, textTransform: "uppercase", marginBottom: 10 }}>Elige tu momento</p>
       <h2 style={{ fontSize: 30, fontWeight: 900, color: "var(--text)", lineHeight: 1.1, marginBottom: 32 }}>¿Cuándo?</h2>
 
       {/* Calendario */}

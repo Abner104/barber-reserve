@@ -52,7 +52,7 @@ export default function StepService() {
         <ChevronLeft size={15} /> Atrás
       </button>
 
-      <p style={{ color: "var(--brand)", fontSize: 11, fontWeight: 700, letterSpacing: 2.5, textTransform: "uppercase", marginBottom: 10 }}>
+      <p style={{ color: "var(--brand-text-on-tint, var(--brand))", fontSize: 11, fontWeight: 700, letterSpacing: 2.5, textTransform: "uppercase", marginBottom: 10 }}>
         {type === "delivery" ? "Servicios a domicilio" : "Servicios disponibles"}
       </p>
       <h2 style={{ fontSize: 30, fontWeight: 900, color: "var(--text)", lineHeight: 1.1, marginBottom: 8 }}>
@@ -119,7 +119,7 @@ export default function StepService() {
                   </div>
 
                   <div style={{ textAlign: "right", flexShrink: 0 }}>
-                    <p style={{ fontWeight: 800, fontSize: 16, color: "var(--brand)" }}>{formatCurrency(s.price)}</p>
+                    <p style={{ fontWeight: 800, fontSize: 16, color: "var(--brand-text-on-tint, var(--brand))" }}>{formatCurrency(s.price)}</p>
                     {type === "delivery" && <p style={{ fontSize: 10, color: "var(--text-faint)", marginTop: 2 }}>+ domicilio</p>}
                   </div>
 

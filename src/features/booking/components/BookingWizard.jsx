@@ -54,7 +54,7 @@ export default function BookingWizard({ slug, shopName, shopLogo }) {
             display: flex; align-items: center; justify-content: center; gap: 8px;
             width: 100%; padding: 12px; border-radius: 12px;
             background: var(--brand-alpha, rgba(255,107,44,0.1)); border: 1px solid var(--brand-alpha, rgba(255,107,44,0.3));
-            color: var(--brand); font-size: 13px; font-weight: 600; cursor: pointer; margin-bottom: 20px;
+            color: var(--brand-text-on-tint, var(--brand)); font-size: 13px; font-weight: 600; cursor: pointer; margin-bottom: 20px;
           }
           .wizard-content { padding-bottom: 80px; }
         }
@@ -139,7 +139,7 @@ export default function BookingWizard({ slug, shopName, shopLogo }) {
               {step === 3 && <StepBarber />}
               {step === 4 && <StepDateTime />}
               {step === 5 && type === "delivery" && <StepAddress />}
-              {step === confirmStep && <StepConfirm />}
+              {step === confirmStep && <StepConfirm slug={slug} />}
             </div>
           </div>
         </div>

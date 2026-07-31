@@ -25,7 +25,7 @@ export default function StepType() {
     <div style={{ animation: "fadeUp .4s ease" }}>
       <style>{CSS}</style>
 
-      <p style={{ color: "var(--brand)", fontSize: 11, fontWeight: 700, letterSpacing: 2.5, textTransform: "uppercase", marginBottom: 10 }}>¿Cómo prefieres?</p>
+      <p style={{ color: "var(--brand-text-on-tint, var(--brand))", fontSize: 11, fontWeight: 700, letterSpacing: 2.5, textTransform: "uppercase", marginBottom: 10 }}>¿Cómo prefieres?</p>
       <h2 style={{ fontSize: 30, fontWeight: 900, color: "var(--text)", lineHeight: 1.1, marginBottom: 6 }}>
         Elige tu experiencia
       </h2>

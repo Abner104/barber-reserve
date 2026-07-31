@@ -46,7 +46,7 @@ async function notifyBarber(bookingRecord, clientInfo, serviceInfo) {
   } catch {}
 }
 
-async function notifyClient(bookingRecord, clientInfo, serviceInfo, barberName) {
+async function notifyClient(bookingRecord, clientInfo, serviceInfo, barberName, slug) {
   if (!bookingRecord?.barber_id || !clientInfo?.phone) return;
   try {
     const fecha = bookingRecord.scheduled_at
@@ -65,7 +65,9 @@ async function notifyClient(bookingRecord, clientInfo, serviceInfo, barberName) 
       `📅 ${fecha}`,
       bookingRecord.type === "delivery" ? `📍 A domicilio: ${bookingRecord.address_line ?? ""}` : `📍 En el local`,
       ``,
-      `_Si necesitas cancelar o cambiar, contáctanos por este medio._`,
+      slug
+        ? `📲 Para ver, cancelar o reagendar: clipprreserve.com/${slug}/mis-reservas`
+        : `_Si necesitas cancelar o cambiar, contáctanos por este medio._`,
     ].filter(Boolean).join("\n");
     await fetch(`${WA_URL}/notify`, {
       method: "POST", headers: WA_HEADERS,
@@ -74,7 +76,7 @@ async function notifyClient(bookingRecord, clientInfo, serviceInfo, barberName) 
   } catch {}
 }
 
-export default function StepConfirm() {
+export default function StepConfirm({ slug }) {
   const { type, services, people, barber, date, slot, address, clientInfo, setClientInfo, setStep, prevStep, shopConfig, getTotalDuration, getTotal, deliveryFee: storedFee } = useBookingStore();
   const [form, setForm]         = useState(clientInfo);
   const [errors, setErrors]     = useState({});
@@ -114,14 +116,14 @@ export default function StepConfirm() {
   const dateLabel    = date ? format(new Date(date + "T12:00:00"), "EEEE d 'de' MMMM", { locale: es }) : "";
 
   const mutation = useMutation({
-    mutationFn: () => createBooking({ type, serviceId: services[0]?.id, serviceIds: services.map(s => s.id), barberId: barber.id, date, slot, durationMin: getTotalDuration(), price: servicePrice, deliveryFee, address, clientInfo: form, proofUrl: proofUrl || null, peopleCount }),
+    mutationFn: () => createBooking({ type, serviceId: services[0]?.id, serviceIds: services.map(s => s.id), barberId: barber.id, date, slot, durationMin: getTotalDuration(), price: servicePrice, deliveryFee, address, clientInfo: { ...form, phone: normalizePhone(form.phone || "") }, proofUrl: proofUrl || null, peopleCount }),
     onSuccess: (booking) => {
       setClientInfo(form);
       setStep(7);
       toast.success("¡Reserva creada!");
       const svcInfo = { name: services.map(s => s.name).join(" + ") };
       notifyBarber(booking, form, svcInfo);
-      notifyClient(booking, form, svcInfo, barber?.full_name);
+      notifyClient(booking, form, svcInfo, barber?.full_name, slug);
       // Notificar al barbero del comprobante si es domicilio
       if (type === "delivery" && proofUrl) {
         fetch(`${WA_URL}/notify`, {
@@ -139,9 +141,22 @@ export default function StepConfirm() {
   function validate() {
     const e = {};
     if (!form.full_name?.trim()) e.full_name = "Ingresa tu nombre";
-    if (!/^\d{7,15}$/.test((form.phone || "").replace(/\s/g, ""))) e.phone = "Teléfono inválido";
+    const rawPhone = (form.phone || "").replace(/[\s\-\(\)]/g, "");
+    // Acepta: 9XXXXXXXX (9 dígitos), 569XXXXXXXX, +569XXXXXXXX
+    const digits = rawPhone.replace(/^\+/, "");
+    const isChilean = /^(569\d{8}|9\d{8})$/.test(digits);
+    const isIntl    = /^\d{7,15}$/.test(digits) && !isChilean;
+    if (!isChilean && !isIntl) e.phone = "Ingresa un teléfono válido (ej: 912345678 o +56912345678)";
     if (type === "delivery" && !proofUrl) e.proof = "Debes subir el comprobante de pago del domicilio";
     return e;
+  }
+
+  // Normaliza el teléfono a formato internacional chileno
+  function normalizePhone(raw) {
+    const digits = raw.replace(/[\s\-\(\)\+]/g, "");
+    if (/^9\d{8}$/.test(digits)) return "56" + digits;
+    if (/^569\d{8}$/.test(digits)) return digits;
+    return digits;
   }
 
   function handleSubmit() {
@@ -164,7 +179,7 @@ export default function StepConfirm() {
         <ChevronLeft size={15} /> Atrás
       </button>
 
-      <p style={{ color: "var(--brand)", fontSize: 11, fontWeight: 700, letterSpacing: 2.5, textTransform: "uppercase", marginBottom: 10 }}>Último paso</p>
+      <p style={{ color: "var(--brand-text-on-tint, var(--brand))", fontSize: 11, fontWeight: 700, letterSpacing: 2.5, textTransform: "uppercase", marginBottom: 10 }}>Último paso</p>
       <h2 style={{ fontSize: 30, fontWeight: 900, color: "var(--text)", lineHeight: 1.1, marginBottom: 28 }}>Confirmar reserva</h2>
 
       {/* Resumen */}
@@ -191,7 +206,7 @@ export default function StepConfirm() {
           )}
           <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 800, fontSize: 18, marginTop: 8 }}>
             <span style={{ color: "var(--text)" }}>Total</span>
-            <span style={{ color: "var(--brand)" }}>{formatCurrency(total)}</span>
+            <span style={{ color: "var(--brand-text-on-tint, var(--brand))" }}>{formatCurrency(total)}</span>
           </div>
         </div>
       </div>
@@ -205,11 +220,11 @@ export default function StepConfirm() {
         </div>
 
         <div>
-          <label style={{ display: "block", fontSize: 12, color: "var(--text-muted)", marginBottom: 8, fontWeight: 700, letterSpacing: 0.5 }}>WHATSAPP / TELÉFONO *</label>
+          <label style={{ display: "block", fontSize: 12, color: "var(--text-muted)", marginBottom: 8, fontWeight: 700, letterSpacing: 0.5 }}>TELÉFONO * <span style={{ fontWeight: 400, color: "var(--text-faint)", fontSize: 11 }}>(recibirás confirmación por SMS)</span></label>
           <div style={{ position: "relative" }}>
             <input className="confirm-input" style={{ ...inp, paddingRight: 44 }}
               type={showPhone ? "text" : "tel"} value={form.phone || ""}
-              onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="56912345678" />
+              onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="912345678" />
             <button type="button" onClick={() => setShowPhone(!showPhone)}
               style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--text-faint)" }}>
               {showPhone ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -245,8 +260,8 @@ export default function StepConfirm() {
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {shopBank.bank_name && <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 12, color: "var(--text-faint)" }}>Banco</span><span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{shopBank.bank_name}</span></div>}
                 {shopBank.bank_holder && <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 12, color: "var(--text-faint)" }}>Titular</span><span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{shopBank.bank_holder}</span></div>}
-                <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 12, color: "var(--text-faint)" }}>Cuenta / RUT</span><span style={{ fontSize: 13, fontWeight: 700, color: "var(--brand)" }}>{shopBank.bank_account}</span></div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 12, color: "var(--text-faint)" }}>Monto</span><span style={{ fontSize: 15, fontWeight: 800, color: "var(--brand)" }}>{formatCurrency(deliveryFee)}</span></div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 12, color: "var(--text-faint)" }}>Cuenta / RUT</span><span style={{ fontSize: 13, fontWeight: 700, color: "var(--brand-text-on-tint, var(--brand))" }}>{shopBank.bank_account}</span></div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 12, color: "var(--text-faint)" }}>Monto</span><span style={{ fontSize: 15, fontWeight: 800, color: "var(--brand-text-on-tint, var(--brand))" }}>{formatCurrency(deliveryFee)}</span></div>
               </div>
               <button
                 onClick={() => {
@@ -326,7 +341,7 @@ export default function StepConfirm() {
 function SRow({ icon, label, value, sub, accent }) {
   return (
     <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-      <span style={{ color: "var(--brand)", marginTop: 1, flexShrink: 0 }}>{icon}</span>
+      <span style={{ color: "var(--brand-text-on-tint, var(--brand))", marginTop: 1, flexShrink: 0 }}>{icon}</span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ fontSize: 11, color: "var(--text-faint)", fontWeight: 600, letterSpacing: 0.5, marginBottom: 2 }}>{label.toUpperCase()}</p>
         <p style={{ fontSize: 14, color: accent ? "var(--brand)" : "var(--text)", fontWeight: 600, textTransform: label === "Fecha" ? "capitalize" : "none" }}>{value}</p>

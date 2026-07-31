@@ -88,6 +88,10 @@ export function applyTheme(shop) {
   vars["--brand-alpha"]  = rgba(color, 0.1);
   vars["--brand-alpha2"] = rgba(color, 0.06);
   vars["--btn-text"]     = contrastText(color);
+  // Color de marca legible como texto sobre fondo translúcido: en modo claro se
+  // oscurece (evita azules/verdes claros ilegibles sobre blanco), en modo oscuro
+  // se usa el color de marca tal cual (ya contrasta bien sobre fondos oscuros).
+  vars["--brand-text-on-tint"] = isDark ? color : darken(color, 40);
   vars["--font"]         = `'${font}', system-ui, sans-serif`;
 
   const root = document.documentElement;
