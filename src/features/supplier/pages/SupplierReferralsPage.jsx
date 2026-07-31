@@ -2,9 +2,10 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Copy, ExternalLink, Users, TrendingUp, Clock, Plus, PlayCircle, X, Loader2 } from "lucide-react";
+import { Copy, ExternalLink, Users, TrendingUp, Clock, Plus, PlayCircle, X, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { getSupplierReferrals, getSupplierCommissions, createReferredShop } from "../services/supplierService";
+import { deleteShop } from "../../superadmin/services/superAdminService";
 import { useActiveSupplier } from "../../../hooks/useActiveSupplier";
 import { formatCurrency } from "../../../lib/utils";
 
@@ -44,6 +45,20 @@ export default function SupplierReferralsPage() {
     queryKey: ["supplier-commissions", supplier?.id],
     queryFn:  () => getSupplierCommissions(supplier.id),
     enabled:  !!supplier?.id,
+  });
+
+  const [deleteTarget, setDeleteTarget] = useState(null); // shop a punto de borrar
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+
+  const deleteMut = useMutation({
+    mutationFn: (shopId) => deleteShop(shopId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["supplier-referrals"] });
+      toast.success(`"${deleteTarget?.name}" fue eliminada`);
+      setDeleteTarget(null);
+      setDeleteConfirmText("");
+    },
+    onError: (e) => toast.error("No se pudo eliminar: " + (e?.message ?? "error desconocido")),
   });
 
   const createMut = useMutation({
@@ -155,9 +170,44 @@ export default function SupplierReferralsPage() {
                 <a href={`/${r.slug}/booking`} target="_blank" rel="noreferrer" style={{ display: "flex", color: "var(--text-faint)" }}>
                   <ExternalLink size={15} />
                 </a>
+                <button onClick={() => { setDeleteTarget(r); setDeleteConfirmText(""); }}
+                  title="Eliminar barbería"
+                  style={{ display: "flex", background: "none", border: "none", cursor: "pointer", color: "var(--text-faint)", padding: 0 }}>
+                  <Trash2 size={15} />
+                </button>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Modal: confirmar eliminación */}
+      {deleteTarget && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: 16 }}>
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: 28, width: "100%", maxWidth: 420 }}>
+            <h3 style={{ fontSize: 18, fontWeight: 800, color: "var(--text)", marginBottom: 6 }}>Esto no se puede deshacer</h3>
+            <p style={{ fontSize: 13, color: "var(--text-faint)", marginBottom: 16, lineHeight: 1.5 }}>
+              Se eliminará <strong style={{ color: "var(--text)" }}>"{deleteTarget.name}"</strong> y todos sus datos: reservas, clientes, servicios y barberos. Escribí el nombre exacto para confirmar.
+            </p>
+            <input
+              value={deleteConfirmText}
+              onChange={e => setDeleteConfirmText(e.target.value)}
+              placeholder={deleteTarget.name}
+              style={{ width: "100%", padding: "12px 14px", borderRadius: 10, background: "var(--input-bg)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14, outline: "none", boxSizing: "border-box", marginBottom: 14 }}
+            />
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => setDeleteTarget(null)}
+                style={{ flex: 1, padding: 12, borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
+                Cancelar
+              </button>
+              <button
+                onClick={() => deleteMut.mutate(deleteTarget.id)}
+                disabled={deleteMut.isPending || deleteConfirmText.trim() !== deleteTarget.name}
+                style={{ flex: 1, padding: 12, borderRadius: 10, background: "#ef4444", border: "none", color: "#fff", fontWeight: 700, fontSize: 14, cursor: deleteMut.isPending || deleteConfirmText.trim() !== deleteTarget.name ? "not-allowed" : "pointer", opacity: deleteMut.isPending || deleteConfirmText.trim() !== deleteTarget.name ? 0.5 : 1 }}>
+                {deleteMut.isPending ? "Eliminando..." : "Eliminar para siempre"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

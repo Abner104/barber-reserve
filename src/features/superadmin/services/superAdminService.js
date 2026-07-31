@@ -120,10 +120,12 @@ export async function updateShopPlan(shopId, plan, is_active) {
   return data;
 }
 
+// Borrado real y permanente — el esquema tiene ON DELETE CASCADE en las tablas
+// dependientes (bookings, clients, services, etc.), así que esto también borra
+// todo lo asociado a la barbería. No hay soft-delete acá; para desactivar sin
+// borrar usar updateShopPlan(shopId, undefined, false) ("Suspender barbería").
 export async function deleteShop(shopId) {
-  // Soft delete — solo desactivar
-  const { error } = await supabase
-    .from("barbershops").update({ is_active: false }).eq("id", shopId);
+  const { error } = await supabase.from("barbershops").delete().eq("id", shopId);
   if (error) throw error;
 }
 

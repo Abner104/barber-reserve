@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ExternalLink, Power, Clock, ChevronDown, ChevronUp, Users, Calendar, TrendingUp, DollarSign, Plus, KeyRound, History } from "lucide-react";
-import { getAllShops, getShopStats, updateShopPlan, getShopAuditLog, logAudit } from "../services/superAdminService";
+import { ExternalLink, Power, Trash2, Clock, ChevronDown, ChevronUp, Users, Calendar, TrendingUp, DollarSign, Plus, KeyRound, History } from "lucide-react";
+import { getAllShops, getShopStats, updateShopPlan, deleteShop, getShopAuditLog, logAudit } from "../services/superAdminService";
 import { formatCurrency } from "../../../lib/utils";
 import { supabase } from "../../../lib/supabase";
 
@@ -190,6 +190,22 @@ function ShopDetail({ shop, planMut, expired, plan }) {
   const [showPwdForm, setShowPwdForm]   = useState(false);
   const [newPassword, setNewPassword]   = useState("");
   const [savingPwd, setSavingPwd]       = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleDeleteShop() {
+    if (deleteConfirmText.trim() !== shop.name) { toast.error("El nombre no coincide"); return; }
+    setDeleting(true);
+    try {
+      await deleteShop(shop.id);
+      qc.invalidateQueries({ queryKey: ["sa-shops"] });
+      toast.success(`"${shop.name}" fue eliminada permanentemente`);
+    } catch (e) {
+      toast.error("No se pudo eliminar: " + (e?.message ?? "error desconocido"));
+      setDeleting(false);
+    }
+  }
 
   async function handleResetPassword(e) {
     e.preventDefault();
@@ -329,6 +345,45 @@ function ShopDetail({ shop, planMut, expired, plan }) {
                   {shop.is_active ? "Suspender barbería" : "Reactivar barbería"}
                 </button>
               </div>
+
+              <div style={{ marginTop: 16 }}>
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 9,
+                    background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.2)",
+                    color: "#f87171", cursor: "pointer", fontSize: 13, fontWeight: 600,
+                  }}
+                >
+                  <Trash2 size={14} />
+                  Eliminar barbería permanentemente
+                </button>
+              </div>
+
+              {showDeleteConfirm && (
+                <div style={{ marginTop: 12, padding: 16, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 12 }}>
+                  <p style={{ fontSize: 13, color: "#f87171", fontWeight: 700, marginBottom: 6 }}>Esto no se puede deshacer</p>
+                  <p style={{ fontSize: 12, color: "#aaa", marginBottom: 12, lineHeight: 1.5 }}>
+                    Se eliminará "{shop.name}" y todos sus datos: reservas, clientes, servicios, barberos y pagos. Escribí <strong style={{ color: "#fff" }}>{shop.name}</strong> para confirmar.
+                  </p>
+                  <input
+                    value={deleteConfirmText}
+                    onChange={e => setDeleteConfirmText(e.target.value)}
+                    placeholder={shop.name}
+                    style={{ width: "100%", padding: "8px 12px", borderRadius: 8, background: "#0F0F0F", border: "1px solid #2A2A2A", color: "#fff", fontSize: 13, outline: "none", marginBottom: 10, boxSizing: "border-box" }}
+                  />
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(""); }}
+                      style={{ flex: 1, padding: 10, borderRadius: 8, background: "transparent", border: "1px solid #2A2A2A", color: "#aaa", cursor: "pointer", fontSize: 13 }}>
+                      Cancelar
+                    </button>
+                    <button onClick={handleDeleteShop} disabled={deleting || deleteConfirmText.trim() !== shop.name}
+                      style={{ flex: 1, padding: 10, borderRadius: 8, background: "#ef4444", border: "none", color: "#fff", fontWeight: 700, cursor: deleting || deleteConfirmText.trim() !== shop.name ? "not-allowed" : "pointer", fontSize: 13, opacity: deleting || deleteConfirmText.trim() !== shop.name ? 0.5 : 1 }}>
+                      {deleting ? "Eliminando..." : "Eliminar para siempre"}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Info trial */}
               {shop.plan === "trial" && shop.trial_ends_at && (
