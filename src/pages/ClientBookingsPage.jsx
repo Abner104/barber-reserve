@@ -1,7 +1,7 @@
 import { useParams, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Phone, ShieldCheck, Calendar, Clock, Scissors, MapPin, X, Loader2 } from "lucide-react";
+import { ArrowLeft, Mail, Calendar, Clock, Scissors, MapPin, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../lib/supabase";
 import { applyTheme } from "../lib/applyTheme";
@@ -55,9 +55,7 @@ export default function ClientBookingsPage() {
     }
   }, [activeShop?.id]);
 
-  const [phase, setPhase]   = useState("phone"); // phone → code → list
-  const [phone, setPhone]   = useState("");
-  const [code, setCode]     = useState("");
+  const [phase, setPhase]   = useState("locked"); // locked → list
   const [token, setToken]   = useState(null);
   const [loading, setLoading] = useState(false);
   const [bookings, setBookings] = useState([]);
@@ -98,47 +96,6 @@ export default function ClientBookingsPage() {
     }
   }
 
-  async function sendCode() {
-    const clean = phone.replace(/\D/g, "");
-    if (clean.length < 8) { toast.error("Ingresá un número de teléfono válido"); return; }
-    setLoading(true);
-    try {
-      const r = await fetch("/api/client-login", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: clean, shopId: activeShop.id }),
-      });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "No se pudo enviar el código");
-      toast.success("Te enviamos un código por SMS");
-      setPhase("code");
-    } catch (e) {
-      toast.error(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function confirmCode() {
-    if (code.length !== 6) { toast.error("El código debe tener 6 dígitos"); return; }
-    setLoading(true);
-    try {
-      const r = await fetch("/api/client-login", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "confirm", phone: phone.replace(/\D/g, ""), shopId: activeShop.id, code }),
-      });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Código incorrecto");
-      localStorage.setItem(STORAGE_KEY(activeShop.id), d.token);
-      setToken(d.token);
-      setPhase("list");
-      await loadBookings(d.token);
-    } catch (e) {
-      toast.error(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
   async function cancelBooking(bookingId) {
     if (!confirm("¿Seguro que querés cancelar esta reserva?")) return;
     setCancelingId(bookingId);
@@ -161,9 +118,7 @@ export default function ClientBookingsPage() {
   function logout() {
     if (activeShop?.id) localStorage.removeItem(STORAGE_KEY(activeShop.id));
     setToken(null);
-    setPhase("phone");
-    setPhone("");
-    setCode("");
+    setPhase("locked");
     setBookings([]);
   }
 
@@ -184,51 +139,13 @@ export default function ClientBookingsPage() {
           </div>
         </div>
 
-        {phase === "phone" && (
-          <div style={{ background: "var(--card-bg, #141414)", border: "1px solid var(--border, #222)", borderRadius: 16, padding: 24 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-              <Phone size={18} color={brand} />
-              <p style={{ fontSize: 15, fontWeight: 700 }}>Ingresá tu número de teléfono</p>
-            </div>
-            <p style={{ fontSize: 13, color: "var(--text-muted, #999)", marginBottom: 16, lineHeight: 1.5 }}>
-              Te vamos a mandar un código de verificación para ver y gestionar tus reservas.
+        {phase === "locked" && (
+          <div style={{ background: "var(--card-bg, #141414)", border: "1px solid var(--border, #222)", borderRadius: 16, padding: 24, textAlign: "center" }}>
+            <Mail size={28} color={brand} style={{ marginBottom: 12 }} />
+            <p style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>Entrá desde tu correo</p>
+            <p style={{ fontSize: 13, color: "var(--text-muted, #999)", lineHeight: 1.5 }}>
+              Para ver o cancelar tu reserva, abrí el correo de confirmación que te enviamos y tocá el botón "Ver o cancelar mi reserva".
             </p>
-            <input
-              type="tel"
-              value={phone}
-              onChange={e => setPhone(e.target.value)}
-              placeholder="+56 9 1234 5678"
-              style={{ width: "100%", padding: "14px 16px", borderRadius: 12, border: "1px solid var(--border, #222)", background: "var(--surface2, #0E0E0E)", color: "#fff", fontSize: 15, marginBottom: 16, outline: "none" }}
-            />
-            <button onClick={sendCode} disabled={loading}
-              style={{ width: "100%", padding: 14, borderRadius: 12, border: "none", background: brand, color: "#fff", fontWeight: 700, fontSize: 15, cursor: loading ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-              {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : "Enviar código"}
-            </button>
-          </div>
-        )}
-
-        {phase === "code" && (
-          <div style={{ background: "var(--card-bg, #141414)", border: "1px solid var(--border, #222)", borderRadius: 16, padding: 24 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-              <ShieldCheck size={18} color={brand} />
-              <p style={{ fontSize: 15, fontWeight: 700 }}>Ingresá el código que te llegó por SMS</p>
-            </div>
-            <input
-              type="text"
-              inputMode="numeric"
-              maxLength={6}
-              value={code}
-              onChange={e => setCode(e.target.value.replace(/\D/g, ""))}
-              placeholder="123456"
-              style={{ width: "100%", padding: "14px 16px", borderRadius: 12, border: "1px solid var(--border, #222)", background: "var(--surface2, #0E0E0E)", color: "#fff", fontSize: 22, letterSpacing: 8, textAlign: "center", marginBottom: 16, outline: "none" }}
-            />
-            <button onClick={confirmCode} disabled={loading}
-              style={{ width: "100%", padding: 14, borderRadius: 12, border: "none", background: brand, color: "#fff", fontWeight: 700, fontSize: 15, cursor: loading ? "default" : "pointer", marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-              {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : "Verificar"}
-            </button>
-            <button onClick={() => setPhase("phone")} style={{ width: "100%", padding: 10, background: "none", border: "none", color: "var(--text-muted, #999)", fontSize: 13, cursor: "pointer" }}>
-              ← Cambiar número
-            </button>
           </div>
         )}
 
