@@ -2,10 +2,19 @@ import { supabase } from "../../../lib/supabase";
 import { SHOP_ID } from "../../../lib/constants";
 import { useAuthStore } from "../../../store/authStore";
 
-// Lee el shop_id del authStore (ya cargado al iniciar sesión) — sin llamadas extra
+export const IMPERSONATE_SHOP_KEY = "sa_impersonate_shop_id";
+
+// Lee el shop_id del authStore (ya cargado al iniciar sesión) — sin llamadas extra.
+// Si es super_admin sin shop_id propio y eligió una barbería para operar
+// (ver AdminLayout), usa esa en vez de caer siempre en la barbería demo.
 export function resolveShopId() {
   const profile = useAuthStore.getState().profile;
-  return profile?.shop_id ?? SHOP_ID;
+  if (profile?.shop_id) return profile.shop_id;
+  if (profile?.role === "super_admin") {
+    const impersonated = sessionStorage.getItem(IMPERSONATE_SHOP_KEY);
+    if (impersonated) return impersonated;
+  }
+  return SHOP_ID;
 }
 
 // Fecha local Chile (America/Santiago) en formato YYYY-MM-DD
@@ -183,6 +192,11 @@ export async function updateBarber(id, updates) {
 
 export async function toggleBarberActive(id, is_active) {
   return updateBarber(id, { is_active });
+}
+
+export async function deleteBarber(id) {
+  const { error } = await supabase.from("barbers").delete().eq("id", id);
+  if (error) throw error;
 }
 
 export async function getBarberWorkingHours(barberId) {
