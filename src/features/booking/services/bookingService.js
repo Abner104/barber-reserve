@@ -8,6 +8,13 @@ function getShopId() {
   return useBookingStore.getState().shopId || SHOP_ID;
 }
 
+// Mismo formato que api/client-login.js: base64(clientId:shopId:phone:expiry), 30 días.
+// Generarlo acá evita el login por SMS cuando el cliente entra desde el link del email.
+function makeClientToken(clientId, shopId, phone) {
+  const raw = `${clientId}:${shopId}:${phone}:${Date.now() + 30 * 24 * 60 * 60 * 1000}`;
+  return btoa(raw);
+}
+
 export async function getServices(shopId) {
   const id = shopId || getShopId();
   const { data, error } = await supabase
@@ -310,8 +317,11 @@ export async function createBooking({ type, serviceId, barberId, date, slot, dur
     // Notificaciones al cliente
     {
       const { data: barberData } = await supabase.from("barbers").select("full_name").eq("id", barberId).maybeSingle();
-      const { data: shopData }   = await supabase.from("barbershops").select("name, slug").eq("id", shopId).maybeSingle();
-      const manageUrl = shopData?.slug ? `https://www.clipprreserve.com/${shopData.slug}/mis-reservas` : "https://www.clipprreserve.com";
+      const { data: shopData }   = await supabase.from("barbershops").select("name, slug, logo_url").eq("id", shopId).maybeSingle();
+      const clientToken = makeClientToken(clientId, shopId, clientInfo.phone);
+      const manageUrl = shopData?.slug
+        ? `https://www.clipprreserve.com/${shopData.slug}/mis-reservas?token=${encodeURIComponent(clientToken)}`
+        : "https://www.clipprreserve.com";
 
       const EMAIL_SERVICE_URL = import.meta.env.VITE_EMAIL_SERVICE_URL;
       if (clientInfo.email?.trim() && EMAIL_SERVICE_URL) {
@@ -327,6 +337,7 @@ export async function createBooking({ type, serviceId, barberId, date, slot, dur
             date:        dia,
             time:        hora,
             manageUrl,
+            logoUrl:     shopData?.logo_url ?? null,
           }),
         }).catch(() => {});
       }

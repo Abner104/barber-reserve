@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { ArrowLeft, Phone, ShieldCheck, Calendar, Clock, Scissors, MapPin, X, Loader2 } from "lucide-react";
@@ -36,6 +36,8 @@ const STORAGE_KEY = (shopId) => `client_token_${shopId}`;
 
 export default function ClientBookingsPage() {
   const { slug } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlToken = searchParams.get("token");
   const qc = useQueryClient();
   const cached = qc.getQueryData(["shop", slug]);
 
@@ -61,9 +63,18 @@ export default function ClientBookingsPage() {
   const [bookings, setBookings] = useState([]);
   const [cancelingId, setCancelingId] = useState(null);
 
-  // Restaurar sesión guardada
+  // Token en la URL (link del email) tiene prioridad — acceso directo sin pedir login
   useEffect(() => {
     if (!activeShop?.id) return;
+    if (urlToken) {
+      localStorage.setItem(STORAGE_KEY(activeShop.id), urlToken);
+      setToken(urlToken);
+      setPhase("list");
+      loadBookings(urlToken);
+      searchParams.delete("token");
+      setSearchParams(searchParams, { replace: true });
+      return;
+    }
     const saved = localStorage.getItem(STORAGE_KEY(activeShop.id));
     if (saved) {
       setToken(saved);

@@ -29,6 +29,12 @@ app.use(express.json());
 
 const FROM = "Clippr <noreply@clipprreserve.com>";
 
+// Mismo formato que api/client-login.js: base64(clientId:shopId:phone:expiry), 30 días.
+function makeClientToken(clientId, shopId, phone) {
+  const raw = `${clientId}:${shopId}:${phone}:${Date.now() + 30 * 24 * 60 * 60 * 1000}`;
+  return Buffer.from(raw).toString("base64");
+}
+
 async function sendViaResend({ to, subject, html }) {
   const r = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -40,9 +46,10 @@ async function sendViaResend({ to, subject, html }) {
   return d;
 }
 
-function bookingHtml({ heading, intro, clientName, shopName, serviceName, barberName, date, time, manageUrl }) {
+function bookingHtml({ heading, intro, clientName, shopName, serviceName, barberName, date, time, manageUrl, logoUrl }) {
   return `
     <div style="font-family: -apple-system, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      ${logoUrl ? `<img src="${logoUrl}" alt="${shopName || "Clippr"}" style="width: 48px; height: 48px; border-radius: 12px; object-fit: cover; margin-bottom: 12px;" />` : ""}
       <h2 style="color: #FF6B2C;">${heading}</h2>
       <p>Hola ${clientName || ""},</p>
       <p>${intro} <strong>${shopName}</strong>:</p>
@@ -95,7 +102,7 @@ async function runReminders() {
   const url = SUPABASE_URL + "/rest/v1/bookings"
     + "?status=eq.confirmed&reminder_sent=eq.false"
     + "&scheduled_at=gte." + from + "&scheduled_at=lte." + to
-    + "&select=id,scheduled_at,clients(full_name,email),services(name),barbers(full_name),barbershops(name,slug)";
+    + "&select=id,scheduled_at,client_id,clients(full_name,email,phone),services(name),barbers(full_name),barbershops(id,name,slug,logo_url)";
 
   const r = await fetch(url, { headers: dbH });
   const bookings = await r.json();
@@ -105,7 +112,10 @@ async function runReminders() {
     const email = b.clients?.email;
     if (!email) continue;
     const time = new Date(b.scheduled_at).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", timeZone: "America/Santiago" });
-    const manageUrl = b.barbershops?.slug ? "https://www.clipprreserve.com/" + b.barbershops.slug + "/mis-reservas" : "https://www.clipprreserve.com";
+    const token = b.client_id && b.barbershops?.id ? makeClientToken(b.client_id, b.barbershops.id, b.clients?.phone || "") : "";
+    const manageUrl = b.barbershops?.slug
+      ? "https://www.clipprreserve.com/" + b.barbershops.slug + "/mis-reservas" + (token ? "?token=" + encodeURIComponent(token) : "")
+      : "https://www.clipprreserve.com";
 
     try {
       await sendViaResend({
@@ -115,6 +125,7 @@ async function runReminders() {
           heading: "⏰ Recordatorio de tu reserva", intro: "Te recordamos tu reserva en",
           clientName: b.clients?.full_name, shopName: b.barbershops?.name || "Barbería",
           serviceName: b.services?.name, barberName: b.barbers?.full_name, time, manageUrl,
+          logoUrl: b.barbershops?.logo_url,
         }),
       });
       await fetch(SUPABASE_URL + "/rest/v1/bookings?id=eq." + b.id, {
