@@ -101,13 +101,13 @@ const CSS = `
 
   @media(max-width:640px) {
     .desk-links { display:none !important; }
-    .mob-menu-btn { display:flex !important; }
+    .mob-nav-actions { display:flex !important; }
     .hero-logo { width:90px !important; height:90px !important; }
-    .phones-section { padding: 40px 20px 60px !important; }
-    .phone-mid { display:none !important; }
+    .phones-section { padding: 40px 12px 60px !important; }
+    .phones-row { gap: 8px !important; transform: scale(0.78); transform-origin: center bottom; }
   }
   @media(min-width:641px) {
-    .mob-menu-btn { display:none !important; }
+    .mob-nav-actions { display:none !important; }
   }
 `;
 
@@ -309,9 +309,9 @@ function PhoneShowcase() {
           Una app. Tres portales.
         </p>
       </Reveal>
-      <div style={{ display:"flex", justifyContent:"center", alignItems:"flex-end", gap:24, maxWidth:700, margin:"0 auto" }}>
+      <div className="phones-row" style={{ display:"flex", justifyContent:"center", alignItems:"flex-end", gap:24, maxWidth:700, margin:"0 auto" }}>
         {PHONES.map((ph, i) => (
-          <div key={i} className={i === 1 ? "" : ""}
+          <div key={i}
             style={{
               animation: ph.anim,
               transform: `rotate(${ph.rotate}) translateY(${ph.offset})`,
@@ -433,6 +433,8 @@ function FaqList() {
 export default function SaasLandingPage() {
   const py = useParallax(0.22);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [installDismissed, setInstallDismissed] = useState(false);
 
   const { data: pricingCfg } = useQuery({
     queryKey: ["saas-config-public"],
@@ -451,9 +453,56 @@ export default function SaasLandingPage() {
     return () => { document.body.style.overflow = ""; };
   }, [menuOpen]);
 
+  // Capturar evento de instalación PWA (Android/Chrome)
+  useEffect(() => {
+    const handler = (e) => { e.preventDefault(); setInstallPrompt(e); };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isInstalled = window.matchMedia("(display-mode: standalone)").matches;
+  const showInstallBanner = !isInstalled && !installDismissed && (installPrompt || isIOS);
+
+  async function handleInstall() {
+    if (installPrompt) {
+      installPrompt.prompt();
+      const { outcome } = await installPrompt.userChoice;
+      if (outcome === "accepted") setInstallDismissed(true);
+      setInstallPrompt(null);
+    }
+  }
+
   return (
     <div className="body-font" style={{ background:"#080808", color:"#fff", minHeight:"100vh", overflowX:"hidden" }}>
       <style>{CSS}</style>
+
+      {/* Banner de instalación PWA */}
+      {showInstallBanner && (
+        <div style={{ position:"fixed", bottom:0, left:0, right:0, zIndex:999, background:"#141414", borderTop:"1px solid #2A2A2A", padding:"14px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+            <img src="/LogoC.png" alt="Clippr" style={{ width:36, height:36, borderRadius:10, objectFit:"contain" }} />
+            <div>
+              <p style={{ fontWeight:700, fontSize:14, color:"#fff", margin:0 }}>Instalá Clippr</p>
+              <p style={{ fontSize:12, color:"#555", margin:0 }}>
+                {isIOS ? "Tocá compartir → \"Agregar a pantalla de inicio\"" : "Agregala a tu pantalla de inicio"}
+              </p>
+            </div>
+          </div>
+          <div style={{ display:"flex", gap:8, flexShrink:0 }}>
+            {!isIOS && (
+              <button onClick={handleInstall}
+                style={{ padding:"8px 16px", borderRadius:8, background:"#FF6B2C", border:"none", color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer" }}>
+                Instalar
+              </button>
+            )}
+            <button onClick={() => setInstallDismissed(true)}
+              style={{ padding:"8px 12px", borderRadius:8, background:"transparent", border:"1px solid #2A2A2A", color:"#555", fontSize:13, cursor:"pointer" }}>
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── MOBILE NAV DRAWER ── */}
       <div className={`mob-nav${menuOpen ? " open" : ""}`}>
@@ -462,7 +511,7 @@ export default function SaasLandingPage() {
         </button>
         <a href="#features" onClick={() => setMenuOpen(false)}>Funciones</a>
         <a href="#precios"  onClick={() => setMenuOpen(false)}>Precios</a>
-        <Link to="/login"   onClick={() => setMenuOpen(false)} style={{ color:"#fff", fontSize:22, fontWeight:700, textDecoration:"none", fontFamily:"'Barlow Condensed',sans-serif" }}>Login</Link>
+        <Link to="/login"   onClick={() => setMenuOpen(false)} style={{ color:"#fff", fontSize:22, fontWeight:700, textDecoration:"none", fontFamily:"'Barlow Condensed',sans-serif" }}>Iniciar sesión</Link>
         <Link to="/register" onClick={() => setMenuOpen(false)} style={{ padding:"14px 36px", background:O, color:"#fff", borderRadius:12, fontWeight:700, fontSize:18, textDecoration:"none" }}>
           Empezar gratis
         </Link>
@@ -481,17 +530,22 @@ export default function SaasLandingPage() {
           <div className="desk-links" style={{ display:"flex", alignItems:"center", gap:24 }}>
             <a href="#features" className="nav-link">Funciones</a>
             <a href="#precios"  className="nav-link">Precios</a>
-            <Link to="/login"   className="nav-link">Login</Link>
+            <Link to="/login"   className="nav-link">Iniciar sesión</Link>
             <Link to="/register" style={{ padding:"9px 18px", background:O, color:"#fff", borderRadius:10, fontWeight:700, fontSize:14, textDecoration:"none", boxShadow:`0 0 18px rgba(255,107,44,.35)` }}>
               Empezar gratis
             </Link>
           </div>
 
-          {/* Mobile hamburger */}
-          <button className="mob-menu-btn" onClick={() => setMenuOpen(true)}
-            style={{ background:"#141414", border:"1px solid #222", borderRadius:9, padding:"7px 9px", cursor:"pointer", color:"#fff", alignItems:"center", justifyContent:"center" }}>
-            <Menu size={20} />
-          </button>
+          {/* Mobile: Login visible + hamburger */}
+          <div className="mob-nav-actions" style={{ display:"none", alignItems:"center", gap:8 }}>
+            <Link to="/login" style={{ padding:"7px 14px", background:"#141414", border:"1px solid #222", borderRadius:9, color:"#fff", fontSize:13, fontWeight:700, textDecoration:"none" }}>
+              Iniciar sesión
+            </Link>
+            <button className="mob-menu-btn" onClick={() => setMenuOpen(true)}
+              style={{ background:"#141414", border:"1px solid #222", borderRadius:9, padding:"7px 9px", cursor:"pointer", color:"#fff", alignItems:"center", justifyContent:"center" }}>
+              <Menu size={20} />
+            </button>
+          </div>
         </div>
       </nav>
 
