@@ -47,7 +47,10 @@ export default function SupplierReferralsPage() {
   });
 
   const createMut = useMutation({
-    mutationFn: () => createReferredShop({ supplierId: supplier.id, ...form }),
+    mutationFn: () => {
+      if (!supplier?.id) throw new Error("Perfil de proveedor no disponible");
+      return createReferredShop({ supplierId: supplier.id, ...form });
+    },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["supplier-referrals"] });
       qc.invalidateQueries({ queryKey: ["supplier-commissions"] });
@@ -69,6 +72,10 @@ export default function SupplierReferralsPage() {
 
   function handleSubmit(e) {
     e.preventDefault();
+    if (!supplier?.id) {
+      toast.error("Cargando tu perfil de proveedor, intenta de nuevo en un momento");
+      return;
+    }
     if (!form.shopName.trim() || !form.ownerName.trim() || !form.ownerEmail.trim()) {
       toast.error("Completa nombre de la barbería, dueño y email");
       return;
