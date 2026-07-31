@@ -24,7 +24,7 @@ async function searchNominatim(query) {
 }
 
 export default function StepAddress() {
-  const { address, setAddress, setDeliveryFee, step, setStep, prevStep, shopConfig, barber } = useBookingStore();
+  const { address, setAddress, setDeliveryFee, step, setStep, prevStep, shopConfig } = useBookingStore();
 
   const [input, setInput]               = useState(address.line || "");
   const [suggestions, setSuggestions]   = useState([]);
@@ -42,9 +42,9 @@ export default function StepAddress() {
   const brand = "var(--brand)";
   const isConfirmed = !!address.lat;
 
-  const origin = barber?.lat && barber?.lng
-    ? { lat: barber.lat, lng: barber.lng }
-    : shopConfig?.lat && shopConfig?.lng
+  // El domicilio siempre parte de la dirección de la barbería, no del barbero
+  // individual — es la barbería la que decide si hace domicilios y desde dónde.
+  const origin = shopConfig?.lat && shopConfig?.lng
     ? { lat: shopConfig.lat, lng: shopConfig.lng }
     : { lat: -33.4489, lng: -70.6693 };
 
