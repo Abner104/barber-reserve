@@ -3,19 +3,22 @@
  * Standalone — no depende de Baileys/WhatsApp. Expone HTTP para que el frontend
  * (clipprreserve.com) le pegue directo, y corre el cron de recordatorios en loop.
  *
- * Instalar deps: npm install express cors dotenv
- * Variables de entorno requeridas (en vps/.env): SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, RESEND_API_KEY
+ * Instalar deps: npm install express cors
+ * Secretos requeridos en vps/secrets.local.cjs (ver secrets.example.cjs) — NO usa
+ * archivos .env a propósito: el auto-loader nativo de env de PM2 7.x interfiere
+ * de forma errática (sobreescribe process.env en loop con un .env vacío/distinto),
+ * así que este script evita ese nombre de archivo por completo.
  * Ejecutar: node vps/email-server.cjs   (o con pm2 para que quede corriendo siempre)
  */
 
-require("dotenv").config({ path: __dirname + "/.env" });
+const secrets = require("./secrets.local.cjs");
 const express = require("express");
 const cors    = require("cors");
 
-const SUPABASE_URL     = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const RESEND_API_KEY   = process.env.RESEND_API_KEY;
-const PORT              = process.env.EMAIL_PORT || 3002;
+const SUPABASE_URL     = secrets.SUPABASE_URL;
+const SUPABASE_SERVICE = secrets.SUPABASE_SERVICE_ROLE_KEY;
+const RESEND_API_KEY   = secrets.RESEND_API_KEY;
+const PORT              = secrets.EMAIL_PORT || 3002;
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE) { console.error("❌ Faltan SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY"); process.exit(1); }
 if (!RESEND_API_KEY) { console.error("❌ Falta RESEND_API_KEY"); process.exit(1); }
