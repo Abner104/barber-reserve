@@ -236,7 +236,10 @@ export default function AgendaPage() {
         status:       "confirmed",
         client_notes: "Walk-in",
       });
-      if (error) throw error;
+      if (error) {
+        if (error.code === "23P01") throw new Error("Ya hay una reserva en ese horario para este barbero.");
+        throw error;
+      }
       qc.invalidateQueries({ queryKey: ["my-agenda"],   exact: false, refetchType: "all" });
       qc.invalidateQueries({ queryKey: ["my-upcoming"], exact: false, refetchType: "all" });
       toast.success("Reserva creada ✅");

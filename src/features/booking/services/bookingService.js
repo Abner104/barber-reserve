@@ -284,7 +284,10 @@ export async function createBooking({ type, serviceId, barberId, date, slot, dur
   };
 
   const { data, error } = await supabase.rpc("create_public_booking", { payload });
-  if (error) throw error;
+  if (error) {
+    if (error.code === "23P01") throw new Error("Ese horario se acaba de ocupar. Por favor elegí otra hora.");
+    throw error;
+  }
 
   // Notificaciones al barbero y cliente
   try {
