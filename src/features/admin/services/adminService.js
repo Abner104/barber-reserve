@@ -26,14 +26,19 @@ function todayChile() {
 }
 
 // ── DASHBOARD ────────────────────────────────────────────────
-export async function getDashboardStats() {
+// monthKey: "YYYY-MM" opcional — por defecto el mes en curso (Chile)
+export async function getDashboardStats(monthKey) {
   const sid   = resolveShopId();
   const today = todayChile();
   const dayStart = `${today}T00:00:00-04:00`;
   const dayEnd   = `${today}T23:59:59-04:00`;
 
-  // Mes actual
-  const monthStart = `${today.slice(0, 7)}-01T00:00:00-04:00`;
+  // Mes seleccionado (o el actual por defecto)
+  const ym = monthKey || today.slice(0, 7);
+  const [yy, mm] = ym.split("-").map(Number);
+  const monthStart = `${ym}-01T00:00:00-04:00`;
+  const nextMonth   = new Date(yy, mm, 1); // día 1 del mes siguiente
+  const monthEnd    = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, "0")}-01T00:00:00-04:00`;
 
   const [bookingsToday, deliveriesToday, newClients, todayBookingsData, monthBookingsData, pendingData] = await Promise.all([
     supabase.from("bookings").select("id", { count: "exact" })
@@ -51,10 +56,10 @@ export async function getDashboardStats() {
       .eq("shop_id", sid)
       .gte("scheduled_at", dayStart).lte("scheduled_at", dayEnd)
       .in("status", ["pending", "confirmed", "in_progress", "completed"]),
-    // Ingresos del mes — completadas
+    // Ingresos del mes seleccionado — completadas
     supabase.from("bookings").select("price")
       .eq("shop_id", sid).eq("status", "completed")
-      .gte("scheduled_at", monthStart),
+      .gte("scheduled_at", monthStart).lt("scheduled_at", monthEnd),
     // Reservas pendientes de confirmar
     supabase.from("bookings").select("id", { count: "exact" })
       .eq("shop_id", sid).eq("status", "pending"),

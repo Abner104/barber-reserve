@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { formatCurrency } from "../../../lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Calendar, MapPin, Users, TrendingUp, TrendingDown, Minus } from "lucide-react";
@@ -5,7 +6,6 @@ import { format, subDays, startOfDay } from "date-fns";
 import { es } from "date-fns/locale";
 import { getDashboardStats, getUpcomingBookings, resolveShopId } from "../services/adminService";
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_COLOR } from "../../../lib/constants";
-import { useAuthStore } from "../../../store/authStore";
 import { supabase } from "../../../lib/supabase";
 
 const O = "var(--brand, #FF6B2C)";
@@ -24,12 +24,13 @@ const SHIMMER_CSS = `
 `;
 
 export default function DashboardPage() {
-  const profile = useAuthStore(s => s.profile);
-  const shopId  = profile?.shop_id;
+  const shopId = resolveShopId();
+  const currentMonthKey = new Date().toLocaleDateString("en-CA", { timeZone: "America/Santiago" }).slice(0, 7);
+  const [monthKey, setMonthKey] = useState(currentMonthKey);
 
   const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ["admin-stats", shopId],
-    queryFn:  getDashboardStats,
+    queryKey: ["admin-stats", shopId, monthKey],
+    queryFn:  () => getDashboardStats(monthKey),
     enabled:  !!shopId,
     refetchInterval: 60000,
   });
@@ -38,6 +39,16 @@ export default function DashboardPage() {
     queryFn:  getUpcomingBookings,
     enabled:  !!shopId,
     refetchInterval: 30000,
+  });
+
+  // Últimos 12 meses para el selector, más reciente primero
+  const monthOptions = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() - i);
+    const key   = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const label = format(d, "MMMM yyyy", { locale: es });
+    return { key, label: label.charAt(0).toUpperCase() + label.slice(1) };
   });
 
   const today = format(new Date(), "EEEE d 'de' MMMM", { locale: es });
@@ -103,7 +114,21 @@ export default function DashboardPage() {
           <>
             <StatCard icon={<Calendar size={20} />}   label="Reservas hoy"      value={stats?.bookingsToday ?? 0} />
             <StatCard icon={<TrendingUp size={20} />} label="Ingresos hoy"      value={stats ? formatCurrency(stats.revenueToday) : "$0"} accent />
-            <StatCard icon={<TrendingUp size={20} />} label="Ingresos del mes"  value={stats ? formatCurrency(stats.revenueMonth) : "$0"} accent />
+            <StatCard
+              icon={<TrendingUp size={20} />}
+              value={stats ? formatCurrency(stats.revenueMonth) : "$0"}
+              accent
+              label={
+                <select
+                  value={monthKey}
+                  onChange={e => setMonthKey(e.target.value)}
+                  onClick={e => e.stopPropagation()}
+                  style={{ background: "none", border: "none", color: "var(--text-faint)", fontSize: 13, cursor: "pointer", padding: 0, outline: "none" }}
+                >
+                  {monthOptions.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
+                </select>
+              }
+            />
             <StatCard icon={<Minus size={20} />}      label="Pendientes"         value={stats?.pendingCount ?? 0} warn={stats?.pendingCount > 0} />
             <StatCard icon={<MapPin size={20} />}     label="Domicilios hoy"    value={stats?.deliveriesToday ?? 0} />
             <StatCard icon={<Users size={20} />}      label="Clientes nuevos"   value={stats?.newClients ?? 0} />
