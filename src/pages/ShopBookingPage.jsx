@@ -21,7 +21,6 @@ async function getShopBySlug(slug) {
 
 export default function ShopBookingPage() {
   const { slug }    = useParams();
-  useShopManifest(slug);
   const qc          = useQueryClient();
   const setShopId     = useBookingStore(s => s.setShopId);
   const setShopConfig = useBookingStore(s => s.setShopConfig);
@@ -38,6 +37,7 @@ export default function ShopBookingPage() {
 
   // Aplicar tema y shopId tan pronto tengamos el shop
   const activeShop = shop ?? cached;
+  useShopManifest(slug, activeShop?.logo_url);
 
   useEffect(() => {
     if (activeShop?.id) {

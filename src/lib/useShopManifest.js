@@ -1,16 +1,38 @@
 import { useEffect } from "react";
 
-const MANIFEST_ID = "app-manifest";
+const MANIFEST_ID  = "app-manifest";
+const FAVICON_ID    = "app-favicon";
+const TOUCH_ICON_ID = "app-touch-icon";
 
-// El <link rel="manifest"> del index.html es fijo — para que cada barbería
-// instale la PWA con su propio logo, lo reapuntamos a /api/manifest?shop=slug
-// mientras el cliente navega esa barbería, y lo devolvemos al genérico al salir.
-export function useShopManifest(slug) {
+// Los <link> de manifest/favicon del index.html son fijos — para que cada
+// barbería muestre su propio logo (pestaña del navegador + PWA instalada),
+// los reapuntamos mientras el cliente navega esa barbería, y los devolvemos
+// al genérico de Clippr al salir.
+export function useShopManifest(slug, logoUrl) {
   useEffect(() => {
-    const link = document.getElementById(MANIFEST_ID) || document.querySelector('link[rel="manifest"]');
-    if (!link) return;
-    const original = link.getAttribute("href");
-    if (slug) link.setAttribute("href", `/api/manifest?shop=${encodeURIComponent(slug)}`);
-    return () => { if (original) link.setAttribute("href", original); };
+    const manifestLink = document.getElementById(MANIFEST_ID) || document.querySelector('link[rel="manifest"]');
+    const originalManifest = manifestLink?.getAttribute("href");
+    if (manifestLink && slug) manifestLink.setAttribute("href", `/api/manifest?shop=${encodeURIComponent(slug)}`);
+
+    return () => {
+      if (manifestLink && originalManifest) manifestLink.setAttribute("href", originalManifest);
+    };
   }, [slug]);
+
+  useEffect(() => {
+    const favicon    = document.getElementById(FAVICON_ID);
+    const touchIcon  = document.getElementById(TOUCH_ICON_ID);
+    const originalFavicon   = favicon?.getAttribute("href");
+    const originalTouchIcon = touchIcon?.getAttribute("href");
+
+    if (logoUrl) {
+      favicon?.setAttribute("href", logoUrl);
+      touchIcon?.setAttribute("href", logoUrl);
+    }
+
+    return () => {
+      if (favicon && originalFavicon)     favicon.setAttribute("href", originalFavicon);
+      if (touchIcon && originalTouchIcon) touchIcon.setAttribute("href", originalTouchIcon);
+    };
+  }, [logoUrl]);
 }

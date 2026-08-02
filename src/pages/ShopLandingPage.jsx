@@ -48,7 +48,6 @@ async function getShopBarbers(shopId) {
 
 export default function ShopLandingPage() {
   const { slug } = useParams();
-  useShopManifest(slug);
 
   const { data: shop, isLoading: loadingShop, error: shopError } = useQuery({
     queryKey: ["shop", slug],
@@ -66,6 +65,8 @@ export default function ShopLandingPage() {
     queryFn: () => getShopBarbers(shop.id),
     enabled: !!shop?.id,
   });
+
+  useShopManifest(slug, shop?.logo_url);
 
   if (loadingShop) return (
     <div style={{ minHeight: "100vh", background: "#0A0A0A" }} />
