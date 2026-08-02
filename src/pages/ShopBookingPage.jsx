@@ -6,6 +6,7 @@ import BookingWizard from "../features/booking/components/BookingWizard";
 import ShopIntro from "../features/booking/components/ShopIntro";
 import { useBookingStore } from "../store/bookingStore";
 import { applyTheme } from "../lib/applyTheme";
+import { useShopManifest } from "../lib/useShopManifest";
 
 async function getShopBySlug(slug) {
   const { data, error } = await supabase
@@ -20,6 +21,7 @@ async function getShopBySlug(slug) {
 
 export default function ShopBookingPage() {
   const { slug }    = useParams();
+  useShopManifest(slug);
   const qc          = useQueryClient();
   const setShopId     = useBookingStore(s => s.setShopId);
   const setShopConfig = useBookingStore(s => s.setShopConfig);

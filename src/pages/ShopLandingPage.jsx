@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabase";
 import { ArrowRight, MapPin, Clock, Scissors, Star, Users } from "lucide-react";
 import ThemeProvider from "../components/shared/ThemeProvider";
 import BarberLoader from "../components/shared/BarberLoader";
+import { useShopManifest } from "../lib/useShopManifest";
 
 const O = "#FF6B2C";
 
@@ -47,6 +48,7 @@ async function getShopBarbers(shopId) {
 
 export default function ShopLandingPage() {
   const { slug } = useParams();
+  useShopManifest(slug);
 
   const { data: shop, isLoading: loadingShop, error: shopError } = useQuery({
     queryKey: ["shop", slug],
