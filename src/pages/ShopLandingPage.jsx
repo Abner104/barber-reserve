@@ -115,12 +115,19 @@ export default function ShopLandingPage() {
           : <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 500, height: 500, background: "var(--shop-brand-alpha)", borderRadius: "50%", filter: "blur(80px)", pointerEvents: "none" }} />
         }
         <div style={{ maxWidth: 700, margin: "0 auto", position: "relative", zIndex: 1 }}>
-          {shop.city && (
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 12px", background: "var(--shop-brand-alpha)", border: "1px solid var(--shop-brand-alpha2)", borderRadius: 20, marginBottom: 24 }}>
-              <MapPin size={11} color="var(--shop-brand)" />
-              <span style={{ color: "var(--shop-brand)", fontSize: 12, fontWeight: 600 }}>{shop.city}</span>
-            </div>
-          )}
+          {shop.city && (() => {
+            const mapsQuery = shop.lat && shop.lng
+              ? `${shop.lat},${shop.lng}`
+              : encodeURIComponent(shop.address || shop.city);
+            const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${mapsQuery}`;
+            return (
+              <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 12px", background: "var(--shop-brand-alpha)", border: "1px solid var(--shop-brand-alpha2)", borderRadius: 20, marginBottom: 24, textDecoration: "none" }}>
+                <MapPin size={11} color="var(--shop-brand)" />
+                <span style={{ color: "var(--shop-brand)", fontSize: 12, fontWeight: 600 }}>{shop.address || shop.city}</span>
+              </a>
+            );
+          })()}
           <h1 style={{ fontSize: "clamp(36px, 7vw, 68px)", fontWeight: 900, lineHeight: 1.05, letterSpacing: -1.5, marginBottom: 16, color: "var(--shop-text)" }}>
             {shop.name}
           </h1>

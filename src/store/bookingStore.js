@@ -1,9 +1,16 @@
 import { create } from "zustand";
+import { toast } from "sonner";
+
+function warnIfLosing(s, keys) {
+  if (keys.some((k) => s[k])) {
+    toast.info("Tu selección de horario se reinició porque cambiaste un paso anterior.");
+  }
+}
 
 const INITIAL = {
   step: 1,
   shopId: null,
-  shopConfig: null,  // { lat, lng, delivery_fee_base, delivery_fee_per_km, allows_delivery }
+  shopConfig: null,  // { lat, lng, shopLat, shopLng, address, city, delivery_fee_base, delivery_fee_per_km, allows_delivery }
   type: null,
   services: [],      // array de servicios seleccionados
   people: 1,
@@ -24,16 +31,16 @@ export const useBookingStore = create((set, get) => ({
   nextStep: () => set((s) => ({ step: s.step + 1 })),
   prevStep: () => set((s) => ({ step: Math.max(1, s.step - 1) })),
 
-  setType: (type) => set({ type, barber: null, slot: null, date: null }),
-  setServices: (services) => set({ services, people: 1, barber: null, slot: null, date: null }),
-  toggleService: (svc) => set((s) => {
+  setType: (type) => { warnIfLosing(get(), ["barber", "slot", "date"]); set({ type, barber: null, slot: null, date: null }); },
+  setServices: (services) => { warnIfLosing(get(), ["barber", "slot", "date"]); set({ services, people: 1, barber: null, slot: null, date: null }); },
+  toggleService: (svc) => { warnIfLosing(get(), ["barber", "slot", "date"]); set((s) => {
     const exists = s.services.some(x => x.id === svc.id);
     const services = exists ? s.services.filter(x => x.id !== svc.id) : [...s.services, svc];
     return { services, barber: null, slot: null, date: null };
-  }),
-  setPeople: (people) => set({ people, barber: null, slot: null, date: null }),
-  setBarber: (barber) => set({ barber, slot: null, date: null }),
-  setDate: (date) => set({ date, slot: null }),
+  }); },
+  setPeople: (people) => { warnIfLosing(get(), ["barber", "slot", "date"]); set({ people, barber: null, slot: null, date: null }); },
+  setBarber: (barber) => { warnIfLosing(get(), ["slot", "date"]); set({ barber, slot: null, date: null }); },
+  setDate: (date) => { warnIfLosing(get(), ["slot"]); set({ date, slot: null }); },
   setSlot: (slot) => set({ slot }),
   setAddress: (address) => set({ address }),
   setDeliveryFee: (deliveryFee) => set({ deliveryFee }),

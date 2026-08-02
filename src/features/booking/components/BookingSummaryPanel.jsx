@@ -5,7 +5,7 @@ import { es } from "date-fns/locale";
 import { useBookingStore } from "../../../store/bookingStore";
 
 export default function BookingSummaryPanel() {
-  const { type, services, barber, date, slot, address, getTotal, deliveryFee: storedFee } = useBookingStore();
+  const { type, services, barber, date, slot, address, getTotal, deliveryFee: storedFee, shopConfig } = useBookingStore();
 
   if (!type) return (
     <div style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 14, padding: 16 }}>
@@ -35,6 +35,19 @@ export default function BookingSummaryPanel() {
       {type === "delivery" && address.line && (
         <Row icon={<MapPin size={13} />} value={address.line} sub={`Domicilio: ${formatCurrency(deliveryFee)}`} />
       )}
+      {type === "in_store" && (shopConfig?.address || shopConfig?.city) && (() => {
+        const mapsQuery = shopConfig.shopLat && shopConfig.shopLng
+          ? `${shopConfig.shopLat},${shopConfig.shopLng}`
+          : encodeURIComponent(shopConfig.address || shopConfig.city);
+        const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${mapsQuery}`;
+        return (
+          <Row icon={<MapPin size={13} />} value={
+            <a href={mapsUrl} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "underline" }}>
+              {shopConfig.address || shopConfig.city}
+            </a>
+          } />
+        );
+      })()}
 
       {services?.length > 0 && (
         <div style={{ borderTop: "1px solid var(--border)", marginTop: 4, paddingTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>

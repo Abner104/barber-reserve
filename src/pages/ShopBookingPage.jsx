@@ -10,7 +10,7 @@ import { applyTheme } from "../lib/applyTheme";
 async function getShopBySlug(slug) {
   const { data, error } = await supabase
     .from("barbershops")
-    .select("id, name, slug, theme_mode, theme_color, theme_font, logo_url, is_active, lat, lng, delivery_fee_base, delivery_fee_per_km, allows_delivery")
+    .select("id, name, slug, theme_mode, theme_color, theme_font, logo_url, is_active, lat, lng, address, city, delivery_fee_base, delivery_fee_per_km, allows_delivery")
     .eq("slug", slug)
     .maybeSingle();
   if (error) throw error;
@@ -43,6 +43,12 @@ export default function ShopBookingPage() {
       setShopConfig({
         lat:                activeShop.lat                ?? -33.4489,
         lng:                activeShop.lng                ?? -70.6693,
+        // shopLat/shopLng sin fallback — para el link de Google Maps, no queremos
+        // apuntar a Santiago por defecto si la barbería no cargó coordenadas propias
+        shopLat:            activeShop.lat ?? null,
+        shopLng:            activeShop.lng ?? null,
+        address:            activeShop.address ?? "",
+        city:               activeShop.city    ?? "",
         delivery_fee_base:  activeShop.delivery_fee_base  ?? 0,
         delivery_fee_per_km: activeShop.delivery_fee_per_km ?? 650,
         allows_delivery:    activeShop.allows_delivery    ?? true,
