@@ -60,13 +60,21 @@ export default function StepDateTime() {
   const canGoNextWeek = addDays(weekStart, 7) <= maxDate;
 
   const canContinue = !!date && !!slot;
-  const slotsRef = useRef(null);
+  const slotsRef    = useRef(null);
+  const continueRef = useRef(null);
 
   useEffect(() => {
     if (!loadingSlots && slots.length > 0 && slotsRef.current) {
       slotsRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
   }, [loadingSlots, date]);
+
+  // Al elegir hora, llevar el botón "Continuar" a la vista — en mobile queda fuera de pantalla
+  useEffect(() => {
+    if (slot && continueRef.current) {
+      continueRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
+  }, [slot]);
 
   // Calendario de mes completo (acceso a fechas fuera de la semana visible)
   const monthDays  = eachDayOfInterval({ start: startOfMonth(viewMonth), end: endOfMonth(viewMonth) });
@@ -232,7 +240,7 @@ export default function StepDateTime() {
         </div>
       )}
 
-      <button onClick={nextStep} disabled={!canContinue}
+      <button ref={continueRef} onClick={nextStep} disabled={!canContinue}
         style={{
           width: "100%", padding: "16px", borderRadius: 14, fontSize: 15, fontWeight: 800,
           cursor: canContinue ? "pointer" : "not-allowed",
