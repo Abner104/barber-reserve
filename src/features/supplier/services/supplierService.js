@@ -1,4 +1,10 @@
 import { supabase } from "../../../lib/supabase";
+import { useAuthStore } from "../../../store/authStore";
+
+function currentActor() {
+  const profile = useAuthStore.getState().profile;
+  return { performed_by: profile?.id ?? null, performed_by_name: profile?.full_name ?? null };
+}
 
 // ── Productos ──────────────────────────────────────────────
 export async function getSupplierProducts(supplierId) {
@@ -38,6 +44,47 @@ export async function upsertProduct(product) {
 export async function deleteProduct(id) {
   const { error } = await supabase.from("supplier_products").delete().eq("id", id);
   if (error) throw error;
+}
+
+// El stock no se edita a mano — se mueve vía reposición/corrección auditada.
+export async function adjustProductStock({ productId, supplierId, delta, reason = "" }) {
+  const { data: product, error: fetchErr } = await supabase
+    .from("supplier_products")
+    .select("stock")
+    .eq("id", productId)
+    .single();
+  if (fetchErr) throw fetchErr;
+
+  const current = product.stock ?? 0;
+  const newStock = Math.max(0, current + delta);
+  const { data: updated, error } = await supabase
+    .from("supplier_products")
+    .update({ stock: newStock })
+    .eq("id", productId)
+    .select()
+    .single();
+  if (error) throw error;
+
+  await supabase.from("supplier_product_movements").insert({
+    product_id:  productId,
+    supplier_id: supplierId,
+    delta,
+    reason:      reason || (delta > 0 ? "Reposición" : "Ajuste"),
+    ...currentActor(),
+  });
+
+  return updated;
+}
+
+export async function getProductMovements(productId) {
+  const { data, error } = await supabase
+    .from("supplier_product_movements")
+    .select("*")
+    .eq("product_id", productId)
+    .order("created_at", { ascending: false })
+    .limit(20);
+  if (error) throw error;
+  return data ?? [];
 }
 
 // ── Pedidos ────────────────────────────────────────────────

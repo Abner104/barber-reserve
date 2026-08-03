@@ -4,7 +4,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import {
   Plus, Pencil, Trash2, Package, X, AlertTriangle,
-  TrendingDown, History, Search, ShoppingBag, ScanLine,
+  TrendingDown, History, Search, ShoppingBag, ScanLine, PackagePlus,
 } from "lucide-react";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import { Link } from "react-router-dom";
@@ -14,7 +14,7 @@ import { uploadImage } from "../../../components/shared/ImageUpload";
 import { useSound } from "../../../hooks/useSound";
 import {
   getInventory, upsertInventoryProduct, deleteInventoryProduct,
-  adjustStock, getInventoryMovements, getInventorySales,
+  adjustStock, getInventoryMovements, getInventorySales, registerPurchase,
 } from "../services/inventoryService";
 import { resolveShopId } from "../services/adminService";
 
@@ -22,7 +22,7 @@ const O = "var(--brand, #FF6B2C)";
 
 const EMPTY = {
   name: "", description: "", category: "", price_cost: "", price_sell: "",
-  stock: "", stock_min: "3", unit: "unidad", image_url: "", is_active: true, sku: "",
+  stock_min: "3", unit: "unidad", image_url: "", is_active: true, sku: "",
 };
 
 const SHIMMER = `
@@ -44,6 +44,10 @@ export default function InventoryPage() {
   const [adjModal, setAdjModal]           = useState(null);
   const [adjDelta, setAdjDelta]           = useState("");
   const [adjReason, setAdjReason]         = useState("");
+  const [purchaseModal, setPurchaseModal] = useState(null);
+  const [purchaseQty, setPurchaseQty]     = useState("");
+  const [purchaseCost, setPurchaseCost]   = useState("");
+  const [purchaseReason, setPurchaseReason] = useState("");
   const [uploading, setUploading]         = useState(false);
   const [saving, setSaving]               = useState(false);
   const [scanning, setScanning]           = useState(false);       // scanner global (header)
@@ -82,6 +86,16 @@ export default function InventoryPage() {
       setAdjModal(null); setAdjDelta(""); setAdjReason("");
     },
     onError: () => toast.error("Error al ajustar stock"),
+  });
+
+  const purchaseMut = useMutation({
+    mutationFn: ({ productId, qty, unitCost, reason }) => registerPurchase({ productId, qty, unitCost, reason }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["inventory"] });
+      toast.success("Compra registrada ✅");
+      setPurchaseModal(null); setPurchaseQty(""); setPurchaseCost(""); setPurchaseReason("");
+    },
+    onError: (e) => toast.error("Error: " + (e?.message ?? "no se pudo registrar la compra")),
   });
 
   const deleteMut = useMutation({
@@ -165,7 +179,8 @@ export default function InventoryPage() {
 
   function openNew()   { setForm({ ...EMPTY }); setFormErrors({}); setProductModal("new"); }
   function openEdit(p) {
-    setForm({ ...p, price_cost: String(p.price_cost ?? ""), price_sell: String(p.price_sell), stock: String(p.stock ?? ""), stock_min: String(p.stock_min ?? 3), sku: p.sku ?? "" });
+    const { stock, ...rest } = p; // el stock nunca se edita a mano — solo vía Compra/Ajustar
+    setForm({ ...rest, price_cost: String(p.price_cost ?? ""), price_sell: String(p.price_sell), stock_min: String(p.stock_min ?? 3), sku: p.sku ?? "" });
     setFormErrors({});
     setProductModal(p);
   }
@@ -185,13 +200,15 @@ export default function InventoryPage() {
 
     setSaving(true);
     try {
-      await upsertInventoryProduct({
+      const payload = {
         ...form,
         price_cost: form.price_cost !== "" ? Number(form.price_cost) : null,
         price_sell: Number(form.price_sell),
-        stock:      form.stock !== ""      ? Number(form.stock)      : 0,
         stock_min:  form.stock_min !== ""  ? Number(form.stock_min)  : 3,
-      });
+      };
+      // Producto nuevo arranca en 0 — el stock inicial se carga con "Compra" después de crearlo
+      if (productModal === "new") payload.stock = 0;
+      await upsertInventoryProduct(payload);
       qc.invalidateQueries({ queryKey: ["inventory"] });
       toast.success(productModal === "new" ? "Producto creado" : "Producto actualizado");
       setProductModal(null);
@@ -355,6 +372,7 @@ export default function InventoryPage() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
             {items.map(p => {
               const isLow = p.stock != null && p.stock <= (p.stock_min ?? 3);
+              const margin = p.price_cost > 0 ? Math.round(((p.price_sell - p.price_cost) / p.price_sell) * 100) : null;
               return (
                 <div key={p.id} style={{ background: "var(--card-bg)", border: `1px solid ${isLow ? "rgba(239,68,68,0.3)" : "var(--card-border)"}`, borderRadius: 14, overflow: "hidden" }}>
                   {p.image_url ? (
@@ -374,28 +392,39 @@ export default function InventoryPage() {
                         {p.stock ?? 0} {p.unit}
                       </span>
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-                      <p style={{ fontWeight: 800, color: O, fontSize: 15 }}>{formatCurrency(p.price_sell)}</p>
-                      {p.price_cost && <p style={{ fontSize: 11, color: "var(--text-faint)" }}>costo {formatCurrency(p.price_cost)}</p>}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                      <div>
+                        <p style={{ fontWeight: 800, color: O, fontSize: 15 }}>{formatCurrency(p.price_sell)}</p>
+                        {p.price_cost > 0 && <p style={{ fontSize: 11, color: "var(--text-faint)" }}>costo {formatCurrency(p.price_cost)}</p>}
+                      </div>
+                      {margin != null && (
+                        <span style={{ fontSize: 11, fontWeight: 700, color: margin >= 30 ? "#22c55e" : margin >= 10 ? "#f59e0b" : "#ef4444" }}>
+                          {margin}% margen
+                        </span>
+                      )}
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 6 }}>
+                      <button onClick={() => { setPurchaseModal(p); setPurchaseQty(""); setPurchaseCost(String(p.price_cost ?? "")); setPurchaseReason(""); }}
+                        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "7px 4px", borderRadius: 8, background: "var(--brand-alpha, rgba(255,107,44,0.1))", border: `1px solid ${O}`, color: O, cursor: "pointer", fontSize: 12, fontWeight: 700 }}>
+                        <PackagePlus size={12} /> Compra
+                      </button>
                       <button onClick={() => { setAdjModal(p); setAdjDelta(""); setAdjReason(""); }}
                         style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "7px 4px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", cursor: "pointer", fontSize: 12 }}>
-                        <TrendingDown size={12} /> Ajustar stock
+                        <TrendingDown size={12} /> Merma/Ajuste
                       </button>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 6 }}>
                       <button onClick={() => setHistoryModal(p)}
                         style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "7px 4px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", cursor: "pointer", fontSize: 12 }}>
                         <History size={12} /> Historial
                       </button>
-                    </div>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <button onClick={() => openEdit(p)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "7px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", cursor: "pointer", fontSize: 12 }}>
+                      <button onClick={() => openEdit(p)} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "7px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", cursor: "pointer", fontSize: 12 }}>
                         <Pencil size={12} /> Editar
                       </button>
-                      <button onClick={() => setDeleteConfirm(p)} style={{ padding: "7px 10px", borderRadius: 8, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", color: "#ef4444", cursor: "pointer" }}>
-                        <Trash2 size={12} />
-                      </button>
                     </div>
+                    <button onClick={() => setDeleteConfirm(p)} style={{ width: "100%", padding: "7px 10px", borderRadius: 8, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", color: "#ef4444", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4, fontSize: 12 }}>
+                      <Trash2 size={12} /> Eliminar
+                    </button>
                   </div>
                 </div>
               );
@@ -453,10 +482,16 @@ export default function InventoryPage() {
           onClick={() => setProductModal(null)}>
           <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 20, padding: 28, width: "100%", maxWidth: 480, maxHeight: "90vh", overflowY: "auto" }}
             onClick={e => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <p style={{ fontWeight: 800, fontSize: 18, color: "var(--text)" }}>{productModal === "new" ? "Nuevo producto" : "Editar producto"}</p>
               <button onClick={() => setProductModal(null)} style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 8, padding: 6, cursor: "pointer", color: "var(--text-faint)", display: "flex" }}><X size={16} /></button>
             </div>
+            {productModal === "new" && (
+              <p style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 14 }}>El stock arranca en 0 — cargalo con "Compra" desde la card del producto una vez creado.</p>
+            )}
+            {productModal !== "new" && (
+              <p style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 14 }}>El stock no se edita acá — usá "Compra" o "Ajustar stock" desde la card.</p>
+            )}
 
             {/* Imagen */}
             <div style={{ marginBottom: 16 }}>
@@ -479,7 +514,6 @@ export default function InventoryPage() {
               { key: "category",   label: "Categoría",           placeholder: "Pomadas, Shampoo...",       type: "text"   },
               { key: "price_sell", label: "Precio de venta *",   placeholder: "0",                         type: "number" },
               { key: "price_cost", label: "Precio de costo",     placeholder: "0 (opcional)",              type: "number" },
-              { key: "stock",      label: "Stock inicial",       placeholder: "0",                         type: "number" },
               { key: "stock_min",  label: "Alerta stock mínimo", placeholder: "3",                         type: "number" },
               { key: "unit",       label: "Unidad",              placeholder: "unidad, caja, ml...",       type: "text"   },
             ].map(({ key, label, placeholder, type }) => (
@@ -541,24 +575,68 @@ export default function InventoryPage() {
         </div>
       )}
 
+      {/* ── MODAL COMPRA ── */}
+      {purchaseModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+          onClick={() => setPurchaseModal(null)}>
+          <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 20, padding: 28, width: "100%", maxWidth: 380 }}
+            onClick={e => e.stopPropagation()}>
+            <p style={{ fontWeight: 800, fontSize: 18, color: "var(--text)", marginBottom: 4 }}>Registrar compra</p>
+            <p style={{ color: "var(--text-faint)", fontSize: 13, marginBottom: 20 }}>{purchaseModal.name} · stock actual: <strong style={{ color: "var(--text)" }}>{purchaseModal.stock ?? 0} {purchaseModal.unit}</strong></p>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>CANTIDAD COMPRADA</label>
+              <input type="number" value={purchaseQty} onChange={e => setPurchaseQty(e.target.value)} placeholder="Ej: 20"
+                style={{ width: "100%", padding: "10px 12px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14, outline: "none", boxSizing: "border-box" }} />
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>COSTO UNITARIO DE ESTA COMPRA</label>
+              <input type="number" value={purchaseCost} onChange={e => setPurchaseCost(e.target.value)} placeholder="0 (opcional)"
+                style={{ width: "100%", padding: "10px 12px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14, outline: "none", boxSizing: "border-box" }} />
+              <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 4 }}>Si lo completás, actualiza el costo de referencia del producto.</p>
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>PROVEEDOR / NOTA (OPCIONAL)</label>
+              <input type="text" value={purchaseReason} onChange={e => setPurchaseReason(e.target.value)} placeholder="Ej: Distribuidora Sur"
+                style={{ width: "100%", padding: "10px 12px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14, outline: "none", boxSizing: "border-box" }} />
+            </div>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setPurchaseModal(null)} style={{ flex: 1, padding: 12, borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-faint)", cursor: "pointer", fontWeight: 600 }}>Cancelar</button>
+              <button
+                onClick={() => {
+                  const q = Number(purchaseQty);
+                  if (!purchaseQty || isNaN(q) || q <= 0) { toast.error("Ingresa una cantidad válida"); return; }
+                  purchaseMut.mutate({ productId: purchaseModal.id, qty: q, unitCost: purchaseCost, reason: purchaseReason });
+                }}
+                disabled={purchaseMut.isPending}
+                style={{ flex: 1, padding: 12, borderRadius: 10, background: O, color: "#fff", fontWeight: 800, border: "none", cursor: purchaseMut.isPending ? "not-allowed" : "pointer", opacity: purchaseMut.isPending ? 0.7 : 1 }}>
+                Registrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── MODAL AJUSTE STOCK ── */}
       {adjModal && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
           onClick={() => setAdjModal(null)}>
           <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 20, padding: 28, width: "100%", maxWidth: 380 }}
             onClick={e => e.stopPropagation()}>
-            <p style={{ fontWeight: 800, fontSize: 18, color: "var(--text)", marginBottom: 4 }}>Ajustar stock</p>
+            <p style={{ fontWeight: 800, fontSize: 18, color: "var(--text)", marginBottom: 4 }}>Merma / Ajuste de stock</p>
             <p style={{ color: "var(--text-faint)", fontSize: 13, marginBottom: 20 }}>{adjModal.name} · actual: <strong style={{ color: "var(--text)" }}>{adjModal.stock ?? 0} {adjModal.unit}</strong></p>
 
             <div style={{ marginBottom: 14 }}>
               <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>CANTIDAD (+ entrada / − salida)</label>
-              <input type="number" value={adjDelta} onChange={e => setAdjDelta(e.target.value)} placeholder="Ej: 10 o -3"
+              <input type="number" value={adjDelta} onChange={e => setAdjDelta(e.target.value)} placeholder="Ej: -3 (rotura, pérdida) o 5 (corrección)"
                 style={{ width: "100%", padding: "10px 12px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14, outline: "none", boxSizing: "border-box" }} />
             </div>
             <div style={{ marginBottom: 20 }}>
-              <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>MOTIVO</label>
-              <input type="text" value={adjReason} onChange={e => setAdjReason(e.target.value)} placeholder="Ej: Compra al proveedor, merma, corrección..."
+              <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>MOTIVO *</label>
+              <input type="text" value={adjReason} onChange={e => setAdjReason(e.target.value)} placeholder="Ej: Rotura, pérdida, corrección de conteo..."
                 style={{ width: "100%", padding: "10px 12px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14, outline: "none", boxSizing: "border-box" }} />
+              <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 4 }}>Obligatorio — queda registrado en el historial de auditoría.</p>
             </div>
 
             <div style={{ display: "flex", gap: 10 }}>
@@ -567,6 +645,7 @@ export default function InventoryPage() {
                 onClick={() => {
                   const d = Number(adjDelta);
                   if (!adjDelta || isNaN(d)) { toast.error("Ingresa una cantidad"); return; }
+                  if (!adjReason.trim()) { toast.error("El motivo es obligatorio"); return; }
                   adjMut.mutate({ id: adjModal.id, delta: d, reason: adjReason });
                 }}
                 disabled={adjMut.isPending}
@@ -590,17 +669,27 @@ export default function InventoryPage() {
             </div>
             <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
               {history.length === 0 && <p style={{ color: "var(--text-faint)", fontSize: 13, textAlign: "center", padding: "20px 0" }}>Sin movimientos registrados.</p>}
-              {history.map(m => (
-                <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: "var(--surface2)", borderRadius: 10 }}>
-                  <span style={{ fontWeight: 800, fontSize: 16, color: m.delta > 0 ? "#22c55e" : "#ef4444", minWidth: 40 }}>
-                    {m.delta > 0 ? "+" : ""}{m.delta}
-                  </span>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 13, color: "var(--text)", marginBottom: 1 }}>{m.reason || "Sin motivo"}</p>
-                    <p style={{ fontSize: 11, color: "var(--text-faint)" }}>{new Date(m.created_at).toLocaleString("es-CL", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
+              {history.map(m => {
+                const typeLabel = { purchase: "Compra", sale: "Venta", adjustment: "Ajuste" }[m.type] ?? "Ajuste";
+                return (
+                  <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: "var(--surface2)", borderRadius: 10 }}>
+                    <span style={{ fontWeight: 800, fontSize: 16, color: m.delta > 0 ? "#22c55e" : "#ef4444", minWidth: 40 }}>
+                      {m.delta > 0 ? "+" : ""}{m.delta}
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 1 }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: "var(--text-faint)" }}>{typeLabel}</span>
+                        {m.unit_cost != null && <span style={{ fontSize: 10, color: "var(--text-faint)" }}>· costo {formatCurrency(m.unit_cost)}</span>}
+                      </div>
+                      <p style={{ fontSize: 13, color: "var(--text)", marginBottom: 1 }}>{m.reason || "Sin motivo"}</p>
+                      <p style={{ fontSize: 11, color: "var(--text-faint)" }}>
+                        {new Date(m.created_at).toLocaleString("es-CL", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                        {m.performed_by_name && ` · ${m.performed_by_name}`}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>

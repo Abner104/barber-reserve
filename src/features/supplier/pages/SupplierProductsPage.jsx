@@ -1,15 +1,15 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Package, X, AlertTriangle, ScanLine, ChevronRight, ChevronLeft, Check } from "lucide-react";
+import { Plus, Pencil, Trash2, Package, X, AlertTriangle, ScanLine, ChevronRight, ChevronLeft, Check, PackagePlus, History } from "lucide-react";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import { toast } from "sonner";
-import { getSupplierProducts, upsertProduct, deleteProduct } from "../services/supplierService";
+import { getSupplierProducts, upsertProduct, deleteProduct, adjustProductStock, getProductMovements } from "../services/supplierService";
 import { useActiveSupplier } from "../../../hooks/useActiveSupplier";
 import { uploadImage } from "../../../components/shared/ImageUpload";
 import { formatCurrency } from "../../../lib/utils";
 
 const O = "var(--brand, #FF6B2C)";
-const EMPTY = { name: "", description: "", price: "", stock: "", category: "", image_url: "", images: [], unit: "unidad", is_available: true, sku: "" };
+const EMPTY = { name: "", description: "", price: "", category: "", image_url: "", images: [], unit: "unidad", is_available: true, sku: "" };
 const STEPS = [
   { id: 1, label: "Identidad", desc: "Nombre, SKU y categoría" },
   { id: 2, label: "Precio",    desc: "Precio y stock" },
@@ -26,6 +26,10 @@ export default function SupplierProductsPage() {
   const [uploading, setUploading]       = useState(false);
   const [saving, setSaving]             = useState(false);
   const [skuScanning, setSkuScanning]   = useState(false);
+  const [stockModal, setStockModal]     = useState(null);
+  const [stockDelta, setStockDelta]     = useState("");
+  const [stockReason, setStockReason]   = useState("");
+  const [historyModal, setHistoryModal] = useState(null);
 
   const skuVideoRef = useRef(null);
   const skuControls = useRef(null);
@@ -38,10 +42,26 @@ export default function SupplierProductsPage() {
     enabled:  !!supplier?.id,
   });
 
+  const { data: history = [] } = useQuery({
+    queryKey: ["supplier-product-movements", historyModal?.id],
+    queryFn:  () => getProductMovements(historyModal.id),
+    enabled:  !!historyModal?.id,
+  });
+
   const deleteMut = useMutation({
     mutationFn: deleteProduct,
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["supplier-products"] }); toast.success("Producto eliminado"); setDeleteConfirm(null); },
     onError: () => toast.error("Error al eliminar"),
+  });
+
+  const stockMut = useMutation({
+    mutationFn: ({ productId, delta, reason }) => adjustProductStock({ productId, supplierId: supplier.id, delta, reason }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["supplier-products"] });
+      toast.success("Stock actualizado");
+      setStockModal(null); setStockDelta(""); setStockReason("");
+    },
+    onError: (e) => toast.error("Error: " + (e?.message ?? "no se pudo actualizar el stock")),
   });
 
   const stopSkuCamera = useCallback(() => {
@@ -79,7 +99,8 @@ export default function SupplierProductsPage() {
   }
 
   function openEdit(p) {
-    setForm({ ...p, price: String(p.price), stock: String(p.stock ?? ""), sku: p.sku ?? "", images: p.images ?? [] });
+    const { stock, ...rest } = p; // el stock no se edita a mano — solo vía "Reponer stock"
+    setForm({ ...rest, price: String(p.price), sku: p.sku ?? "", images: p.images ?? [] });
     setFormErrors({});
     setModal(p);
   }
@@ -114,7 +135,8 @@ export default function SupplierProductsPage() {
     if (!validateStep(wizardStep)) return;
     setSaving(true);
     try {
-      await upsertProduct({ ...form, supplier_id: supplier.id, price: Number(form.price), stock: form.stock !== "" ? Number(form.stock) : null });
+      // Producto nuevo arranca en 0 — el stock se carga después con "Reponer stock"
+      await upsertProduct({ ...form, supplier_id: supplier.id, price: Number(form.price), stock: 0 });
       qc.invalidateQueries({ queryKey: ["supplier-products"] });
       toast.success("Producto creado");
       closeModal();
@@ -129,7 +151,8 @@ export default function SupplierProductsPage() {
     if (Object.keys(errors).length) { setFormErrors(errors); return; }
     setSaving(true);
     try {
-      await upsertProduct({ ...form, supplier_id: supplier.id, price: Number(form.price), stock: form.stock !== "" ? Number(form.stock) : null });
+      // stock no viaja acá — no se edita a mano, solo vía "Reponer stock"
+      await upsertProduct({ ...form, supplier_id: supplier.id, price: Number(form.price) });
       qc.invalidateQueries({ queryKey: ["supplier-products"] });
       toast.success("Producto actualizado");
       closeModal();
@@ -254,6 +277,16 @@ export default function SupplierProductsPage() {
                     <p style={{ fontWeight: 800, color: O, fontSize: 16 }}>{formatCurrency(p.price)}</p>
                     {p.stock != null && <p style={{ fontSize: 12, color: p.stock <= 5 ? "#f87171" : "var(--text-faint)" }}>Stock: {p.stock} {p.unit}</p>}
                   </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 6 }}>
+                    <button onClick={() => { setStockModal(p); setStockDelta(""); setStockReason(""); }}
+                      style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "7px 4px", borderRadius: 8, background: "var(--brand-alpha, rgba(255,107,44,0.1))", border: `1px solid ${O}`, color: O, cursor: "pointer", fontSize: 12, fontWeight: 700 }}>
+                      <PackagePlus size={12} /> Reponer stock
+                    </button>
+                    <button onClick={() => setHistoryModal(p)}
+                      style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "7px 4px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", cursor: "pointer", fontSize: 12 }}>
+                      <History size={12} /> Historial
+                    </button>
+                  </div>
                   <div style={{ display: "flex", gap: 8 }}>
                     <button onClick={() => openEdit(p)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", cursor: "pointer", fontSize: 13 }}>
                       <Pencil size={13} /> Editar
@@ -328,10 +361,6 @@ export default function SupplierProductsPage() {
                     {formErrors.price && <p style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{formErrors.price}</p>}
                   </div>
                   <div>
-                    <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>STOCK DISPONIBLE</label>
-                    <input type="number" value={form.stock} onChange={e => setForm(f => ({ ...f, stock: e.target.value }))} placeholder="Dejar vacío = sin límite" style={inp} />
-                  </div>
-                  <div>
                     <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>UNIDAD</label>
                     <input value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))} placeholder="unidad, caja, litro..." style={inp} />
                   </div>
@@ -339,6 +368,7 @@ export default function SupplierProductsPage() {
                     <input type="checkbox" id="avail-wiz" checked={form.is_available} onChange={e => setForm(f => ({ ...f, is_available: e.target.checked }))} style={{ width: 18, height: 18 }} />
                     <label htmlFor="avail-wiz" style={{ fontSize: 14, color: "var(--text)", cursor: "pointer", fontWeight: 500 }}>Producto disponible en catálogo</label>
                   </div>
+                  <p style={{ fontSize: 12, color: "var(--text-faint)" }}>El stock arranca en 0 — cargalo con "Reponer stock" desde la card una vez creado.</p>
                 </div>
               )}
 
@@ -390,7 +420,6 @@ export default function SupplierProductsPage() {
               { key: "name",     label: "Nombre *",  placeholder: "Nombre del producto", type: "text"   },
               { key: "category", label: "Categoría", placeholder: "Pomadas, Shampoo...", type: "text"   },
               { key: "price",    label: "Precio *",  placeholder: "0",                   type: "number" },
-              { key: "stock",    label: "Stock",     placeholder: "Sin límite",          type: "number" },
               { key: "unit",     label: "Unidad",    placeholder: "unidad, caja...",     type: "text"   },
             ].map(({ key, label, placeholder, type }) => (
               <div key={key} style={{ marginBottom: 12 }}>
@@ -419,6 +448,70 @@ export default function SupplierProductsPage() {
             <button onClick={handleEditSave} disabled={saving} style={{ width: "100%", padding: 14, borderRadius: 12, background: O, color: "#fff", fontWeight: 800, fontSize: 15, border: "none", cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.7 : 1 }}>
               {saving ? "Guardando..." : "Guardar cambios"}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── REPONER STOCK ── */}
+      {stockModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => setStockModal(null)}>
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 20, padding: 28, width: "100%", maxWidth: 380 }} onClick={e => e.stopPropagation()}>
+            <p style={{ fontWeight: 800, fontSize: 18, color: "var(--text)", marginBottom: 4 }}>Reponer stock</p>
+            <p style={{ color: "var(--text-faint)", fontSize: 13, marginBottom: 20 }}>{stockModal.name} · actual: <strong style={{ color: "var(--text)" }}>{stockModal.stock ?? 0} {stockModal.unit}</strong></p>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>CANTIDAD (+ entrada / − salida)</label>
+              <input type="number" value={stockDelta} onChange={e => setStockDelta(e.target.value)} placeholder="Ej: 50 o -2" style={inp} />
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>MOTIVO *</label>
+              <input type="text" value={stockReason} onChange={e => setStockReason(e.target.value)} placeholder="Ej: Nueva producción, pérdida, corrección..." style={inp} />
+              <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 4 }}>Obligatorio — queda registrado en el historial.</p>
+            </div>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setStockModal(null)} style={{ flex: 1, padding: 12, borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-faint)", cursor: "pointer", fontWeight: 600 }}>Cancelar</button>
+              <button
+                onClick={() => {
+                  const d = Number(stockDelta);
+                  if (!stockDelta || isNaN(d)) { toast.error("Ingresa una cantidad"); return; }
+                  if (!stockReason.trim()) { toast.error("El motivo es obligatorio"); return; }
+                  stockMut.mutate({ productId: stockModal.id, delta: d, reason: stockReason });
+                }}
+                disabled={stockMut.isPending}
+                style={{ flex: 1, padding: 12, borderRadius: 10, background: O, color: "#fff", fontWeight: 800, border: "none", cursor: stockMut.isPending ? "not-allowed" : "pointer", opacity: stockMut.isPending ? 0.7 : 1 }}>
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── HISTORIAL ── */}
+      {historyModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => setHistoryModal(null)}>
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 20, padding: 28, width: "100%", maxWidth: 420, maxHeight: "80vh", display: "flex", flexDirection: "column" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <p style={{ fontWeight: 800, fontSize: 17, color: "var(--text)" }}>Historial — {historyModal.name}</p>
+              <button onClick={() => setHistoryModal(null)} style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 8, padding: 6, cursor: "pointer", color: "var(--text-faint)", display: "flex" }}><X size={16} /></button>
+            </div>
+            <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
+              {history.length === 0 && <p style={{ color: "var(--text-faint)", fontSize: 13, textAlign: "center", padding: "20px 0" }}>Sin movimientos registrados.</p>}
+              {history.map(m => (
+                <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: "var(--surface2)", borderRadius: 10 }}>
+                  <span style={{ fontWeight: 800, fontSize: 16, color: m.delta > 0 ? "#22c55e" : "#ef4444", minWidth: 40 }}>
+                    {m.delta > 0 ? "+" : ""}{m.delta}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 13, color: "var(--text)", marginBottom: 1 }}>{m.reason || "Sin motivo"}</p>
+                    <p style={{ fontSize: 11, color: "var(--text-faint)" }}>
+                      {new Date(m.created_at).toLocaleString("es-CL", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                      {m.performed_by_name && ` · ${m.performed_by_name}`}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}

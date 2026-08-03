@@ -1,5 +1,11 @@
 import { supabase } from "../../../lib/supabase";
 import { resolveShopId } from "./adminService";
+import { useAuthStore } from "../../../store/authStore";
+
+function currentActor() {
+  const profile = useAuthStore.getState().profile;
+  return { performed_by: profile?.id ?? null, performed_by_name: profile?.full_name ?? null };
+}
 
 const WA_URL    = import.meta.env.VITE_WA_SERVICE_URL ?? "http://localhost:3001";
 const WA_SECRET = import.meta.env.VITE_WA_SECRET      ?? "barberos2026secret";
@@ -53,7 +59,7 @@ export async function deleteInventoryProduct(id) {
   if (error) throw error;
 }
 
-export async function adjustStock(id, delta, reason = "") {
+export async function adjustStock(id, delta, reason = "", type = "adjustment") {
   const { data: product, error: fetchErr } = await supabase
     .from("inventory_products")
     .select("stock")
@@ -76,7 +82,9 @@ export async function adjustStock(id, delta, reason = "") {
     product_id: id,
     shop_id:    shopId,
     delta,
+    type,
     reason:     reason || (delta > 0 ? "Entrada manual" : "Salida manual"),
+    ...currentActor(),
   });
 
   // Alerta WA si el stock queda bajo el mínimo
@@ -88,9 +96,46 @@ export async function adjustStock(id, delta, reason = "") {
   return newStock;
 }
 
+// ── Compra de mercadería — repone stock y actualiza el costo del producto ──
+export async function registerPurchase({ productId, qty, unitCost, reason = "" }) {
+  if (!qty || qty <= 0) throw new Error("Cantidad inválida");
+
+  const { data: product, error: fetchErr } = await supabase
+    .from("inventory_products")
+    .select("stock")
+    .eq("id", productId)
+    .single();
+  if (fetchErr) throw fetchErr;
+
+  const newStock = (product.stock ?? 0) + qty;
+  const updates = { stock: newStock };
+  if (unitCost != null && unitCost !== "") updates.price_cost = Number(unitCost);
+
+  const { data: updated, error } = await supabase
+    .from("inventory_products")
+    .update(updates)
+    .eq("id", productId)
+    .select()
+    .single();
+  if (error) throw error;
+
+  const shopId = resolveShopId();
+  await supabase.from("inventory_movements").insert({
+    product_id: productId,
+    shop_id:    shopId,
+    delta:      qty,
+    type:       "purchase",
+    unit_cost:  unitCost != null && unitCost !== "" ? Number(unitCost) : null,
+    reason:     reason || "Compra de mercadería",
+    ...currentActor(),
+  });
+
+  return updated;
+}
+
 // ── Ventas rápidas (venta directa desde el local) ──────────
 export async function registerSale({ productId, qty, price }) {
-  await adjustStock(productId, -qty, "Venta en local");
+  await adjustStock(productId, -qty, "Venta en local", "sale");
   const shopId = resolveShopId();
   const { data, error } = await supabase
     .from("inventory_sales")
