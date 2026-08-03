@@ -144,7 +144,7 @@ export async function createBarber(barber) {
   // 1. Crear barbero en la tabla
   const { data: newBarber, error } = await supabase
     .from("barbers")
-    .insert({ ...barberData, shop_id: sid })
+    .insert({ ...barberData, shop_id: sid, email: email?.trim() || null })
     .select().single();
   if (error) throw error;
 
@@ -186,8 +186,8 @@ export async function createBarber(barber) {
 
 export async function updateBarber(id, updates) {
   const sid = resolveShopId();
-  // Excluir campos que no existen en la tabla
-  const { email, callmebot_key, ...safe } = updates;
+  // callmebot_key no existe en la tabla — email sí (se usa para notificar reservas)
+  const { callmebot_key, ...safe } = updates;
   const { data, error } = await supabase
     .from("barbers").update(safe).eq("id", id).eq("shop_id", sid)
     .select().single();

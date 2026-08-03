@@ -65,6 +65,27 @@ function bookingHtml({ heading, intro, clientName, shopName, serviceName, barber
   `;
 }
 
+function barberNotificationHtml({ barberName, clientName, shopName, serviceName, date, time, bookingType, address, price, agendaUrl, logoUrl }) {
+  return `
+    <div style="font-family: -apple-system, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      ${logoUrl ? `<img src="${logoUrl}" alt="${shopName || "Clippr"}" style="width: 48px; height: 48px; border-radius: 12px; object-fit: cover; margin-bottom: 12px;" />` : ""}
+      <h2 style="color: #FF6B2C;">🔔 Nueva reserva</h2>
+      <p>Hola ${barberName || ""},</p>
+      <p>Tenés una reserva nueva en <strong>${shopName}</strong>:</p>
+      <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+        <tr><td style="padding: 6px 0; color: #666;">Cliente</td><td style="padding: 6px 0; text-align: right;"><strong>${clientName || "—"}</strong></td></tr>
+        <tr><td style="padding: 6px 0; color: #666;">Servicio</td><td style="padding: 6px 0; text-align: right;"><strong>${serviceName || "—"}</strong></td></tr>
+        ${date ? `<tr><td style="padding: 6px 0; color: #666;">Fecha</td><td style="padding: 6px 0; text-align: right;"><strong>${date}</strong></td></tr>` : ""}
+        <tr><td style="padding: 6px 0; color: #666;">Hora</td><td style="padding: 6px 0; text-align: right;"><strong>${time || "—"}</strong></td></tr>
+        ${bookingType === "delivery" ? `<tr><td style="padding: 6px 0; color: #666;">Domicilio</td><td style="padding: 6px 0; text-align: right;"><strong>${address || "—"}</strong></td></tr>` : ""}
+        ${price ? `<tr><td style="padding: 6px 0; color: #666;">Precio</td><td style="padding: 6px 0; text-align: right;"><strong>${price}</strong></td></tr>` : ""}
+      </table>
+      ${agendaUrl ? `<p><a href="${agendaUrl}" style="display: inline-block; background: #FF6B2C; color: #fff; padding: 12px 20px; border-radius: 8px; text-decoration: none; font-weight: 700;">Ver mi agenda</a></p>` : ""}
+      <p style="color: #999; font-size: 13px; margin-top: 24px;">Este correo fue enviado por Clippr en nombre de ${shopName}.</p>
+    </div>
+  `;
+}
+
 function credentialsHtml({ name, email, password, loginUrl, bookingUrl }) {
   return `
     <div style="font-family: -apple-system, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
@@ -99,8 +120,11 @@ app.post("/send-email", async (req, res) => {
     } else if (type === "credentials") {
       subject = `Tu barbería ya está activa en Clippr`;
       html = credentialsHtml(data);
+    } else if (type === "barber_notification") {
+      subject = `Nueva reserva — ${data.shopName || "Clippr"}`;
+      html = barberNotificationHtml(data);
     } else {
-      res.status(400).json({ error: "type debe ser 'confirmation', 'reminder' o 'credentials'" });
+      res.status(400).json({ error: "type debe ser 'confirmation', 'reminder', 'credentials' o 'barber_notification'" });
       return;
     }
 

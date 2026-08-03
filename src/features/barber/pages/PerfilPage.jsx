@@ -5,14 +5,13 @@ import { Loader2, MapPin, Navigation2 } from "lucide-react";
 import { getMyBarberProfile, updateMyAvailability } from "../services/barberService";
 import { supabase } from "../../../lib/supabase";
 import ImageUpload from "../../../components/shared/ImageUpload";
-import WhatsAppQR from "../../admin/components/WhatsAppQR";
 import { usePushNotifications } from "../../../hooks/usePushNotifications";
 import { Bell, BellOff } from "lucide-react";
 
 const O = "var(--brand, #FF6B2C)";
 
 function PushNotifSection({ barberId }) {
-  const { supported, permission, subscribed, loading, subscribe, unsubscribe } = usePushNotifications(barberId);
+  const { supported, permission, subscribed, loading, error, subscribe, unsubscribe } = usePushNotifications(barberId);
   const O = "var(--brand, #FF6B2C)";
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
   const isInstalled = window.matchMedia("(display-mode: standalone)").matches;
@@ -94,107 +93,8 @@ function PushNotifSection({ barberId }) {
         {loading ? <Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} /> : <Bell size={15} />}
         {loading ? "Activando..." : "Activar notificaciones ahora"}
       </button>
-    </div>
-  );
-}
-
-function WhatsAppVerifySection({ barber }) {
-  const qc = useQueryClient();
-  const [phone, setPhone]     = useState(barber?.whatsapp_number ?? barber?.phone ?? "");
-  const [code, setCode]       = useState("");
-  const [step, setStep]       = useState(barber?.whatsapp_verified ? "verified" : "idle"); // idle | sending | code | verified
-  const [loading, setLoading] = useState(false);
-
-  async function sendCode() {
-    if (!phone.trim()) { toast.error("Ingresá tu número"); return; }
-    setLoading(true);
-    try {
-      const r = await fetch("/api/whatsapp-verify", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ barberId: barber.id, phone: phone.trim() }),
-      });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error);
-      setStep("code");
-      toast.success("Código enviado por WhatsApp ✓");
-    } catch (e) {
-      toast.error(e.message ?? "Error al enviar el código");
-    } finally { setLoading(false); }
-  }
-
-  async function confirmCode() {
-    if (!code.trim()) return;
-    setLoading(true);
-    try {
-      const r = await fetch("/api/whatsapp-confirm", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ barberId: barber.id, code: code.trim() }),
-      });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error);
-      setStep("verified");
-      qc.invalidateQueries({ queryKey: ["my-barber-profile"] });
-      toast.success("¡WhatsApp verificado! 🎉 Ya recibirás las reservas.");
-    } catch (e) {
-      toast.error(e.message ?? "Código incorrecto");
-    } finally { setLoading(false); }
-  }
-
-  return (
-    <div style={{ marginBottom: 16, padding: "16px", background: step === "verified" ? "rgba(34,197,94,0.06)" : "rgba(255,107,44,0.06)", borderRadius: 12, border: `1px solid ${step === "verified" ? "rgba(34,197,94,0.2)" : "rgba(255,107,44,0.25)"}` }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        <span style={{ fontSize: 18 }}>💬</span>
-        <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>
-          {step === "verified" ? "WhatsApp verificado ✅" : "Conectar WhatsApp"}
-        </p>
-      </div>
-
-      {step === "verified" ? (
-        <div>
-          <p style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 8 }}>
-            Recibirás notificaciones de reservas en <strong style={{ color: "var(--text)" }}>{barber?.whatsapp_number}</strong>
-          </p>
-          <button onClick={() => setStep("idle")} style={{ fontSize: 12, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
-            Cambiar número
-          </button>
-        </div>
-      ) : step === "code" ? (
-        <div>
-          <p style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 10, lineHeight: 1.5 }}>
-            Enviamos un código a <strong style={{ color: "var(--text)" }}>{phone}</strong>. Ingrésalo acá:
-          </p>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              value={code} onChange={e => setCode(e.target.value)}
-              placeholder="123456" maxLength={6} type="number"
-              style={{ flex: 1, padding: "11px 13px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 20, fontWeight: 700, textAlign: "center", outline: "none", boxSizing: "border-box" }}
-            />
-            <button onClick={confirmCode} disabled={loading || !code}
-              style={{ padding: "11px 16px", borderRadius: 10, background: O, color: "#fff", border: "none", cursor: "pointer", fontWeight: 700, opacity: loading || !code ? 0.6 : 1, flexShrink: 0 }}>
-              {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : "Verificar"}
-            </button>
-          </div>
-          <button onClick={() => setStep("idle")} style={{ fontSize: 12, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", marginTop: 8 }}>
-            ← Cambiar número
-          </button>
-        </div>
-      ) : (
-        <div>
-          <p style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 10, lineHeight: 1.5 }}>
-            Ingresá tu número de WhatsApp para recibir las reservas con el celular bloqueado.
-          </p>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              value={phone} onChange={e => setPhone(e.target.value)}
-              placeholder="+56 9 1234 5678" type="tel"
-              style={{ flex: 1, padding: "11px 13px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14, outline: "none", boxSizing: "border-box" }}
-            />
-            <button onClick={sendCode} disabled={loading || !phone}
-              style={{ padding: "11px 16px", borderRadius: 10, background: O, color: "#fff", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13, opacity: loading || !phone ? 0.6 : 1, flexShrink: 0, whiteSpace: "nowrap" }}>
-              {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : "Enviar código"}
-            </button>
-          </div>
-        </div>
+      {error && (
+        <p style={{ fontSize: 12, color: "#ef4444", marginTop: 8, lineHeight: 1.5 }}>⚠️ {error}</p>
       )}
     </div>
   );
@@ -450,24 +350,20 @@ export default function PerfilPage() {
         </div>
       </div>
 
-      {/* WhatsApp Verificación */}
-      {barber?.id && <WhatsAppVerifySection barber={barber} />}
+      {/* Notificaciones por correo */}
+      {barber?.id && (
+        <div style={{ marginBottom: 16, padding: "14px 16px", background: "var(--surface2)", borderRadius: 12, border: "1px solid var(--border)" }}>
+          <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text)", marginBottom: 4 }}>📧 Notificaciones por correo</p>
+          {barber.email
+            ? <p style={{ fontSize: 12, color: "var(--text-faint)" }}>Cada reserva nueva te llega a <strong style={{ color: "var(--text)" }}>{barber.email}</strong></p>
+            : <p style={{ fontSize: 12, color: "var(--text-faint)" }}>No tenés un email configurado — pedile al administrador que te lo agregue para recibir avisos de reservas.</p>
+          }
+        </div>
+      )}
 
       {/* Push Notifications */}
       {barber?.id && <PushNotifSection barberId={barber.id} />}
 
-      {/* WhatsApp — el barbero conecta su propio WS */}
-      {barber?.id && (
-        <div style={{ marginBottom: 16 }}>
-          <p style={{ fontSize: 12, color: "var(--text-faint)", fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 10 }}>
-            Notificaciones WhatsApp
-          </p>
-          <WhatsAppQR barberId={barber.id} barberName={barber.full_name} barberPhone={barber.phone} />
-          <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 8, lineHeight: 1.5 }}>
-            Conecta tu WhatsApp para recibir alertas automáticas cuando llegue una reserva nueva.
-          </p>
-        </div>
-      )}
 
       <button
         onClick={() => mut.mutate()}

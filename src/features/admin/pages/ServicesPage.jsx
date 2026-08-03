@@ -207,6 +207,7 @@ function ServiceModal({ service, categories, onClose, onSave, onCreateCategory, 
     const e = {};
     if (!form.name.trim()) e.name = "El nombre es obligatorio";
     if (!form.price || Number(form.price) <= 0) e.price = "Ingresa un precio válido";
+    if (!form.duration_min || form.duration_min < 5) e.duration_min = "La duración debe ser de al menos 5 min";
     if (Object.keys(e).length) { setFormErrors(e); return; }
     setFormErrors({});
     onSave({ ...form, price: Number(form.price), category_id: form.category_id || null, image_url: form.image_url || null });
@@ -291,7 +292,19 @@ function ServiceModal({ service, categories, onClose, onSave, onCreateCategory, 
             )}
           </Field>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <Field label="Duración (min)"><input style={inp} type="number" min={5} value={form.duration_min} onChange={e => setForm({ ...form, duration_min: Number(e.target.value) })} /></Field>
+            <Field label="Duración">
+              <div style={{ display: "flex", gap: 6 }}>
+                <select style={inp} value={Math.floor(form.duration_min / 60)}
+                  onChange={e => setForm({ ...form, duration_min: Number(e.target.value) * 60 + (form.duration_min % 60) })}>
+                  {Array.from({ length: 9 }, (_, h) => <option key={h} value={h}>{h} h</option>)}
+                </select>
+                <select style={inp} value={form.duration_min % 60}
+                  onChange={e => setForm({ ...form, duration_min: Math.floor(form.duration_min / 60) * 60 + Number(e.target.value) })}>
+                  {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map(m => <option key={m} value={m}>{m} min</option>)}
+                </select>
+              </div>
+              {formErrors.duration_min && <p style={{ color: "#ef4444", fontSize: 12, marginTop: 5 }}>{formErrors.duration_min}</p>}
+            </Field>
             <Field label="Precio *">
               <input
                 style={{ ...inp, borderColor: formErrors.price ? "#ef4444" : "var(--border)" }}

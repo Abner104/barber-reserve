@@ -262,7 +262,7 @@ function WorkingHoursEditor({ barberId }) {
 
 function BarberModal({ barber, onClose, onSave, loading }) {
   const [form, setForm] = useState(barber ? {
-    full_name: barber.full_name, phone: barber.phone ?? "", specialty: barber.specialty ?? "",
+    full_name: barber.full_name, phone: barber.phone ?? "", email: barber.email ?? "", specialty: barber.specialty ?? "",
     bio: barber.bio ?? "", does_delivery: barber.does_delivery, delivery_radius: barber.delivery_radius,
     commission_pct: barber.commission_pct,
     slot_duration_min: barber.slot_duration_min ?? 30,
@@ -278,7 +278,7 @@ function BarberModal({ barber, onClose, onSave, loading }) {
     const e = {};
     if (!form.full_name.trim()) e.full_name = "El nombre es obligatorio";
     if (form.phone && !/^\+?\d{7,15}$/.test(form.phone.replace(/\s/g, ""))) e.phone = "Teléfono inválido (solo números, 7-15 dígitos)";
-    if (!barber && form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Email inválido";
+    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Email inválido";
     if (Object.keys(e).length) { setFormErrors(e); return; }
     setFormErrors({});
     onSave(form);
@@ -315,6 +315,20 @@ function BarberModal({ barber, onClose, onSave, loading }) {
               {formErrors.email
                 ? <p style={{ color: "#ef4444", fontSize: 12, marginTop: 5 }}>{formErrors.email}</p>
                 : <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 4 }}>Se enviará un email de activación. El admin recibirá la contraseña temporal para compartirla.</p>
+              }
+            </Field>
+          )}
+          {barber && (
+            <Field label="Email (para notificaciones de reservas)">
+              <input
+                style={{ ...inp, borderColor: formErrors.email ? "#ef4444" : "var(--border)" }}
+                type="email" value={form.email ?? ""}
+                onChange={e => { setForm({ ...form, email: e.target.value }); setFormErrors(p => ({ ...p, email: "" })); }}
+                placeholder="jordan@noblecut.com"
+              />
+              {formErrors.email
+                ? <p style={{ color: "#ef4444", fontSize: 12, marginTop: 5 }}>{formErrors.email}</p>
+                : <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 4 }}>A este correo llegará el aviso de cada reserva nueva.</p>
               }
             </Field>
           )}

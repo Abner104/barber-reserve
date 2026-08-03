@@ -302,24 +302,9 @@ export async function createBooking({ type, serviceId, barberId, date, slot, dur
       body: JSON.stringify({ barberId, title: "🔔 Nueva reserva", message: `${clientInfo.full_name} · ${dia} a las ${hora}`, url: "/barber" }),
     }).catch(() => {});
 
-    // WhatsApp al barbero via Twilio
-    fetch("/api/whatsapp-notify", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        barberId,
-        clientName:  clientInfo.full_name,
-        serviceName: data.services?.name ?? "",
-        date:        dia,
-        time:        hora,
-        type,
-        address:     address?.line ?? "",
-        price:       precio,
-      }),
-    }).catch(() => {});
-
     // Notificaciones al cliente
     {
-      const { data: barberData } = await supabase.from("barbers").select("full_name").eq("id", barberId).maybeSingle();
+      const { data: barberData } = await supabase.from("barbers").select("full_name, email").eq("id", barberId).maybeSingle();
       const { data: shopData }   = await supabase.from("barbershops").select("name, slug, logo_url").eq("id", shopId).maybeSingle();
       const clientToken = makeClientToken(clientId, shopId, clientInfo.phone);
       const manageUrl = shopData?.slug
@@ -327,6 +312,29 @@ export async function createBooking({ type, serviceId, barberId, date, slot, dur
         : "https://www.clipprreserve.com";
 
       const EMAIL_SERVICE_URL = import.meta.env.VITE_EMAIL_SERVICE_URL;
+
+      // Email al barbero (reemplaza la notificación por WhatsApp)
+      if (barberData?.email?.trim() && EMAIL_SERVICE_URL) {
+        fetch(`${EMAIL_SERVICE_URL}/send-email`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            to:          barberData.email.trim(),
+            type:        "barber_notification",
+            barberName:  barberData.full_name ?? "",
+            clientName:  clientInfo.full_name,
+            serviceName: data.services?.name ?? "",
+            shopName:    shopData?.name ?? "Barbería",
+            date:        dia,
+            time:        hora,
+            bookingType: type,
+            address:     address?.line ?? "",
+            price:       precio,
+            agendaUrl:   "https://www.clipprreserve.com/barber",
+            logoUrl:     shopData?.logo_url ?? null,
+          }),
+        }).catch(() => {});
+      }
+
       if (clientInfo.email?.trim() && EMAIL_SERVICE_URL) {
         fetch(`${EMAIL_SERVICE_URL}/send-email`, {
           method: "POST", headers: { "Content-Type": "application/json" },
