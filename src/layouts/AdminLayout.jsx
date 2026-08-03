@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Outlet, Link, useLocation, useNavigate, Navigate } from "react-router-dom";
 import {
   Scissors, Calendar, Users, LayoutDashboard,
@@ -7,7 +7,7 @@ import {
 import { useAuthStore } from "../store/authStore";
 import { useRealtimeBookings } from "../features/admin/hooks/useRealtimeBookings";
 import BarberLoader from "../components/shared/BarberLoader";
-import { useShopTheme } from "../hooks/useShopTheme";
+import { applyTheme } from "../lib/applyTheme";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../lib/supabase";
 import OnboardingTour, { useTour } from "../components/shared/OnboardingTour";
@@ -69,6 +69,13 @@ export default function AdminLayout() {
 
   const effectiveShopName = shopName ?? impersonatedShop?.name;
   const effectiveShopLogo = shopLogo ?? impersonatedShop?.logo_url;
+
+  // Cuando un super_admin impersona una barbería, authStore.loadProfile() no
+  // aplica su tema (no tiene profile.shop_id propio) — se aplica acá con los
+  // datos ya cargados por impersonatedShop.
+  useEffect(() => {
+    if (isSuperAdmin && !profile?.shop_id && impersonatedShop) applyTheme(impersonatedShop);
+  }, [isSuperAdmin, profile?.shop_id, impersonatedShop]);
 
   useRealtimeBookings();
 
