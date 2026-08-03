@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ScanLine, Plus, Minus, Trash2, ShoppingCart,
-  CreditCard, Banknote, Clock, CheckCircle, Search, X,
+  CreditCard, Banknote, Clock, CheckCircle, Search, X, Package,
 } from "lucide-react";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import { toast } from "sonner";
@@ -265,10 +265,19 @@ export default function SupplierSalesPage() {
         <div style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", marginBottom: 14 }}>
           {filteredProducts.map((p, i) => (
             <button key={p.id} onClick={() => { addToCart(p); setManualSearch(""); }}
-              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "12px 14px", background: "var(--surface)", border: "none", borderBottom: i < filteredProducts.length - 1 ? "1px solid var(--border)" : "none", cursor: "pointer", textAlign: "left" }}>
-              <div>
-                <p style={{ fontWeight: 600, color: "var(--text)", fontSize: 14 }}>{p.name}</p>
-                {p.sku && <p style={{ fontSize: 11, color: "var(--text-faint)" }}>SKU: {p.sku}</p>}
+              style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "10px 14px", background: "var(--surface)", border: "none", borderBottom: i < filteredProducts.length - 1 ? "1px solid var(--border)" : "none", cursor: "pointer", textAlign: "left" }}>
+              {p.image_url ? (
+                <img src={p.image_url} alt={p.name} style={{ width: 40, height: 40, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
+              ) : (
+                <div style={{ width: 40, height: 40, borderRadius: 8, background: "var(--surface2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Package size={16} color="var(--text-faint)" style={{ opacity: 0.4 }} />
+                </div>
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontWeight: 600, color: "var(--text)", fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name}</p>
+                <p style={{ fontSize: 11, color: p.stock != null && p.stock <= 0 ? "#f87171" : "var(--text-faint)" }}>
+                  {p.sku ? `SKU: ${p.sku} · ` : ""}Stock: {p.stock ?? "—"}
+                </p>
               </div>
               <p style={{ fontWeight: 800, color: O, fontSize: 14, flexShrink: 0 }}>{formatCurrency(p.price)}</p>
             </button>
