@@ -293,16 +293,25 @@ function ServiceModal({ service, categories, onClose, onSave, onCreateCategory, 
           </Field>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <Field label="Duración">
-              <div style={{ display: "flex", gap: 6 }}>
-                <select style={inp} value={Math.floor(form.duration_min / 60)}
-                  onChange={e => setForm({ ...form, duration_min: Number(e.target.value) * 60 + (form.duration_min % 60) })}>
-                  {Array.from({ length: 9 }, (_, h) => <option key={h} value={h}>{h} h</option>)}
-                </select>
-                <select style={inp} value={form.duration_min % 60}
-                  onChange={e => setForm({ ...form, duration_min: Math.floor(form.duration_min / 60) * 60 + Number(e.target.value) })}>
-                  {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map(m => <option key={m} value={m}>{m} min</option>)}
-                </select>
-              </div>
+              {(() => {
+                // Normaliza el resto al múltiplo de 5 más cercano — un duration_min
+                // guardado previamente (ej: 244) puede no caer justo en una opción.
+                const totalH = Math.floor(form.duration_min / 60);
+                const rawMin = form.duration_min % 60;
+                const roundedMin = Math.min(55, Math.round(rawMin / 5) * 5);
+                return (
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <select style={inp} value={totalH}
+                      onChange={e => setForm({ ...form, duration_min: Number(e.target.value) * 60 + roundedMin })}>
+                      {Array.from({ length: 9 }, (_, h) => <option key={h} value={h}>{h} h</option>)}
+                    </select>
+                    <select style={inp} value={roundedMin}
+                      onChange={e => setForm({ ...form, duration_min: totalH * 60 + Number(e.target.value) })}>
+                      {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map(m => <option key={m} value={m}>{m} min</option>)}
+                    </select>
+                  </div>
+                );
+              })()}
               {formErrors.duration_min && <p style={{ color: "#ef4444", fontSize: 12, marginTop: 5 }}>{formErrors.duration_min}</p>}
             </Field>
             <Field label="Precio *">
