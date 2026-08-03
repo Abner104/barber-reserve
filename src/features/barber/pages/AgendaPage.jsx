@@ -9,7 +9,7 @@ import { getMyAgenda, getMyBarberProfile, getMyUpcomingBookings, getAllMyBooking
 import { getBarberWorkingHours } from "../../admin/services/adminService";
 import { updateBookingStatus } from "../../admin/services/adminService";
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_COLOR } from "../../../lib/constants";
-import { formatCurrency } from "../../../lib/utils";
+import { formatCurrency, formatDuration } from "../../../lib/utils";
 import { supabase } from "../../../lib/supabase";
 
 const O = "var(--brand, #FF6B2C)";
@@ -608,7 +608,7 @@ export default function AgendaPage() {
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span style={{ fontSize: 13, color: "var(--text-faint)" }}>🕐 Hora</span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{hora} · {b.duration_min}min</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{hora} · {formatDuration(b.duration_min)}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span style={{ fontSize: 13, color: "var(--text-faint)" }}>💰 Precio</span>

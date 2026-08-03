@@ -1,4 +1,4 @@
-import { formatCurrency } from "../../../lib/utils";
+import { formatCurrency, formatDuration } from "../../../lib/utils";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -100,7 +100,7 @@ export default function ServicesPage() {
                   </div>
                   <div style={{ display: "flex", gap: 12, marginTop: 4, flexWrap: "wrap" }}>
                     <span style={{ fontSize: 12, color: "var(--text-faint)", display: "flex", alignItems: "center", gap: 3 }}>
-                      <Clock size={11} /> {s.duration_min}min
+                      <Clock size={11} /> {formatDuration(s.duration_min)}
                     </span>
                     <span style={{ fontSize: 12, color: B, fontWeight: 600 }}>{formatCurrency(s.price)}</span>
                     {s.description && <span style={{ fontSize: 12, color: "var(--text-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 200 }}>{s.description}</span>}

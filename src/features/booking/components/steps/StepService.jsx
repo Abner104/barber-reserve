@@ -1,4 +1,4 @@
-import { formatCurrency } from "../../../../lib/utils";
+import { formatCurrency, formatDuration } from "../../../../lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Clock, ChevronLeft, Check, Users, Plus, Minus } from "lucide-react";
 import { useBookingStore } from "../../../../store/bookingStore";
@@ -113,7 +113,7 @@ export default function StepService() {
                     {/* Duración debajo del nombre cuando hay foto */}
                     {s.image_url && (
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 3, marginTop: 4, fontSize: 11, color: "var(--text-faint)" }}>
-                        <Clock size={10} /> {s.duration_min}min
+                        <Clock size={10} /> {formatDuration(s.duration_min)}
                       </span>
                     )}
                   </div>
@@ -140,7 +140,7 @@ export default function StepService() {
           <div style={{ marginBottom: 16 }}>
             {selected.map(s => (
               <div key={s.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "var(--text-muted)", marginBottom: 4 }}>
-                <span>{s.name} <span style={{ fontSize: 11 }}>({s.duration_min}min)</span></span>
+                <span>{s.name} <span style={{ fontSize: 11 }}>({formatDuration(s.duration_min)})</span></span>
                 <span style={{ color: "var(--text)" }}>{formatCurrency(s.price)}</span>
               </div>
             ))}

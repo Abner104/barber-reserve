@@ -1,4 +1,4 @@
-import { formatCurrency } from "../lib/utils";
+import { formatCurrency, formatDuration } from "../lib/utils";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../lib/supabase";
@@ -173,7 +173,7 @@ export default function ShopLandingPage() {
                     <div>
                       <p style={{ fontWeight: 600, color: "var(--shop-text)", fontSize: 14, marginBottom: 4 }}>{s.name}</p>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--shop-text-faint)" }}>
-                        <Clock size={11} /><span style={{ fontSize: 12 }}>{s.duration_min} min</span>
+                        <Clock size={11} /><span style={{ fontSize: 12 }}>{formatDuration(s.duration_min)}</span>
                         {s.allows_delivery && <span style={{ fontSize: 11, color: "var(--shop-brand)", background: "var(--shop-brand-alpha)", padding: "1px 6px", borderRadius: 20 }}>Domicilio</span>}
                       </div>
                     </div>

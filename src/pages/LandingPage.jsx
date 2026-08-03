@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { MapPin, Scissors, Clock, Star, ArrowRight, Check } from "lucide-react";
 import { getServices } from "../features/booking/services/bookingService";
 import { getBarbers } from "../features/booking/services/bookingService";
+import { formatDuration } from "../lib/utils";
 
 const O = "#FF6B2C";
 
@@ -89,7 +90,7 @@ export default function LandingPage() {
                 {services[0]?.name ?? "Fade premium"}
               </p>
               <p style={{ color: "#555", fontSize: 12, marginTop: 2, marginBottom: 10 }}>
-                {barbers[0]?.full_name ?? "Tu barbero"} · {services[0]?.duration_min ?? 45} min
+                {barbers[0]?.full_name ?? "Tu barbero"} · {formatDuration(services[0]?.duration_min ?? 45)}
               </p>
               <div style={{ display: "flex", gap: 2, marginBottom: 12 }}>
                 {[1,2,3,4,5].map(i => <Star key={i} size={12} fill={O} color={O} />)}
@@ -144,7 +145,7 @@ export default function LandingPage() {
                       <p style={{ fontWeight: 600, color: "#fff", fontSize: 14, marginBottom: 4 }}>{s.name}</p>
                       <div style={{ display: "flex", alignItems: "center", gap: 4, color: "#555" }}>
                         <Clock size={11} />
-                        <span style={{ fontSize: 12 }}>{s.duration_min} min</span>
+                        <span style={{ fontSize: 12 }}>{formatDuration(s.duration_min)}</span>
                         {s.allows_delivery && (
                           <span style={{ marginLeft: 6, fontSize: 11, color: O, background: "rgba(255,107,44,0.1)", padding: "1px 6px", borderRadius: 20 }}>Domicilio</span>
                         )}

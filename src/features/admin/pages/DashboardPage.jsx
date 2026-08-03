@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { formatCurrency } from "../../../lib/utils";
+import { formatCurrency, formatDuration } from "../../../lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Calendar, MapPin, Users, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { format, subDays, startOfDay } from "date-fns";
@@ -221,7 +221,7 @@ export default function DashboardPage() {
                       <p style={{ fontWeight: 700, fontSize: 15, color: "var(--text)" }}>
                         {format(new Date(b.scheduled_at), "HH:mm")}
                       </p>
-                      <p style={{ fontSize: 11, color: "var(--text-faint)" }}>{b.duration_min}min</p>
+                      <p style={{ fontSize: 11, color: "var(--text-faint)" }}>{formatDuration(b.duration_min)}</p>
                     </div>
 
                     <div style={{ width: 1, height: 36, background: "var(--border)", flexShrink: 0 }} />

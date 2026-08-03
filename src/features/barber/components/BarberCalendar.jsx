@@ -4,7 +4,7 @@ import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterv
 import { es } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { BOOKING_STATUS_LABEL } from "../../../lib/constants";
-import { formatCurrency } from "../../../lib/utils";
+import { formatCurrency, formatDuration } from "../../../lib/utils";
 
 const O = "var(--brand, #FF6B2C)";
 const HOURS     = Array.from({ length: 17 }, (_, i) => i + 7); // 07:00–23:00
@@ -37,7 +37,7 @@ function BookingCard({ b, onClick, compact }) {
           {b.clients?.full_name ?? "Cliente"}
         </p>
         <p style={{ fontSize: 11, color: "var(--text-faint)" }}>
-          {b.services?.name} · {b.duration_min}min
+          {b.services?.name} · {formatDuration(b.duration_min)}
         </p>
       </div>
       <div style={{ textAlign: "right", flexShrink: 0 }}>

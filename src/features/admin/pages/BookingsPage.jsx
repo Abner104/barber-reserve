@@ -1,4 +1,4 @@
-import { formatCurrency } from "../../../lib/utils";
+import { formatCurrency, formatDuration } from "../../../lib/utils";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import FullCalendar from "@fullcalendar/react";
@@ -243,7 +243,7 @@ export default function BookingsPage() {
                   {/* hora */}
                   <div style={{ textAlign: "center", minWidth: 48, flexShrink: 0 }}>
                     <p style={{ fontWeight: 800, fontSize: 16, color: "var(--text)" }}>{format(new Date(b.scheduled_at), "HH:mm")}</p>
-                    <p style={{ fontSize: 10, color: "var(--text-faint)" }}>{b.duration_min}min</p>
+                    <p style={{ fontSize: 10, color: "var(--text-faint)" }}>{formatDuration(b.duration_min)}</p>
                   </div>
 
                   <div style={{ width: 1, height: 36, background: "var(--border)", flexShrink: 0 }} />
