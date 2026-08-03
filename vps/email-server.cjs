@@ -65,7 +65,25 @@ function bookingHtml({ heading, intro, clientName, shopName, serviceName, barber
   `;
 }
 
-// ── Envío puntual (confirmación al reservar) — llamado desde el frontend ──
+function credentialsHtml({ name, email, password, loginUrl, bookingUrl }) {
+  return `
+    <div style="font-family: -apple-system, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      <h2 style="color: #FF6B2C;">✂️ Tu barbería ya está activa en Clippr</h2>
+      <p>Hola ${name || ""},</p>
+      <p>Estas son tus credenciales de acceso — 30 días gratis:</p>
+      <table style="width: 100%; border-collapse: collapse; margin: 16px 0; background: #f9f9f9; border-radius: 8px;">
+        <tr><td style="padding: 10px 14px; color: #666;">Email</td><td style="padding: 10px 14px; text-align: right;"><strong>${email}</strong></td></tr>
+        <tr><td style="padding: 10px 14px; color: #666;">Contraseña temporal</td><td style="padding: 10px 14px; text-align: right;"><strong>${password}</strong></td></tr>
+      </table>
+      <p><a href="${loginUrl}" style="display: inline-block; background: #FF6B2C; color: #fff; padding: 12px 20px; border-radius: 8px; text-decoration: none; font-weight: 700;">Entrar a mi panel</a></p>
+      <p style="font-size: 13px; color: #666;">Podés cambiar la contraseña una vez que entres.</p>
+      <p style="font-size: 13px; color: #666;">Tu link para que tus clientes reserven:<br/><a href="${bookingUrl}">${bookingUrl}</a></p>
+      <p style="color: #999; font-size: 13px; margin-top: 24px;">Este correo fue enviado por Clippr.</p>
+    </div>
+  `;
+}
+
+// ── Envío puntual (confirmación al reservar, credenciales, etc.) ──
 app.post("/send-email", async (req, res) => {
   try {
     const { to, type, ...data } = req.body ?? {};
@@ -78,8 +96,11 @@ app.post("/send-email", async (req, res) => {
     } else if (type === "reminder") {
       subject = `Recordatorio de tu reserva — ${data.shopName || "Clippr"}`;
       html = bookingHtml({ heading: "⏰ Recordatorio de tu reserva", intro: "Te recordamos tu reserva en", ...data });
+    } else if (type === "credentials") {
+      subject = `Tu barbería ya está activa en Clippr`;
+      html = credentialsHtml(data);
     } else {
-      res.status(400).json({ error: "type debe ser 'confirmation' o 'reminder'" });
+      res.status(400).json({ error: "type debe ser 'confirmation', 'reminder' o 'credentials'" });
       return;
     }
 

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Copy, ExternalLink, Users, TrendingUp, Clock, Plus, PlayCircle, X, Loader2, Trash2 } from "lucide-react";
+import { Copy, ExternalLink, Users, TrendingUp, Clock, Plus, PlayCircle, X, Loader2, Trash2, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { getSupplierReferrals, getSupplierCommissions, createReferredShop } from "../services/supplierService";
 import { deleteShop } from "../../superadmin/services/superAdminService";
@@ -27,11 +27,46 @@ const COMMISSION_COLOR = {
 
 const EMPTY_FORM = { shopName: "", ownerName: "", ownerEmail: "", city: "", phone: "" };
 
+const EMAIL_SERVICE_URL = import.meta.env.VITE_EMAIL_SERVICE_URL;
+
 export default function SupplierReferralsPage() {
   const qc = useQueryClient();
   const [showForm, setShowForm]   = useState(false);
   const [form, setForm]           = useState(EMPTY_FORM);
   const [credenciales, setCredenciales] = useState(null);
+  const [sendingEmail, setSendingEmail] = useState(false);
+
+  function copyToClipboard(text, label) {
+    navigator.clipboard.writeText(text)
+      .then(() => toast.success(`${label} copiado`))
+      .catch(() => toast.error("No se pudo copiar"));
+  }
+
+  async function sendCredentialsEmail() {
+    if (!credenciales || !EMAIL_SERVICE_URL) { toast.error("Servicio de email no configurado"); return; }
+    setSendingEmail(true);
+    try {
+      const r = await fetch(`${EMAIL_SERVICE_URL}/send-email`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: credenciales.email,
+          type: "credentials",
+          name: credenciales.name,
+          email: credenciales.email,
+          password: credenciales.password,
+          loginUrl: `${window.location.origin}/login`,
+          bookingUrl: `${window.location.origin}/${credenciales.slug}/booking`,
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "No se pudo enviar el correo");
+      toast.success("Correo enviado ✅");
+    } catch (e) {
+      toast.error(e.message ?? "Error al enviar el correo");
+    } finally {
+      setSendingEmail(false);
+    }
+  }
 
   const { data: supplier } = useActiveSupplier();
 
@@ -281,13 +316,25 @@ export default function SupplierReferralsPage() {
           <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: 28, width: "100%", maxWidth: 420 }}>
             <h3 style={{ fontSize: 18, fontWeight: 800, color: "var(--text)", marginBottom: 6 }}>¡Listo! Cuenta creada</h3>
             <p style={{ fontSize: 13, color: "var(--text-faint)", marginBottom: 20 }}>
-              Comparte estas credenciales con <strong style={{ color: "var(--text)" }}>{credenciales.name}</strong> por WhatsApp
+              Comparte estas credenciales con <strong style={{ color: "var(--text)" }}>{credenciales.name}</strong>
             </p>
             <div style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 12, padding: 16, marginBottom: 20 }}>
               <p style={{ fontSize: 11, color: "var(--text-faint)", marginBottom: 4 }}>EMAIL</p>
-              <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 15, marginBottom: 12 }}>{credenciales.email}</p>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 12 }}>
+                <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 15 }}>{credenciales.email}</p>
+                <button onClick={() => copyToClipboard(credenciales.email, "Email")}
+                  style={{ background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: 6, cursor: "pointer", color: "var(--text-faint)", display: "flex", flexShrink: 0 }}>
+                  <Copy size={14} />
+                </button>
+              </div>
               <p style={{ fontSize: 11, color: "var(--text-faint)", marginBottom: 4 }}>CONTRASEÑA TEMPORAL</p>
-              <p style={{ fontWeight: 700, color: O, fontSize: 18, letterSpacing: 1 }}>{credenciales.password}</p>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <p style={{ fontWeight: 700, color: O, fontSize: 18, letterSpacing: 1 }}>{credenciales.password}</p>
+                <button onClick={() => copyToClipboard(credenciales.password, "Contraseña")}
+                  style={{ background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: 6, cursor: "pointer", color: "var(--text-faint)", display: "flex", flexShrink: 0 }}>
+                  <Copy size={14} />
+                </button>
+              </div>
             </div>
             <p style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 20 }}>
               El dueño entra a <strong style={{ color: "var(--text)" }}>{window.location.origin}/login</strong>, usa estas credenciales y puede cambiar la contraseña después. Su link de reservas: <strong style={{ color: "var(--text)" }}>{window.location.origin}/{credenciales.slug}/booking</strong>
@@ -299,6 +346,12 @@ export default function SupplierReferralsPage() {
             >
               Enviar por WhatsApp
             </a>
+            <button onClick={sendCredentialsEmail} disabled={sendingEmail}
+              style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "13px", borderRadius: 10, background: "var(--brand-alpha, rgba(255,107,44,0.1))", border: `1px solid ${O}`, color: O, fontWeight: 700, fontSize: 14, cursor: "pointer", marginBottom: 10, opacity: sendingEmail ? 0.7 : 1 }}
+            >
+              {sendingEmail ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <Mail size={16} />}
+              {sendingEmail ? "Enviando..." : "Enviar por correo"}
+            </button>
             <button onClick={() => setCredenciales(null)}
               style={{ width: "100%", padding: "12px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
               Cerrar
