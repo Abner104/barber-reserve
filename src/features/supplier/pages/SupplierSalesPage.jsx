@@ -55,7 +55,6 @@ export default function SupplierSalesPage() {
   const [cart, setCart]                 = useState([]);
   const [scanning, setScanning]         = useState(false);
   const [lastScanned, setLastScanned]   = useState(null);
-  const [manualSku, setManualSku]       = useState("");
   const [manualSearch, setManualSearch] = useState("");
   const [payMethod, setPayMethod]       = useState("cash");
   const [creditDays, setCreditDays]     = useState("30");
@@ -142,24 +141,10 @@ export default function SupplierSalesPage() {
     setTimeout(() => setLastScanned(null), 2000);
   }
 
-  function addBySku(sku) {
-    if (!sku?.trim()) return;
-    const found = products.find(p => p.sku?.toLowerCase() === sku.trim().toLowerCase());
-    if (!found) { toast.error(`SKU "${sku}" no encontrado`); return; }
-    playScan();
-    addToCartDirect(found);
-  }
-
   function addToCart(product) { addToCartDirect(product); }
 
   function changeQty(productId, delta) {
     setCart(prev => prev.map(i => i.product_id === productId ? { ...i, qty: i.qty + delta } : i).filter(i => i.qty > 0));
-  }
-
-  function handleManualSku(e) {
-    e.preventDefault();
-    addBySku(manualSku);
-    setManualSku("");
   }
 
   const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
@@ -264,17 +249,6 @@ export default function SupplierSalesPage() {
           </div>
         </div>
       )}
-
-      {/* ── MANUAL SKU ── */}
-      <form onSubmit={handleManualSku} style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-        <input
-          value={manualSku}
-          onChange={e => setManualSku(e.target.value)}
-          placeholder="Ingresar SKU manualmente..."
-          style={{ flex: 1, padding: "11px 12px", borderRadius: 10, background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14, outline: "none" }}
-        />
-        <button type="submit" style={{ padding: "11px 18px", borderRadius: 10, background: O, color: "#fff", fontWeight: 800, fontSize: 18, border: "none", cursor: "pointer" }}>+</button>
-      </form>
 
       {/* ── BÚSQUEDA ── */}
       <div style={{ position: "relative", marginBottom: 14 }}>

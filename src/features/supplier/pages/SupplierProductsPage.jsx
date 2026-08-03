@@ -1,15 +1,15 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Package, X, AlertTriangle, ScanLine, ChevronRight, ChevronLeft, Check, PackagePlus, History } from "lucide-react";
+import { Plus, Pencil, Trash2, Package, X, AlertTriangle, ScanLine, ChevronRight, ChevronLeft, Check, PackagePlus, History, TrendingDown } from "lucide-react";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import { toast } from "sonner";
-import { getSupplierProducts, upsertProduct, deleteProduct, adjustProductStock, getProductMovements } from "../services/supplierService";
+import { getSupplierProducts, upsertProduct, deleteProduct, adjustProductStock, registerProductPurchase, getProductMovements } from "../services/supplierService";
 import { useActiveSupplier } from "../../../hooks/useActiveSupplier";
 import { uploadImage } from "../../../components/shared/ImageUpload";
 import { formatCurrency } from "../../../lib/utils";
 
 const O = "var(--brand, #FF6B2C)";
-const EMPTY = { name: "", description: "", price: "", category: "", image_url: "", images: [], unit: "unidad", is_available: true, sku: "" };
+const EMPTY = { name: "", description: "", price: "", price_cost: "", category: "", image_url: "", images: [], unit: "unidad", is_available: true, sku: "" };
 const STEPS = [
   { id: 1, label: "Identidad", desc: "Nombre, SKU y categoría" },
   { id: 2, label: "Precio",    desc: "Precio y stock" },
@@ -26,9 +26,13 @@ export default function SupplierProductsPage() {
   const [uploading, setUploading]       = useState(false);
   const [saving, setSaving]             = useState(false);
   const [skuScanning, setSkuScanning]   = useState(false);
-  const [stockModal, setStockModal]     = useState(null);
-  const [stockDelta, setStockDelta]     = useState("");
-  const [stockReason, setStockReason]   = useState("");
+  const [adjModal, setAdjModal]         = useState(null); // merma / ajuste
+  const [adjDelta, setAdjDelta]         = useState("");
+  const [adjReason, setAdjReason]       = useState("");
+  const [purchaseModal, setPurchaseModal] = useState(null); // reponer stock (con costo)
+  const [purchaseQty, setPurchaseQty]     = useState("");
+  const [purchaseCost, setPurchaseCost]   = useState("");
+  const [purchaseReason, setPurchaseReason] = useState("");
   const [historyModal, setHistoryModal] = useState(null);
 
   const skuVideoRef = useRef(null);
@@ -54,14 +58,24 @@ export default function SupplierProductsPage() {
     onError: () => toast.error("Error al eliminar"),
   });
 
-  const stockMut = useMutation({
+  const adjMut = useMutation({
     mutationFn: ({ productId, delta, reason }) => adjustProductStock({ productId, supplierId: supplier.id, delta, reason }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["supplier-products"] });
       toast.success("Stock actualizado");
-      setStockModal(null); setStockDelta(""); setStockReason("");
+      setAdjModal(null); setAdjDelta(""); setAdjReason("");
     },
     onError: (e) => toast.error("Error: " + (e?.message ?? "no se pudo actualizar el stock")),
+  });
+
+  const purchaseMut = useMutation({
+    mutationFn: ({ productId, qty, unitCost, reason }) => registerProductPurchase({ productId, supplierId: supplier.id, qty, unitCost, reason }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["supplier-products"] });
+      toast.success("Stock repuesto ✅");
+      setPurchaseModal(null); setPurchaseQty(""); setPurchaseCost(""); setPurchaseReason("");
+    },
+    onError: (e) => toast.error("Error: " + (e?.message ?? "no se pudo registrar la reposición")),
   });
 
   const stopSkuCamera = useCallback(() => {
@@ -100,7 +114,7 @@ export default function SupplierProductsPage() {
 
   function openEdit(p) {
     const { stock, ...rest } = p; // el stock no se edita a mano — solo vía "Reponer stock"
-    setForm({ ...rest, price: String(p.price), sku: p.sku ?? "", images: p.images ?? [] });
+    setForm({ ...rest, price: String(p.price), price_cost: String(p.price_cost ?? ""), sku: p.sku ?? "", images: p.images ?? [] });
     setFormErrors({});
     setModal(p);
   }
@@ -136,7 +150,7 @@ export default function SupplierProductsPage() {
     setSaving(true);
     try {
       // Producto nuevo arranca en 0 — el stock se carga después con "Reponer stock"
-      await upsertProduct({ ...form, supplier_id: supplier.id, price: Number(form.price), stock: 0 });
+      await upsertProduct({ ...form, supplier_id: supplier.id, price: Number(form.price), price_cost: form.price_cost !== "" ? Number(form.price_cost) : null, stock: 0 });
       qc.invalidateQueries({ queryKey: ["supplier-products"] });
       toast.success("Producto creado");
       closeModal();
@@ -152,7 +166,7 @@ export default function SupplierProductsPage() {
     setSaving(true);
     try {
       // stock no viaja acá — no se edita a mano, solo vía "Reponer stock"
-      await upsertProduct({ ...form, supplier_id: supplier.id, price: Number(form.price) });
+      await upsertProduct({ ...form, supplier_id: supplier.id, price: Number(form.price), price_cost: form.price_cost !== "" ? Number(form.price_cost) : null });
       qc.invalidateQueries({ queryKey: ["supplier-products"] });
       toast.success("Producto actualizado");
       closeModal();
@@ -273,28 +287,45 @@ export default function SupplierProductsPage() {
                     </span>
                   </div>
                   {p.description && <p style={{ color: "var(--text-faint)", fontSize: 12, marginBottom: 8, lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{p.description}</p>}
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                    <p style={{ fontWeight: 800, color: O, fontSize: 16 }}>{formatCurrency(p.price)}</p>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                    <div>
+                      <p style={{ fontWeight: 800, color: O, fontSize: 16 }}>{formatCurrency(p.price)}</p>
+                      {p.price_cost > 0 && <p style={{ fontSize: 11, color: "var(--text-faint)" }}>costo {formatCurrency(p.price_cost)}</p>}
+                    </div>
+                    {p.price_cost > 0 && (() => {
+                      const margin = Math.round(((p.price - p.price_cost) / p.price) * 100);
+                      return (
+                        <span style={{ fontSize: 11, fontWeight: 700, color: margin >= 30 ? "#22c55e" : margin >= 10 ? "#f59e0b" : "#ef4444" }}>
+                          {margin}% margen
+                        </span>
+                      );
+                    })()}
+                  </div>
+                  <div style={{ marginBottom: 12 }}>
                     {p.stock != null && <p style={{ fontSize: 12, color: p.stock <= 5 ? "#f87171" : "var(--text-faint)" }}>Stock: {p.stock} {p.unit}</p>}
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 6 }}>
-                    <button onClick={() => { setStockModal(p); setStockDelta(""); setStockReason(""); }}
+                    <button onClick={() => { setPurchaseModal(p); setPurchaseQty(""); setPurchaseCost(String(p.price_cost ?? "")); setPurchaseReason(""); }}
                       style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "7px 4px", borderRadius: 8, background: "var(--brand-alpha, rgba(255,107,44,0.1))", border: `1px solid ${O}`, color: O, cursor: "pointer", fontSize: 12, fontWeight: 700 }}>
                       <PackagePlus size={12} /> Reponer stock
                     </button>
+                    <button onClick={() => { setAdjModal(p); setAdjDelta(""); setAdjReason(""); }}
+                      style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "7px 4px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", cursor: "pointer", fontSize: 12 }}>
+                      <TrendingDown size={12} /> Merma/Ajuste
+                    </button>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 6 }}>
                     <button onClick={() => setHistoryModal(p)}
                       style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "7px 4px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", cursor: "pointer", fontSize: 12 }}>
                       <History size={12} /> Historial
                     </button>
-                  </div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button onClick={() => openEdit(p)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", cursor: "pointer", fontSize: 13 }}>
-                      <Pencil size={13} /> Editar
-                    </button>
-                    <button onClick={() => setDeleteConfirm(p)} style={{ padding: "8px 12px", borderRadius: 8, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171", cursor: "pointer" }}>
-                      <Trash2 size={13} />
+                    <button onClick={() => openEdit(p)} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "7px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", cursor: "pointer", fontSize: 12 }}>
+                      <Pencil size={12} /> Editar
                     </button>
                   </div>
+                  <button onClick={() => setDeleteConfirm(p)} style={{ width: "100%", padding: "7px 10px", borderRadius: 8, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", color: "#f87171", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4, fontSize: 12 }}>
+                    <Trash2 size={12} /> Eliminar
+                  </button>
                 </div>
               </div>
             ))}
@@ -361,6 +392,11 @@ export default function SupplierProductsPage() {
                     {formErrors.price && <p style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{formErrors.price}</p>}
                   </div>
                   <div>
+                    <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>PRECIO DE COSTO</label>
+                    <input type="number" value={form.price_cost} onChange={e => setForm(f => ({ ...f, price_cost: e.target.value }))} placeholder="0 (opcional)" style={inp} />
+                    <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 4 }}>Lo que te cuesta producir/conseguir — se usa para calcular tu margen.</p>
+                  </div>
+                  <div>
                     <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>UNIDAD</label>
                     <input value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))} placeholder="unidad, caja, litro..." style={inp} />
                   </div>
@@ -419,8 +455,9 @@ export default function SupplierProductsPage() {
             {[
               { key: "name",     label: "Nombre *",  placeholder: "Nombre del producto", type: "text"   },
               { key: "category", label: "Categoría", placeholder: "Pomadas, Shampoo...", type: "text"   },
-              { key: "price",    label: "Precio *",  placeholder: "0",                   type: "number" },
-              { key: "unit",     label: "Unidad",    placeholder: "unidad, caja...",     type: "text"   },
+              { key: "price",      label: "Precio de venta *", placeholder: "0",             type: "number" },
+              { key: "price_cost", label: "Precio de costo",   placeholder: "0 (opcional)",  type: "number" },
+              { key: "unit",       label: "Unidad",            placeholder: "unidad, caja...", type: "text"   },
             ].map(({ key, label, placeholder, type }) => (
               <div key={key} style={{ marginBottom: 12 }}>
                 <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 5 }}>{label.toUpperCase()}</label>
@@ -452,35 +489,73 @@ export default function SupplierProductsPage() {
         </div>
       )}
 
-      {/* ── REPONER STOCK ── */}
-      {stockModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => setStockModal(null)}>
+      {/* ── REPONER STOCK (compra, con costo) ── */}
+      {purchaseModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => setPurchaseModal(null)}>
           <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 20, padding: 28, width: "100%", maxWidth: 380 }} onClick={e => e.stopPropagation()}>
             <p style={{ fontWeight: 800, fontSize: 18, color: "var(--text)", marginBottom: 4 }}>Reponer stock</p>
-            <p style={{ color: "var(--text-faint)", fontSize: 13, marginBottom: 20 }}>{stockModal.name} · actual: <strong style={{ color: "var(--text)" }}>{stockModal.stock ?? 0} {stockModal.unit}</strong></p>
+            <p style={{ color: "var(--text-faint)", fontSize: 13, marginBottom: 20 }}>{purchaseModal.name} · actual: <strong style={{ color: "var(--text)" }}>{purchaseModal.stock ?? 0} {purchaseModal.unit}</strong></p>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>CANTIDAD</label>
+              <input type="number" value={purchaseQty} onChange={e => setPurchaseQty(e.target.value)} placeholder="Ej: 50" style={inp} />
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>COSTO UNITARIO DE ESTA REPOSICIÓN</label>
+              <input type="number" value={purchaseCost} onChange={e => setPurchaseCost(e.target.value)} placeholder="0 (opcional)" style={inp} />
+              <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 4 }}>Si lo completás, actualiza el costo de referencia del producto.</p>
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>NOTA (OPCIONAL)</label>
+              <input type="text" value={purchaseReason} onChange={e => setPurchaseReason(e.target.value)} placeholder="Ej: Nueva producción" style={inp} />
+            </div>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setPurchaseModal(null)} style={{ flex: 1, padding: 12, borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-faint)", cursor: "pointer", fontWeight: 600 }}>Cancelar</button>
+              <button
+                onClick={() => {
+                  const q = Number(purchaseQty);
+                  if (!purchaseQty || isNaN(q) || q <= 0) { toast.error("Ingresa una cantidad válida"); return; }
+                  purchaseMut.mutate({ productId: purchaseModal.id, qty: q, unitCost: purchaseCost, reason: purchaseReason });
+                }}
+                disabled={purchaseMut.isPending}
+                style={{ flex: 1, padding: 12, borderRadius: 10, background: O, color: "#fff", fontWeight: 800, border: "none", cursor: purchaseMut.isPending ? "not-allowed" : "pointer", opacity: purchaseMut.isPending ? 0.7 : 1 }}>
+                Registrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MERMA / AJUSTE ── */}
+      {adjModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => setAdjModal(null)}>
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 20, padding: 28, width: "100%", maxWidth: 380 }} onClick={e => e.stopPropagation()}>
+            <p style={{ fontWeight: 800, fontSize: 18, color: "var(--text)", marginBottom: 4 }}>Merma / Ajuste de stock</p>
+            <p style={{ color: "var(--text-faint)", fontSize: 13, marginBottom: 20 }}>{adjModal.name} · actual: <strong style={{ color: "var(--text)" }}>{adjModal.stock ?? 0} {adjModal.unit}</strong></p>
 
             <div style={{ marginBottom: 14 }}>
               <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>CANTIDAD (+ entrada / − salida)</label>
-              <input type="number" value={stockDelta} onChange={e => setStockDelta(e.target.value)} placeholder="Ej: 50 o -2" style={inp} />
+              <input type="number" value={adjDelta} onChange={e => setAdjDelta(e.target.value)} placeholder="Ej: -3 (pérdida) o 5 (corrección)" style={inp} />
             </div>
             <div style={{ marginBottom: 20 }}>
               <label style={{ display: "block", fontSize: 12, color: "var(--text-faint)", fontWeight: 600, marginBottom: 6 }}>MOTIVO *</label>
-              <input type="text" value={stockReason} onChange={e => setStockReason(e.target.value)} placeholder="Ej: Nueva producción, pérdida, corrección..." style={inp} />
+              <input type="text" value={adjReason} onChange={e => setAdjReason(e.target.value)} placeholder="Ej: Pérdida, rotura, corrección de conteo..." style={inp} />
               <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 4 }}>Obligatorio — queda registrado en el historial.</p>
             </div>
 
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setStockModal(null)} style={{ flex: 1, padding: 12, borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-faint)", cursor: "pointer", fontWeight: 600 }}>Cancelar</button>
+              <button onClick={() => setAdjModal(null)} style={{ flex: 1, padding: 12, borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-faint)", cursor: "pointer", fontWeight: 600 }}>Cancelar</button>
               <button
                 onClick={() => {
-                  const d = Number(stockDelta);
-                  if (!stockDelta || isNaN(d)) { toast.error("Ingresa una cantidad"); return; }
-                  if (!stockReason.trim()) { toast.error("El motivo es obligatorio"); return; }
-                  stockMut.mutate({ productId: stockModal.id, delta: d, reason: stockReason });
+                  const d = Number(adjDelta);
+                  if (!adjDelta || isNaN(d)) { toast.error("Ingresa una cantidad"); return; }
+                  if (!adjReason.trim()) { toast.error("El motivo es obligatorio"); return; }
+                  adjMut.mutate({ productId: adjModal.id, delta: d, reason: adjReason });
                 }}
-                disabled={stockMut.isPending}
-                style={{ flex: 1, padding: 12, borderRadius: 10, background: O, color: "#fff", fontWeight: 800, border: "none", cursor: stockMut.isPending ? "not-allowed" : "pointer", opacity: stockMut.isPending ? 0.7 : 1 }}>
-                Guardar
+                disabled={adjMut.isPending}
+                style={{ flex: 1, padding: 12, borderRadius: 10, background: O, color: "#fff", fontWeight: 800, border: "none", cursor: adjMut.isPending ? "not-allowed" : "pointer", opacity: adjMut.isPending ? 0.7 : 1 }}>
+                Ajustar
               </button>
             </div>
           </div>
@@ -497,20 +572,27 @@ export default function SupplierProductsPage() {
             </div>
             <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
               {history.length === 0 && <p style={{ color: "var(--text-faint)", fontSize: 13, textAlign: "center", padding: "20px 0" }}>Sin movimientos registrados.</p>}
-              {history.map(m => (
-                <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: "var(--surface2)", borderRadius: 10 }}>
-                  <span style={{ fontWeight: 800, fontSize: 16, color: m.delta > 0 ? "#22c55e" : "#ef4444", minWidth: 40 }}>
-                    {m.delta > 0 ? "+" : ""}{m.delta}
-                  </span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: 13, color: "var(--text)", marginBottom: 1 }}>{m.reason || "Sin motivo"}</p>
-                    <p style={{ fontSize: 11, color: "var(--text-faint)" }}>
-                      {new Date(m.created_at).toLocaleString("es-CL", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-                      {m.performed_by_name && ` · ${m.performed_by_name}`}
-                    </p>
+              {history.map(m => {
+                const typeLabel = { purchase: "Reposición", adjustment: "Ajuste" }[m.type] ?? "Ajuste";
+                return (
+                  <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: "var(--surface2)", borderRadius: 10 }}>
+                    <span style={{ fontWeight: 800, fontSize: 16, color: m.delta > 0 ? "#22c55e" : "#ef4444", minWidth: 40 }}>
+                      {m.delta > 0 ? "+" : ""}{m.delta}
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 1 }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: "var(--text-faint)" }}>{typeLabel}</span>
+                        {m.unit_cost != null && <span style={{ fontSize: 10, color: "var(--text-faint)" }}>· costo {formatCurrency(m.unit_cost)}</span>}
+                      </div>
+                      <p style={{ fontSize: 13, color: "var(--text)", marginBottom: 1 }}>{m.reason || "Sin motivo"}</p>
+                      <p style={{ fontSize: 11, color: "var(--text-faint)" }}>
+                        {new Date(m.created_at).toLocaleString("es-CL", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                        {m.performed_by_name && ` · ${m.performed_by_name}`}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>

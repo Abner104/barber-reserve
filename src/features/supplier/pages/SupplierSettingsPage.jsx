@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Link2, Copy, Check, Loader2 } from "lucide-react";
 import { useActiveSupplier } from "../../../hooks/useActiveSupplier";
 import { supabase } from "../../../lib/supabase";
-import WhatsAppQR from "../../admin/components/WhatsAppQR";
 import ImageUpload from "../../../components/shared/ImageUpload";
 import { applyTheme } from "../../../lib/applyTheme";
 
@@ -146,20 +145,6 @@ export default function SupplierSettingsPage() {
             style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 10, fontSize: 12, color: O, textDecoration: "none", fontWeight: 600 }}>
             Ver catálogo →
           </a>
-        )}
-      </Section>
-
-      {/* ── WhatsApp ─────────────────────────────────── */}
-      <Section title="📱 Notificaciones WhatsApp">
-        <p style={{ color: "var(--text-muted)", fontSize: 13, marginBottom: 14, lineHeight: 1.6 }}>
-          Conecta tu WhatsApp para recibir notificaciones automáticas cada vez que un barbero haga un pedido.
-        </p>
-        {supplier && (
-          <WhatsAppQR
-            barberId={`supplier_${supplier.id}`}
-            barberName={supplier.name}
-            barberPhone={supplier.whatsapp}
-          />
         )}
       </Section>
 

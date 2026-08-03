@@ -11,18 +11,29 @@ alter table public.inventory_movements
   add column if not exists unit_cost numeric(10,2);
 
 -- ── Catálogo del proveedor (supplier_products) ──────────────────────────
--- Mismo criterio: el stock no se edita a mano en el formulario, solo vía
--- movimientos auditados (reposición o corrección con motivo).
+-- Mismo criterio que inventory_products: el stock no se edita a mano en el
+-- formulario, solo vía movimientos auditados. También necesita costo para
+-- poder mostrar margen % igual que en el panel de la barbería.
+alter table public.supplier_products
+  add column if not exists price_cost numeric(10,2);
+
 create table if not exists public.supplier_product_movements (
   id                 uuid primary key default gen_random_uuid(),
   product_id         uuid not null references public.supplier_products(id) on delete cascade,
   supplier_id        uuid not null references public.suppliers(id) on delete cascade,
   delta              int not null,
+  type               text not null default 'adjustment', -- 'purchase' | 'adjustment'
+  unit_cost          numeric(10,2),
   reason             text,
   performed_by       uuid references public.profiles(id) on delete set null,
   performed_by_name  text,
   created_at         timestamptz not null default now()
 );
+
+-- Por si la tabla ya existía de un deploy anterior de esta migración
+alter table public.supplier_product_movements
+  add column if not exists type      text not null default 'adjustment',
+  add column if not exists unit_cost numeric(10,2);
 
 alter table public.supplier_product_movements enable row level security;
 

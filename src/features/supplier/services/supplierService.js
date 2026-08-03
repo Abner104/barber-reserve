@@ -69,7 +69,44 @@ export async function adjustProductStock({ productId, supplierId, delta, reason 
     product_id:  productId,
     supplier_id: supplierId,
     delta,
+    type:        "adjustment",
     reason:      reason || (delta > 0 ? "Reposición" : "Ajuste"),
+    ...currentActor(),
+  });
+
+  return updated;
+}
+
+// Reposición con costo unitario — suma stock y actualiza el costo de referencia del producto.
+export async function registerProductPurchase({ productId, supplierId, qty, unitCost, reason = "" }) {
+  if (!qty || qty <= 0) throw new Error("Cantidad inválida");
+
+  const { data: product, error: fetchErr } = await supabase
+    .from("supplier_products")
+    .select("stock")
+    .eq("id", productId)
+    .single();
+  if (fetchErr) throw fetchErr;
+
+  const newStock = (product.stock ?? 0) + qty;
+  const updates = { stock: newStock };
+  if (unitCost != null && unitCost !== "") updates.price_cost = Number(unitCost);
+
+  const { data: updated, error } = await supabase
+    .from("supplier_products")
+    .update(updates)
+    .eq("id", productId)
+    .select()
+    .single();
+  if (error) throw error;
+
+  await supabase.from("supplier_product_movements").insert({
+    product_id:  productId,
+    supplier_id: supplierId,
+    delta:       qty,
+    type:        "purchase",
+    unit_cost:   unitCost != null && unitCost !== "" ? Number(unitCost) : null,
+    reason:      reason || "Reposición de stock",
     ...currentActor(),
   });
 
