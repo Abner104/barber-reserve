@@ -13,7 +13,7 @@ import {
   Calendar, List, Phone, User, Scissors,
 } from "lucide-react";
 import { toast } from "sonner";
-import { getBookings, updateBookingStatus, getAdminBarbers } from "../services/adminService";
+import { getBookings, updateBookingStatus, getAdminBarbers, resolveShopId } from "../services/adminService";
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_COLOR } from "../../../lib/constants";
 
 const O = "var(--brand, #FF6B2C)";
@@ -50,6 +50,7 @@ function buildWaLink(booking) {
 
 export default function BookingsPage() {
   const qc = useQueryClient();
+  const shopId = resolveShopId();
   const [view, setView]           = useState("list");
   const [selectedDate, setSelectedDate] = useState(null);
   const [filterBarber, setFilterBarber] = useState("");
@@ -77,12 +78,12 @@ export default function BookingsPage() {
   }, [view, selectedDate]);
 
   const { data: bookings = [], isLoading } = useQuery({
-    queryKey: ["admin-bookings", from, to, filterBarber, filterStatus, showAll],
+    queryKey: ["admin-bookings", shopId, from, to, filterBarber, filterStatus, showAll],
     queryFn:  () => getBookings({ from: from ?? undefined, to: to ?? undefined, barberId: filterBarber || undefined, status: filterStatus || undefined }),
     refetchInterval: 30000,
   });
 
-  const { data: barbers = [] } = useQuery({ queryKey: ["admin-barbers"], queryFn: getAdminBarbers });
+  const { data: barbers = [] } = useQuery({ queryKey: ["admin-barbers", shopId], queryFn: getAdminBarbers });
 
   const statusMut = useMutation({
     mutationFn: ({ id, status, reason }) => updateBookingStatus(id, status, reason),

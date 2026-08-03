@@ -4,10 +4,10 @@ import { toast } from "sonner";
 import { applyTheme, AVAILABLE_FONTS } from "../../../lib/applyTheme";
 import { Loader2, ExternalLink, Palette, Type, Sun, Moon, MapPin, Check } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
-import { SHOP_ID } from "../../../lib/constants";
 import ThemeProvider from "../../../components/shared/ThemeProvider";
 import ImageUpload from "../../../components/shared/ImageUpload";
 import { GOOGLE_KEY, loadPlacesAndGeocoding } from "../../../lib/googlePlaces";
+import { resolveShopId } from "../services/adminService";
 
 const O = "var(--brand, #FF6B2C)";
 
@@ -22,16 +22,8 @@ const COLORS = [
   { label: "Custom",   value: null      },
 ];
 
-async function getMyShopId() {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("No autenticado");
-  const { data: profile } = await supabase
-    .from("profiles").select("shop_id").eq("id", user.id).maybeSingle();
-  return profile?.shop_id ?? SHOP_ID;
-}
-
 async function getShopSettings() {
-  const shopId = await getMyShopId();
+  const shopId = resolveShopId();
   const { data, error } = await supabase
     .from("barbershops")
     .select("*")
@@ -206,7 +198,8 @@ function AddressAutocomplete({ value, lat, lng, onChange, style }) {
 
 export default function SettingsPage() {
   const qc = useQueryClient();
-  const { data: shop, isLoading } = useQuery({ queryKey: ["shop-settings"], queryFn: getShopSettings });
+  const shopId = resolveShopId();
+  const { data: shop, isLoading } = useQuery({ queryKey: ["shop-settings", shopId], queryFn: getShopSettings });
 
   const [form, setForm] = useState(null);
   const [previewMode, setPreviewMode] = useState(false);

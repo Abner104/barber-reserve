@@ -69,6 +69,7 @@ async function getTurnoData(turnoId) {
 export default function CajaPage() {
   const qc      = useQueryClient();
   const profile = useAuthStore(s => s.profile);
+  const shopId  = resolveShopId();
   const [showAbrirModal, setShowAbrirModal]   = useState(false);
   const [showEgresoModal, setShowEgresoModal] = useState(false);
   const [showCierreModal, setShowCierreModal] = useState(false);
@@ -79,17 +80,19 @@ export default function CajaPage() {
   const [cajaChica, setCajaChica]     = useState("");
   const [egresoDesc, setEgresoDesc]   = useState("");
   const [egresoMonto, setEgresoMonto] = useState("");
-  const [ventaForm, setVentaForm]     = useState({ clientName: "", serviceId: "", price: "", payMethod: "cash", barbero: "", proofUrl: "" });
+  const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/Santiago" });
+  const nowTime  = new Date().toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", timeZone: "America/Santiago", hour12: false });
+  const [ventaForm, setVentaForm]     = useState({ clientName: "", serviceId: "", price: "", payMethod: "cash", barbero: "", proofUrl: "", date: todayStr, time: nowTime });
   const [ventaItems, setVentaItems]   = useState([]); // productos inventario {id, name, qty, price_sell}
 
   const { data: turno, isLoading: loadingTurno } = useQuery({
-    queryKey: ["caja-turno-abierto"],
+    queryKey: ["caja-turno-abierto", shopId],
     queryFn:  getTurnoAbierto,
     refetchInterval: 30000,
   });
 
   const { data: turnoData = { bookings: [], egresos: [] }, isLoading: loadingData } = useQuery({
-    queryKey: ["caja-turno-data", turno?.id],
+    queryKey: ["caja-turno-data", shopId, turno?.id],
     queryFn:  () => getTurnoData(turno?.id),
     enabled:  !!turno?.id,
     refetchInterval: 30000,
@@ -154,20 +157,18 @@ export default function CajaPage() {
 
   // Barberos para asignar la venta
   const { data: barbers = [] } = useQuery({
-    queryKey: ["admin-barbers-caja"],
+    queryKey: ["admin-barbers-caja", shopId],
     queryFn: async () => {
-      const sid = resolveShopId();
-      const { data } = await supabase.from("barbers").select("id, full_name").eq("shop_id", sid).eq("is_active", true).order("full_name");
+      const { data } = await supabase.from("barbers").select("id, full_name").eq("shop_id", shopId).eq("is_active", true).order("full_name");
       return data ?? [];
     },
   });
 
   // Servicios del catálogo para venta directa
   const { data: catalogServices = [] } = useQuery({
-    queryKey: ["admin-services-caja"],
+    queryKey: ["admin-services-caja", shopId],
     queryFn: async () => {
-      const sid = resolveShopId();
-      const { data } = await supabase.from("services").select("id, name, price").eq("shop_id", sid).eq("is_available", true).order("name");
+      const { data } = await supabase.from("services").select("id, name, price").eq("shop_id", shopId).eq("is_available", true).order("name");
       return data ?? [];
     },
     enabled: showVentaModal,
@@ -175,10 +176,9 @@ export default function CajaPage() {
 
   // Productos de inventario para venta directa
   const { data: inventoryProducts = [] } = useQuery({
-    queryKey: ["inventory-caja"],
+    queryKey: ["inventory-caja", shopId],
     queryFn: async () => {
-      const sid = resolveShopId();
-      const { data } = await supabase.from("inventory_products").select("id, name, price_sell, stock, unit").eq("shop_id", sid).eq("is_active", true).gt("stock", 0).order("name");
+      const { data } = await supabase.from("inventory_products").select("id, name, price_sell, stock, unit").eq("shop_id", shopId).eq("is_active", true).gt("stock", 0).order("name");
       return data ?? [];
     },
     enabled: showVentaModal,
@@ -221,7 +221,7 @@ export default function CajaPage() {
         payment_proof_url: ventaForm.proofUrl || null,
         price: totalPrice, price_final: totalPrice,
         duration_min: serviceSel ? (serviceSel.duration_min ?? 30) : 30,
-        scheduled_at: new Date().toISOString(),
+        scheduled_at: new Date(`${ventaForm.date}T${ventaForm.time}:00-04:00`).toISOString(),
         client_notes: notes,
       });
       if (error) throw error;
@@ -238,7 +238,7 @@ export default function CajaPage() {
       qc.invalidateQueries({ queryKey: ["caja-turno-data"], exact: false, refetchType: "all" });
       qc.invalidateQueries({ queryKey: ["inventory"] });
       setShowVentaModal(false);
-      setVentaForm({ clientName: "", serviceId: "", price: "", payMethod: "cash", barbero: "", proofUrl: "" });
+      setVentaForm({ clientName: "", serviceId: "", price: "", payMethod: "cash", barbero: "", proofUrl: "", date: todayStr, time: new Date().toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", timeZone: "America/Santiago", hour12: false }) });
       setVentaItems([]);
       toast.success("Venta registrada ✅");
     },
@@ -712,6 +712,20 @@ export default function CajaPage() {
                   style={{ width: "100%", padding: "11px 13px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14, outline: "none", boxSizing: "border-box", cursor: "pointer" }}>
                   {barbers.map(b => <option key={b.id} value={b.id}>{b.full_name}</option>)}
                 </select>
+              </div>
+
+              {/* Fecha y hora del servicio */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div>
+                  <label style={{ fontSize: 12, color: "var(--text-faint)", fontWeight: 600, display: "block", marginBottom: 6 }}>FECHA DEL SERVICIO</label>
+                  <input type="date" value={ventaForm.date} onChange={e => setVentaForm({ ...ventaForm, date: e.target.value })}
+                    style={{ width: "100%", padding: "11px 13px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14, outline: "none", boxSizing: "border-box" }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: "var(--text-faint)", fontWeight: 600, display: "block", marginBottom: 6 }}>HORA DEL SERVICIO</label>
+                  <input type="time" value={ventaForm.time} onChange={e => setVentaForm({ ...ventaForm, time: e.target.value })}
+                    style={{ width: "100%", padding: "11px 13px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14, outline: "none", boxSizing: "border-box" }} />
+                </div>
               </div>
 
               {/* Servicio del catálogo */}

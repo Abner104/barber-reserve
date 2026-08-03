@@ -14,6 +14,7 @@ import {
   getInventory, upsertInventoryProduct, deleteInventoryProduct,
   adjustStock, getInventoryMovements,
 } from "../services/inventoryService";
+import { resolveShopId } from "../services/adminService";
 
 const O = "var(--brand, #FF6B2C)";
 
@@ -29,6 +30,7 @@ const SHIMMER = `
 
 export default function InventoryPage() {
   const qc = useQueryClient();
+  const shopId = resolveShopId();
   const [search, setSearch]               = useState("");
   const [catFilter, setCatFilter]         = useState("");
   const [productModal, setProductModal]   = useState(null); // null | "new" | product
@@ -52,7 +54,7 @@ export default function InventoryPage() {
   const skuReaderRef    = useRef(null); // ZXing SKU modal scanner
 
   const { data: products = [], isLoading } = useQuery({
-    queryKey: ["inventory"],
+    queryKey: ["inventory", shopId],
     queryFn:  getInventory,
     refetchInterval: 60000,
   });

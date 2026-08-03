@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Plus, Pencil, Power, X, Loader2, ChevronDown, ChevronUp, Images, Trash2, Upload, ExternalLink } from "lucide-react";
 import ImageUpload, { uploadImage } from "../../../components/shared/ImageUpload";
 import WhatsAppStatus from "../components/WhatsAppStatus";
-import { getAdminBarbers, createBarber, updateBarber, toggleBarberActive, getBarberWorkingHours, upsertWorkingHours, getBarberPortfolio, addPortfolioPhoto, deletePortfolioPhoto } from "../services/adminService";
+import { getAdminBarbers, createBarber, updateBarber, toggleBarberActive, deleteBarber, getBarberWorkingHours, upsertWorkingHours, getBarberPortfolio, addPortfolioPhoto, deletePortfolioPhoto, resolveShopId } from "../services/adminService";
 import { DAYS_OF_WEEK, DAY_LABEL } from "../../../lib/constants";
 import TimeSelect from "../../../components/shared/TimeSelect";
 
@@ -15,10 +15,11 @@ const EMPTY_BARBER = { full_name: "", phone: "", specialty: "", bio: "", avatar_
 
 export default function BarbersPage() {
   const qc = useQueryClient();
+  const shopId = resolveShopId();
   const [modal, setModal]       = useState(null); // null | 'create' | barber obj
   const [expanded, setExpanded] = useState(null); // barber id con horario expandido
 
-  const { data: barbers = [], isLoading } = useQuery({ queryKey: ["admin-barbers"], queryFn: getAdminBarbers });
+  const { data: barbers = [], isLoading } = useQuery({ queryKey: ["admin-barbers", shopId], queryFn: getAdminBarbers });
 
   const [credenciales, setCredenciales] = useState(null);
 
@@ -44,6 +45,12 @@ export default function BarbersPage() {
     mutationFn: ({ id, is_active }) => toggleBarberActive(id, is_active),
     onSuccess: (_, { is_active }) => { qc.invalidateQueries(["admin-barbers"]); toast.success(is_active ? "Barbero activado" : "Barbero desactivado"); },
     onError: () => toast.error("Error al cambiar el estado"),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (id) => deleteBarber(id),
+    onSuccess: () => { qc.invalidateQueries(["admin-barbers"]); toast.success("Barbero eliminado"); },
+    onError: () => toast.error("No se pudo eliminar el barbero"),
   });
 
   return (
@@ -72,6 +79,10 @@ export default function BarbersPage() {
             onExpand={() => setExpanded(expanded === b.id ? null : b.id)}
             onEdit={() => setModal(b)}
             onToggle={() => toggleMut.mutate({ id: b.id, is_active: !b.is_active })}
+            onDelete={() => {
+              if (window.confirm(`¿Eliminar a ${b.full_name}? Esta acción no se puede deshacer y borrará todas sus reservas y horarios.`))
+                deleteMut.mutate(b.id);
+            }}
           />
         ))}
         {!isLoading && barbers.length === 0 && (
@@ -143,7 +154,7 @@ export default function BarbersPage() {
   );
 }
 
-function BarberRow({ barber, expanded, onExpand, onEdit, onToggle }) {
+function BarberRow({ barber, expanded, onExpand, onEdit, onToggle, onDelete }) {
   const navigate = useNavigate();
 
   function viewAsBarber() {
@@ -177,6 +188,9 @@ function BarberRow({ barber, expanded, onExpand, onEdit, onToggle }) {
           <IconBtn onClick={onEdit} title="Editar"><Pencil size={15} /></IconBtn>
           <IconBtn onClick={onToggle} title={barber.is_active ? "Desactivar" : "Activar"} danger={barber.is_active}>
             <Power size={15} />
+          </IconBtn>
+          <IconBtn onClick={onDelete} title="Eliminar barbero" danger>
+            <Trash2 size={15} />
           </IconBtn>
           <IconBtn onClick={onExpand} title="Horarios">
             {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}

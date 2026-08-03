@@ -4,18 +4,19 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, Pencil, Power, X, Loader2, Clock, Trash2, AlertTriangle } from "lucide-react";
 import ImageUpload from "../../../components/shared/ImageUpload";
-import { getAdminServices, getAdminCategories, createService, updateService, toggleServiceAvailable, deleteService, createCategory, deleteCategory } from "../services/adminService";
+import { getAdminServices, getAdminCategories, createService, updateService, toggleServiceAvailable, deleteService, createCategory, deleteCategory, resolveShopId } from "../services/adminService";
 
 const B = "var(--brand, #FF6B2C)";
 const EMPTY_SVC = { name: "", description: "", duration_min: 30, price: 0, allows_local: true, allows_delivery: true, is_available: true, category_id: "", sort_order: 0, image_url: "" };
 
 export default function ServicesPage() {
   const qc = useQueryClient();
+  const shopId = resolveShopId();
   const [modal, setModal]           = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null); // service obj a eliminar
 
-  const { data: services = [], isLoading } = useQuery({ queryKey: ["admin-services"], queryFn: getAdminServices });
-  const { data: categories = [] } = useQuery({ queryKey: ["admin-categories"], queryFn: getAdminCategories });
+  const { data: services = [], isLoading } = useQuery({ queryKey: ["admin-services", shopId], queryFn: getAdminServices });
+  const { data: categories = [] } = useQuery({ queryKey: ["admin-categories", shopId], queryFn: getAdminCategories });
 
   const grouped = services.reduce((acc, s) => {
     const cat = s.service_categories?.name ?? "Sin categoría";

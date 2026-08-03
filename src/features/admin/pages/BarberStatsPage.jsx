@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../../../lib/supabase";
-import { SHOP_ID } from "../../../lib/constants";
+import { resolveShopId } from "../services/adminService";
 import { formatCurrency } from "../../../lib/utils";
 import { TrendingUp, Calendar, DollarSign, Star, ChevronDown } from "lucide-react";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
@@ -57,10 +57,11 @@ async function fetchBarberStats(shopId, period) {
 
 export default function BarberStatsPage() {
   const [period, setPeriod] = useState("this_month");
+  const shopId = resolveShopId();
 
   const { data: stats = [], isLoading } = useQuery({
-    queryKey: ["barber-stats", SHOP_ID, period],
-    queryFn:  () => fetchBarberStats(SHOP_ID, period),
+    queryKey: ["barber-stats", shopId, period],
+    queryFn:  () => fetchBarberStats(shopId, period),
   });
 
   const totalRevenue   = stats.reduce((s, b) => s + b.revenue, 0);

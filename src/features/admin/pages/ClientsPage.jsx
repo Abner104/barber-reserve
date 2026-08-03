@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../../../lib/supabase";
-import { SHOP_ID } from "../../../lib/constants";
+import { resolveShopId } from "../services/adminService";
 import { formatCurrency } from "../../../lib/utils";
 import { Search, Phone, Calendar, Scissors, ChevronDown, ChevronUp, X } from "lucide-react";
 import { format } from "date-fns";
@@ -34,10 +34,11 @@ async function fetchClients(shopId) {
 export default function ClientsPage() {
   const [search, setSearch]     = useState("");
   const [expanded, setExpanded] = useState(null);
+  const shopId = resolveShopId();
 
   const { data: clients = [], isLoading } = useQuery({
-    queryKey: ["admin-clients", SHOP_ID],
-    queryFn:  () => fetchClients(SHOP_ID),
+    queryKey: ["admin-clients", shopId],
+    queryFn:  () => fetchClients(shopId),
   });
 
   const filtered = clients.filter(c =>
