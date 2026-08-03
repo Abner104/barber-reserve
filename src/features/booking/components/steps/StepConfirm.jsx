@@ -341,7 +341,7 @@ export default function StepConfirm({ slug }) {
       </button>
 
       <p style={{ textAlign: "center", fontSize: 12, color: "var(--text-faint)", marginTop: 14 }}>
-        Recibirás confirmación por WhatsApp 📱
+        Recibirás confirmación por correo 📧
       </p>
     </div>
   );

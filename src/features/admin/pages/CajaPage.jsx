@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Plus, X, Loader2, Lock, Unlock, DollarSign, TrendingDown, ShoppingBag, Package, Scissors } from "lucide-react";
+import { Plus, X, Loader2, Lock, Unlock, DollarSign, TrendingDown, ShoppingBag, Package, Scissors, ChevronRight, History } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { resolveShopId } from "../services/adminService";
 import { formatCurrency } from "../../../lib/utils";
@@ -66,6 +66,37 @@ async function getTurnoData(turnoId) {
   return { bookings: bookings ?? [], egresos: egresos ?? [] };
 }
 
+async function getTurnosHistorial() {
+  const sid = resolveShopId();
+  const { data, error } = await supabase
+    .from("caja_turnos")
+    .select("*")
+    .eq("shop_id", sid)
+    .eq("estado", "cerrado")
+    .order("opened_at", { ascending: false })
+    .limit(60);
+  if (error) throw error;
+  return data ?? [];
+}
+
+async function getTurnoDataClosed(turno) {
+  const [{ data: bookings }, { data: egresos }] = await Promise.all([
+    supabase.from("bookings")
+      .select(`id, price, price_final, payment_method, delivery_fee, scheduled_at,
+        clients(full_name), services(name)`)
+      .eq("shop_id", turno.shop_id)
+      .eq("status", "completed")
+      .gte("updated_at", turno.opened_at)
+      .lte("updated_at", turno.closed_at)
+      .order("scheduled_at"),
+    supabase.from("caja_egresos")
+      .select("*")
+      .eq("turno_id", turno.id)
+      .order("created_at"),
+  ]);
+  return { bookings: bookings ?? [], egresos: egresos ?? [] };
+}
+
 const MIXED_METHOD_CFG = [
   { key: "cash",     label: "Efectivo",       emoji: "💵" },
   { key: "card",     label: "Débito/Crédito", emoji: "💳" },
@@ -112,6 +143,8 @@ export default function CajaPage() {
   const qc      = useQueryClient();
   const profile = useAuthStore(s => s.profile);
   const shopId  = resolveShopId();
+  const [view, setView]                       = useState("actual"); // "actual" | "historial"
+  const [historialDetalle, setHistorialDetalle] = useState(null); // turno seleccionado
   const [showAbrirModal, setShowAbrirModal]   = useState(false);
   const [showEgresoModal, setShowEgresoModal] = useState(false);
   const [showCierreModal, setShowCierreModal] = useState(false);
@@ -142,6 +175,18 @@ export default function CajaPage() {
   });
 
   const { bookings, egresos } = turnoData;
+
+  const { data: historial = [], isLoading: loadingHistorial } = useQuery({
+    queryKey: ["caja-historial", shopId],
+    queryFn:  getTurnosHistorial,
+    enabled:  view === "historial",
+  });
+
+  const { data: historialData = { bookings: [], egresos: [] }, isLoading: loadingHistorialDetalle } = useQuery({
+    queryKey: ["caja-historial-detalle", historialDetalle?.id],
+    queryFn:  () => getTurnoDataClosed(historialDetalle),
+    enabled:  !!historialDetalle?.id,
+  });
 
   // Mutaciones
   const abrirMut = useMutation({
@@ -359,10 +404,161 @@ export default function CajaPage() {
 
   if (loadingTurno) return <div className="admin-page" style={{ color: "var(--text-faint)" }}>Cargando...</div>;
 
+  const ViewToggle = (
+    <div style={{ display: "flex", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 10, padding: 3, gap: 3 }}>
+      {[["actual", "Turno actual"], ["historial", "Historial"]].map(([v, label]) => (
+        <button key={v} onClick={() => setView(v)}
+          style={{ padding: "8px 14px", borderRadius: 7, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13,
+            background: view === v ? O : "transparent", color: view === v ? "#fff" : "var(--text-faint)" }}>
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+
+  // ── HISTORIAL DE TURNOS CERRADOS ───────────────────────────────
+  if (view === "historial") return (
+    <div className="admin-page" style={{ maxWidth: "min(900px, 100%)" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <h1 style={{ fontSize: 26, fontWeight: 800, color: "var(--text)", marginBottom: 2 }}>Historial de caja</h1>
+          <p style={{ fontSize: 12, color: "var(--text-faint)" }}>Turnos cerrados anteriores</p>
+        </div>
+        {ViewToggle}
+      </div>
+
+      {loadingHistorial && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {[1,2,3].map(i => <div key={i} style={{ height: 64, borderRadius: 12, background: "var(--surface2)" }} />)}
+        </div>
+      )}
+
+      {!loadingHistorial && historial.length === 0 && (
+        <div style={{ textAlign: "center", padding: "64px 20px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 16 }}>
+          <p style={{ fontSize: 44, marginBottom: 12 }}>🗂️</p>
+          <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 16, marginBottom: 8 }}>Sin turnos cerrados aún</p>
+          <p style={{ color: "var(--text-faint)", fontSize: 13 }}>Cuando cierres un turno de caja, va a aparecer acá.</p>
+        </div>
+      )}
+
+      {!loadingHistorial && historial.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {historial.map(t => (
+            <button key={t.id} onClick={() => setHistorialDetalle(t)}
+              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "14px 18px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 12, cursor: "pointer", textAlign: "left" }}>
+              <div>
+                <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 14, textTransform: "capitalize" }}>
+                  {format(new Date(t.opened_at), "EEEE d 'de' MMMM yyyy", { locale: es })}
+                </p>
+                <p style={{ fontSize: 12, color: "var(--text-faint)" }}>
+                  {format(new Date(t.opened_at), "HH:mm")} — {t.closed_at ? format(new Date(t.closed_at), "HH:mm") : "—"}
+                </p>
+              </div>
+              <ChevronRight size={16} color="var(--text-faint)" />
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Modal detalle de turno cerrado */}
+      {historialDetalle && (() => {
+        const hBookings = historialData.bookings;
+        const hEgresos  = historialData.egresos;
+        const hIngresos = hBookings.reduce((s, b) => s + Number(b.price_final ?? b.price ?? 0), 0);
+        const hEgresosTotal = hEgresos.reduce((s, e) => s + Number(e.monto ?? 0), 0);
+        const hEfectivo = hBookings.filter(b => b.payment_method === "cash").reduce((s, b) => s + Number(b.price_final ?? b.price ?? 0), 0);
+        const hTransf   = hBookings.filter(b => b.payment_method === "transfer").reduce((s, b) => s + Number(b.price_final ?? b.price ?? 0), 0);
+        const hTarjeta  = hBookings.filter(b => b.payment_method === "card").reduce((s, b) => s + Number(b.price_final ?? b.price ?? 0), 0);
+        const hMixto    = hBookings.filter(b => b.payment_method === "mixed").reduce((s, b) => s + Number(b.price_final ?? b.price ?? 0), 0);
+        const hCajaChicaVal = Number(historialDetalle.caja_chica ?? 0);
+        const hTotalEnCaja  = hCajaChicaVal + hEfectivo - hEgresosTotal;
+
+        return (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+            onClick={() => setHistorialDetalle(null)}>
+            <div id="cierre-print-area" style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 20, padding: 28, width: "100%", maxWidth: 480, maxHeight: "90vh", overflowY: "auto" }}
+              onClick={e => e.stopPropagation()}>
+              <div className="no-print" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                <h2 style={{ fontSize: 20, fontWeight: 800, color: "var(--text)" }}>Cierre de caja</h2>
+                <button onClick={() => setHistorialDetalle(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-faint)" }}><X size={20} /></button>
+              </div>
+
+              <p style={{ fontSize: 13, color: "var(--text-faint)", marginBottom: 16, textTransform: "capitalize" }}>
+                {format(new Date(historialDetalle.opened_at), "EEEE d 'de' MMMM yyyy", { locale: es })} ·{" "}
+                {format(new Date(historialDetalle.opened_at), "HH:mm")} — {historialDetalle.closed_at ? format(new Date(historialDetalle.closed_at), "HH:mm") : "—"}
+              </p>
+
+              {loadingHistorialDetalle ? (
+                <p style={{ color: "var(--text-faint)", fontSize: 13 }}>Cargando...</p>
+              ) : (
+                <>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+                    {[
+                      ["Caja chica inicial", hCajaChicaVal],
+                      ["💵 Efectivo", hEfectivo],
+                      ["💳 Débito/Crédito", hTarjeta],
+                      ["🏦 Transferencia", hTransf],
+                      ["🔀 Mixto", hMixto],
+                      ["Egresos", -hEgresosTotal],
+                    ].map(([label, val]) => (
+                      <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                        <span style={{ color: "var(--text-faint)" }}>{label}</span>
+                        <span style={{ fontWeight: 600, color: "var(--text)" }}>{formatCurrency(val)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 14, borderTop: "1px solid var(--border)", marginBottom: 8 }}>
+                    <span style={{ fontWeight: 700, color: "var(--text)" }}>Total ingresos</span>
+                    <span style={{ fontWeight: 800, color: O, fontSize: 16 }}>{formatCurrency(hIngresos)}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
+                    <span style={{ fontWeight: 700, color: "var(--text)" }}>Total en caja (efectivo)</span>
+                    <span style={{ fontWeight: 800, color: "#22c55e", fontSize: 16 }}>{formatCurrency(hTotalEnCaja)}</span>
+                  </div>
+
+                  {hBookings.length > 0 && (
+                    <div className="no-print" style={{ marginBottom: 20 }}>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: "var(--text-faint)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Servicios ({hBookings.length})</p>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {hBookings.map(b => (
+                          <div key={b.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                            <span style={{ color: "var(--text-muted)" }}>{b.clients?.full_name} · {b.services?.name}</span>
+                            <span style={{ color: "var(--text)", fontWeight: 600 }}>{formatCurrency(b.price_final ?? b.price)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              <button className="no-print" onClick={() => window.print()}
+                style={{ width: "100%", padding: "12px", borderRadius: 10, background: O, border: "none", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+                🖨️ Imprimir cierre
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          #cierre-print-area, #cierre-print-area * { visibility: visible; }
+          #cierre-print-area { position: fixed; inset: 0; max-height: none; border: none; }
+          .no-print { display: none !important; }
+        }
+      `}</style>
+    </div>
+  );
+
   // ── SIN TURNO ABIERTO ────────────────────────────────────────
   if (!turno) return (
     <div className="admin-page" style={{ maxWidth: "min(600px, 100%)" }}>
-      <h1 style={{ fontSize: 28, fontWeight: 800, color: "var(--text)", marginBottom: 8 }}>Caja</h1>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8, flexWrap: "wrap", gap: 12 }}>
+        <h1 style={{ fontSize: 28, fontWeight: 800, color: "var(--text)" }}>Caja</h1>
+        {ViewToggle}
+      </div>
       <p style={{ color: "var(--text-faint)", marginBottom: 40 }}>No hay ningún turno abierto hoy.</p>
 
       <div style={{ textAlign: "center", padding: "48px 20px", background: "var(--card-bg)", border: "2px dashed var(--border)", borderRadius: 20 }}>
@@ -426,7 +622,8 @@ export default function CajaPage() {
             Desde {format(new Date(turno.opened_at), "HH:mm 'del' EEEE d 'de' MMMM", { locale: es })}
           </p>
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          {ViewToggle}
           <button onClick={() => setShowVentaModal(true)}
             style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", borderRadius: 10, background: O, border: "none", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
             <ShoppingBag size={14} /> Venta directa
@@ -655,7 +852,7 @@ export default function CajaPage() {
       {/* Modal cierre de turno */}
       {showCierreModal && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-          <div style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 20, padding: 28, width: "100%", maxWidth: 440 }}>
+          <div id="cierre-print-area" style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 20, padding: 28, width: "100%", maxWidth: 440 }}>
             <h2 style={{ fontSize: 20, fontWeight: 800, color: "var(--text)", marginBottom: 6 }}>Cierre de turno</h2>
             <p style={{ fontSize: 13, color: "var(--text-faint)", marginBottom: 24 }}>Resumen final antes de cerrar</p>
 
@@ -670,6 +867,11 @@ export default function CajaPage() {
                 <CierreRow label="📊 Total facturado"          value={formatCurrency(totalIngresos)} color="var(--text)" bold />
               </div>
             </div>
+
+            <button onClick={() => window.print()}
+              style={{ width: "100%", padding: "11px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", fontWeight: 600, fontSize: 13, cursor: "pointer", marginBottom: 10 }}>
+              🖨️ Imprimir resumen
+            </button>
 
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setShowCierreModal(false)} style={{ flex: 1, padding: "12px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", fontWeight: 600, cursor: "pointer" }}>Cancelar</button>
