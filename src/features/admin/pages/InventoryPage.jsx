@@ -1,5 +1,7 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 import {
   Plus, Pencil, Trash2, Package, X, AlertTriangle,
   TrendingDown, History, Search, ShoppingBag, ScanLine,
@@ -12,7 +14,7 @@ import { uploadImage } from "../../../components/shared/ImageUpload";
 import { useSound } from "../../../hooks/useSound";
 import {
   getInventory, upsertInventoryProduct, deleteInventoryProduct,
-  adjustStock, getInventoryMovements,
+  adjustStock, getInventoryMovements, getInventorySales,
 } from "../services/inventoryService";
 import { resolveShopId } from "../services/adminService";
 
@@ -31,6 +33,7 @@ const SHIMMER = `
 export default function InventoryPage() {
   const qc = useQueryClient();
   const shopId = resolveShopId();
+  const [view, setView]                   = useState("products"); // "products" | "sales"
   const [search, setSearch]               = useState("");
   const [catFilter, setCatFilter]         = useState("");
   const [productModal, setProductModal]   = useState(null); // null | "new" | product
@@ -63,6 +66,12 @@ export default function InventoryPage() {
     queryKey: ["inventory-movements", historyModal?.id],
     queryFn:  () => getInventoryMovements(historyModal.id),
     enabled:  !!historyModal?.id,
+  });
+
+  const { data: sales = [], isLoading: loadingSales } = useQuery({
+    queryKey: ["inventory-sales", shopId],
+    queryFn:  () => getInventorySales(),
+    enabled:  view === "sales",
   });
 
   const adjMut = useMutation({
@@ -220,7 +229,16 @@ export default function InventoryPage() {
           <h1 style={{ fontSize: 28, fontWeight: 800, color: "var(--text)" }}>Inventario</h1>
           <p style={{ color: "var(--text-faint)", fontSize: 13, marginTop: 4 }}>{products.length} productos · {products.reduce((s, p) => s + (p.stock ?? 0), 0)} unidades totales</p>
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <div style={{ display: "flex", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 10, padding: 3, gap: 3 }}>
+            {[["products", "Productos"], ["sales", "Ventas"]].map(([v, label]) => (
+              <button key={v} onClick={() => setView(v)}
+                style={{ padding: "8px 14px", borderRadius: 7, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13,
+                  background: view === v ? O : "transparent", color: view === v ? "#fff" : "var(--text-faint)" }}>
+                {label}
+              </button>
+            ))}
+          </div>
           <Link to="/admin/caja"
             style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", textDecoration: "none", fontWeight: 600, fontSize: 13 }}>
             <ShoppingBag size={14} /> Ir a Caja para vender
@@ -234,6 +252,8 @@ export default function InventoryPage() {
           </button>
         </div>
       </div>
+
+      {view === "products" && <>
 
       {/* Visor de cámara para escanear SKU */}
       {scanning && (
@@ -383,6 +403,49 @@ export default function InventoryPage() {
           </div>
         </div>
       ))}
+
+      </>}
+
+      {/* ── VISTA VENTAS ── */}
+      {view === "sales" && (
+        <div>
+          {loadingSales && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {[1,2,3].map(i => <div key={i} className="inv-shimmer" style={{ height: 60 }} />)}
+            </div>
+          )}
+
+          {!loadingSales && sales.length === 0 && (
+            <div style={{ textAlign: "center", padding: "64px 20px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 16 }}>
+              <div style={{ fontSize: 44, marginBottom: 12 }}>🛍️</div>
+              <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 16, marginBottom: 8 }}>Sin ventas registradas</p>
+              <p style={{ color: "var(--text-faint)", fontSize: 13 }}>Las ventas de productos hechas desde Caja aparecerán aquí.</p>
+            </div>
+          )}
+
+          {!loadingSales && sales.length > 0 && (
+            <>
+              <div style={{ marginBottom: 20, padding: "14px 16px", background: "rgba(255,107,44,0.05)", border: "1px solid rgba(255,107,44,0.2)", borderRadius: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 13, color: "var(--text-faint)", fontWeight: 600 }}>Total vendido</span>
+                <span style={{ fontSize: 22, fontWeight: 800, color: O }}>{formatCurrency(sales.reduce((s, v) => s + Number(v.total || 0), 0))}</span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {sales.map(sale => (
+                  <div key={sale.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 16px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 12 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 14 }}>{sale.inventory_products?.name ?? "Producto eliminado"}</p>
+                      <p style={{ fontSize: 12, color: "var(--text-faint)" }}>
+                        {sale.qty} × {formatCurrency(sale.price_unit)} · {format(new Date(sale.created_at), "d MMM yyyy, HH:mm", { locale: es })}
+                      </p>
+                    </div>
+                    <p style={{ fontWeight: 800, color: O, fontSize: 15, flexShrink: 0 }}>{formatCurrency(sale.total)}</p>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* ── MODAL CREAR/EDITAR ── */}
       {productModal && (

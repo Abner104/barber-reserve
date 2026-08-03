@@ -66,6 +66,48 @@ async function getTurnoData(turnoId) {
   return { bookings: bookings ?? [], egresos: egresos ?? [] };
 }
 
+const MIXED_METHOD_CFG = [
+  { key: "cash",     label: "Efectivo",       emoji: "💵" },
+  { key: "card",     label: "Débito/Crédito", emoji: "💳" },
+  { key: "transfer", label: "Transferencia",  emoji: "🏦" },
+];
+
+function mixedSum(split) {
+  return MIXED_METHOD_CFG.reduce((s, m) => s + (Number(split[m.key]) || 0), 0);
+}
+
+// Desglose de pago mixto: montos numéricos por método, suma automática vs. el total esperado.
+function MixedPaymentSplit({ split, onChange, total }) {
+  const sum = MIXED_METHOD_CFG.reduce((s, m) => s + (Number(split[m.key]) || 0), 0);
+  const expected = Number(total) || 0;
+  const matches = expected > 0 && sum === expected;
+
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <label style={{ fontSize: 12, color: "var(--text-faint)", fontWeight: 700, display: "block", marginBottom: 8 }}>DESGLOSE DEL PAGO MIXTO</label>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {MIXED_METHOD_CFG.map(m => (
+          <div key={m.key} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 16, width: 22, textAlign: "center" }}>{m.emoji}</span>
+            <span style={{ fontSize: 13, color: "var(--text)", flex: 1 }}>{m.label}</span>
+            <input type="number" value={split[m.key]} onChange={e => onChange({ ...split, [m.key]: e.target.value })}
+              placeholder="0" style={{ width: 120, padding: "9px 11px", borderRadius: 9, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 14, outline: "none", boxSizing: "border-box", textAlign: "right" }} />
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
+        <span style={{ fontSize: 12, color: "var(--text-faint)" }}>Suma</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: expected > 0 ? (matches ? "#22c55e" : "#ef4444") : "var(--text)" }}>
+          {formatCurrency(sum)}{expected > 0 && ` / ${formatCurrency(expected)}`}
+        </span>
+      </div>
+      {expected > 0 && !matches && (
+        <p style={{ fontSize: 11, color: "#ef4444", marginTop: 4 }}>La suma debe coincidir con el total a cobrar</p>
+      )}
+    </div>
+  );
+}
+
 export default function CajaPage() {
   const qc      = useQueryClient();
   const profile = useAuthStore(s => s.profile);
@@ -77,13 +119,13 @@ export default function CajaPage() {
   const [pagoModal, setPagoModal]             = useState(null); // booking a registrar pago
   const [pagoMethod, setPagoMethod]           = useState("cash");
   const [pagoPriceFinal, setPagoPriceFinal]   = useState("");
-  const [pagoMixedDetail, setPagoMixedDetail] = useState("");
+  const [pagoMixedSplit, setPagoMixedSplit]   = useState({ cash: "", card: "", transfer: "" });
   const [cajaChica, setCajaChica]     = useState("");
   const [egresoDesc, setEgresoDesc]   = useState("");
   const [egresoMonto, setEgresoMonto] = useState("");
   const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/Santiago" });
   const nowTime  = new Date().toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", timeZone: "America/Santiago", hour12: false });
-  const [ventaForm, setVentaForm]     = useState({ clientName: "", serviceId: "", price: "", payMethod: "cash", barbero: "", proofUrl: "", mixedDetail: "", date: todayStr, time: nowTime });
+  const [ventaForm, setVentaForm]     = useState({ clientName: "", serviceId: "", price: "", payMethod: "cash", barbero: "", proofUrl: "", mixedSplit: { cash: "", card: "", transfer: "" }, date: todayStr, time: nowTime });
   const [ventaItems, setVentaItems]   = useState([]); // productos inventario {id, name, qty, price_sell}
 
   const { data: turno, isLoading: loadingTurno } = useQuery({
@@ -138,13 +180,13 @@ export default function CajaPage() {
   });
 
   const pagoMut = useMutation({
-    mutationFn: async ({ bookingId, method, priceFinal, mixedDetail }) => {
+    mutationFn: async ({ bookingId, method, priceFinal, mixedSplit }) => {
       const { error } = await supabase.from("bookings")
         .update({
           payment_method: method,
           payment_status: "paid",
           price_final: priceFinal ? Number(priceFinal) : null,
-          payment_mixed_detail: method === "mixed" ? (mixedDetail || null) : null,
+          payment_mixed_detail: method === "mixed" ? JSON.stringify(mixedSplit) : null,
         })
         .eq("id", bookingId);
       if (error) throw error;
@@ -152,7 +194,7 @@ export default function CajaPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["caja-turno-data"], exact: false, refetchType: "all" });
       setPagoModal(null);
-      setPagoMixedDetail("");
+      setPagoMixedSplit({ cash: "", card: "", transfer: "" });
       toast.success("Pago registrado ✅");
     },
     onError: () => toast.error("Error al registrar pago"),
@@ -222,7 +264,7 @@ export default function CajaPage() {
         type: "in_store", status: "completed",
         payment_status: "paid", payment_method: ventaForm.payMethod,
         payment_proof_url: ventaForm.proofUrl || null,
-        payment_mixed_detail: ventaForm.payMethod === "mixed" ? (ventaForm.mixedDetail || null) : null,
+        payment_mixed_detail: ventaForm.payMethod === "mixed" ? JSON.stringify(ventaForm.mixedSplit) : null,
         // price/price_final = total cobrado (servicio + productos) — así caja cuadra con lo real.
         // product_sales_total queda aparte para que Rendimiento pueda excluirlo de la
         // producción/comisión del barbero (la venta de productos es de la barbería, no del barbero).
@@ -246,7 +288,7 @@ export default function CajaPage() {
       qc.invalidateQueries({ queryKey: ["caja-turno-data"], exact: false, refetchType: "all" });
       qc.invalidateQueries({ queryKey: ["inventory"] });
       setShowVentaModal(false);
-      setVentaForm({ clientName: "", serviceId: "", price: "", payMethod: "cash", barbero: "", proofUrl: "", mixedDetail: "", date: todayStr, time: new Date().toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", timeZone: "America/Santiago", hour12: false }) });
+      setVentaForm({ clientName: "", serviceId: "", price: "", payMethod: "cash", barbero: "", proofUrl: "", mixedSplit: { cash: "", card: "", transfer: "" }, date: todayStr, time: new Date().toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", timeZone: "America/Santiago", hour12: false }) });
       setVentaItems([]);
       toast.success("Venta registrada ✅");
     },
@@ -676,12 +718,7 @@ export default function CajaPage() {
             </div>
 
             {pagoMethod === "mixed" && (
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ fontSize: 12, color: "var(--text-faint)", fontWeight: 700, display: "block", marginBottom: 8 }}>DETALLE DEL PAGO MIXTO</label>
-                <input value={pagoMixedDetail} onChange={e => setPagoMixedDetail(e.target.value)}
-                  placeholder="Ej: $5.000 efectivo + $10.000 transferencia"
-                  style={{ width: "100%", padding: "11px 13px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 13, outline: "none", boxSizing: "border-box" }} />
-              </div>
+              <MixedPaymentSplit split={pagoMixedSplit} onChange={setPagoMixedSplit} total={pagoPriceFinal} />
             )}
 
             <div style={{ display: "flex", gap: 10 }}>
@@ -690,8 +727,8 @@ export default function CajaPage() {
                 Cancelar
               </button>
               <button
-                onClick={() => pagoMut.mutate({ bookingId: pagoModal.id, method: pagoMethod, priceFinal: pagoPriceFinal, mixedDetail: pagoMixedDetail })}
-                disabled={pagoMut.isPending || !pagoPriceFinal || (pagoMethod === "mixed" && !pagoMixedDetail.trim())}
+                onClick={() => pagoMut.mutate({ bookingId: pagoModal.id, method: pagoMethod, priceFinal: pagoPriceFinal, mixedSplit: pagoMixedSplit })}
+                disabled={pagoMut.isPending || !pagoPriceFinal || (pagoMethod === "mixed" && mixedSum(pagoMixedSplit) !== Number(pagoPriceFinal))}
                 style={{ flex: 2, padding: "13px", borderRadius: 10, background: "#22c55e", border: "none", color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", opacity: pagoMut.isPending ? 0.7 : 1 }}>
                 {pagoMut.isPending ? "Guardando..." : "✓ Confirmar pago"}
               </button>
@@ -847,12 +884,11 @@ export default function CajaPage() {
               )}
 
               {ventaForm.payMethod === "mixed" && (
-                <div>
-                  <label style={{ fontSize: 12, color: "var(--text-faint)", fontWeight: 600, display: "block", marginBottom: 6 }}>DETALLE DEL PAGO MIXTO</label>
-                  <input value={ventaForm.mixedDetail} onChange={e => setVentaForm({ ...ventaForm, mixedDetail: e.target.value })}
-                    placeholder="Ej: $5.000 efectivo + $10.000 transferencia"
-                    style={{ width: "100%", padding: "11px 13px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 13, outline: "none", boxSizing: "border-box" }} />
-                </div>
+                <MixedPaymentSplit
+                  split={ventaForm.mixedSplit}
+                  onChange={split => setVentaForm({ ...ventaForm, mixedSplit: split })}
+                  total={Number(ventaForm.price || 0) + ventaItems.reduce((s, i) => s + i.price_sell * i.qty, 0)}
+                />
               )}
             </div>
 
@@ -862,7 +898,7 @@ export default function CajaPage() {
                 Cancelar
               </button>
               <button onClick={() => ventaMut.mutate()}
-                disabled={ventaMut.isPending || (!ventaForm.price && ventaItems.length === 0) || (ventaForm.payMethod === "transfer" && !ventaForm.proofUrl) || (ventaForm.payMethod === "mixed" && !ventaForm.mixedDetail.trim())}
+                disabled={ventaMut.isPending || (!ventaForm.price && ventaItems.length === 0) || (ventaForm.payMethod === "transfer" && !ventaForm.proofUrl) || (ventaForm.payMethod === "mixed" && mixedSum(ventaForm.mixedSplit) !== (Number(ventaForm.price || 0) + ventaItems.reduce((s, i) => s + i.price_sell * i.qty, 0)))}
                 style={{ flex: 2, padding: "12px", borderRadius: 10, background: O, border: "none", color: "#fff", fontWeight: 700, cursor: "pointer", opacity: ventaMut.isPending ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                 {ventaMut.isPending ? <Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} /> : <ShoppingBag size={15} />}
                 {ventaMut.isPending ? "Registrando..." : "Registrar venta"}
