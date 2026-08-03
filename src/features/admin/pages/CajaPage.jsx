@@ -77,12 +77,13 @@ export default function CajaPage() {
   const [pagoModal, setPagoModal]             = useState(null); // booking a registrar pago
   const [pagoMethod, setPagoMethod]           = useState("cash");
   const [pagoPriceFinal, setPagoPriceFinal]   = useState("");
+  const [pagoMixedDetail, setPagoMixedDetail] = useState("");
   const [cajaChica, setCajaChica]     = useState("");
   const [egresoDesc, setEgresoDesc]   = useState("");
   const [egresoMonto, setEgresoMonto] = useState("");
   const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/Santiago" });
   const nowTime  = new Date().toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", timeZone: "America/Santiago", hour12: false });
-  const [ventaForm, setVentaForm]     = useState({ clientName: "", serviceId: "", price: "", payMethod: "cash", barbero: "", proofUrl: "", date: todayStr, time: nowTime });
+  const [ventaForm, setVentaForm]     = useState({ clientName: "", serviceId: "", price: "", payMethod: "cash", barbero: "", proofUrl: "", mixedDetail: "", date: todayStr, time: nowTime });
   const [ventaItems, setVentaItems]   = useState([]); // productos inventario {id, name, qty, price_sell}
 
   const { data: turno, isLoading: loadingTurno } = useQuery({
@@ -137,12 +138,13 @@ export default function CajaPage() {
   });
 
   const pagoMut = useMutation({
-    mutationFn: async ({ bookingId, method, priceFinal }) => {
+    mutationFn: async ({ bookingId, method, priceFinal, mixedDetail }) => {
       const { error } = await supabase.from("bookings")
         .update({
           payment_method: method,
           payment_status: "paid",
           price_final: priceFinal ? Number(priceFinal) : null,
+          payment_mixed_detail: method === "mixed" ? (mixedDetail || null) : null,
         })
         .eq("id", bookingId);
       if (error) throw error;
@@ -150,6 +152,7 @@ export default function CajaPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["caja-turno-data"], exact: false, refetchType: "all" });
       setPagoModal(null);
+      setPagoMixedDetail("");
       toast.success("Pago registrado ✅");
     },
     onError: () => toast.error("Error al registrar pago"),
@@ -219,7 +222,12 @@ export default function CajaPage() {
         type: "in_store", status: "completed",
         payment_status: "paid", payment_method: ventaForm.payMethod,
         payment_proof_url: ventaForm.proofUrl || null,
+        payment_mixed_detail: ventaForm.payMethod === "mixed" ? (ventaForm.mixedDetail || null) : null,
+        // price/price_final = total cobrado (servicio + productos) — así caja cuadra con lo real.
+        // product_sales_total queda aparte para que Rendimiento pueda excluirlo de la
+        // producción/comisión del barbero (la venta de productos es de la barbería, no del barbero).
         price: totalPrice, price_final: totalPrice,
+        product_sales_total: productsTotal,
         duration_min: serviceSel ? (serviceSel.duration_min ?? 30) : 30,
         scheduled_at: new Date(`${ventaForm.date}T${ventaForm.time}:00-04:00`).toISOString(),
         client_notes: notes,
@@ -238,7 +246,7 @@ export default function CajaPage() {
       qc.invalidateQueries({ queryKey: ["caja-turno-data"], exact: false, refetchType: "all" });
       qc.invalidateQueries({ queryKey: ["inventory"] });
       setShowVentaModal(false);
-      setVentaForm({ clientName: "", serviceId: "", price: "", payMethod: "cash", barbero: "", proofUrl: "", date: todayStr, time: new Date().toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", timeZone: "America/Santiago", hour12: false }) });
+      setVentaForm({ clientName: "", serviceId: "", price: "", payMethod: "cash", barbero: "", proofUrl: "", mixedDetail: "", date: todayStr, time: new Date().toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", timeZone: "America/Santiago", hour12: false }) });
       setVentaItems([]);
       toast.success("Venta registrada ✅");
     },
@@ -667,14 +675,23 @@ export default function CajaPage() {
               </div>
             </div>
 
+            {pagoMethod === "mixed" && (
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ fontSize: 12, color: "var(--text-faint)", fontWeight: 700, display: "block", marginBottom: 8 }}>DETALLE DEL PAGO MIXTO</label>
+                <input value={pagoMixedDetail} onChange={e => setPagoMixedDetail(e.target.value)}
+                  placeholder="Ej: $5.000 efectivo + $10.000 transferencia"
+                  style={{ width: "100%", padding: "11px 13px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 13, outline: "none", boxSizing: "border-box" }} />
+              </div>
+            )}
+
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setPagoModal(null)}
                 style={{ flex: 1, padding: "13px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", fontWeight: 600, cursor: "pointer" }}>
                 Cancelar
               </button>
               <button
-                onClick={() => pagoMut.mutate({ bookingId: pagoModal.id, method: pagoMethod, priceFinal: pagoPriceFinal })}
-                disabled={pagoMut.isPending || !pagoPriceFinal}
+                onClick={() => pagoMut.mutate({ bookingId: pagoModal.id, method: pagoMethod, priceFinal: pagoPriceFinal, mixedDetail: pagoMixedDetail })}
+                disabled={pagoMut.isPending || !pagoPriceFinal || (pagoMethod === "mixed" && !pagoMixedDetail.trim())}
                 style={{ flex: 2, padding: "13px", borderRadius: 10, background: "#22c55e", border: "none", color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", opacity: pagoMut.isPending ? 0.7 : 1 }}>
                 {pagoMut.isPending ? "Guardando..." : "✓ Confirmar pago"}
               </button>
@@ -828,6 +845,15 @@ export default function CajaPage() {
                     folder="payment-proofs" label="Subir comprobante" aspect="wide" capture="environment" />
                 </div>
               )}
+
+              {ventaForm.payMethod === "mixed" && (
+                <div>
+                  <label style={{ fontSize: 12, color: "var(--text-faint)", fontWeight: 600, display: "block", marginBottom: 6 }}>DETALLE DEL PAGO MIXTO</label>
+                  <input value={ventaForm.mixedDetail} onChange={e => setVentaForm({ ...ventaForm, mixedDetail: e.target.value })}
+                    placeholder="Ej: $5.000 efectivo + $10.000 transferencia"
+                    style={{ width: "100%", padding: "11px 13px", borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", fontSize: 13, outline: "none", boxSizing: "border-box" }} />
+                </div>
+              )}
             </div>
 
             <div style={{ display: "flex", gap: 10 }}>
@@ -836,7 +862,7 @@ export default function CajaPage() {
                 Cancelar
               </button>
               <button onClick={() => ventaMut.mutate()}
-                disabled={ventaMut.isPending || (!ventaForm.price && ventaItems.length === 0) || (ventaForm.payMethod === "transfer" && !ventaForm.proofUrl)}
+                disabled={ventaMut.isPending || (!ventaForm.price && ventaItems.length === 0) || (ventaForm.payMethod === "transfer" && !ventaForm.proofUrl) || (ventaForm.payMethod === "mixed" && !ventaForm.mixedDetail.trim())}
                 style={{ flex: 2, padding: "12px", borderRadius: 10, background: O, border: "none", color: "#fff", fontWeight: 700, cursor: "pointer", opacity: ventaMut.isPending ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                 {ventaMut.isPending ? <Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} /> : <ShoppingBag size={15} />}
                 {ventaMut.isPending ? "Registrando..." : "Registrar venta"}

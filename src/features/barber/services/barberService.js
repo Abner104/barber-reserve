@@ -130,7 +130,7 @@ export async function getMyCaja(date) {
 
   const { data, error } = await supabase
     .from("bookings")
-    .select("id, price, price_final, delivery_fee, status, type, scheduled_at, services(name), clients(full_name)")
+    .select("id, price, price_final, product_sales_total, delivery_fee, status, type, scheduled_at, services(name), clients(full_name)")
     .eq("barber_id", barber.id)
     .gte("scheduled_at", `${d}T00:00:00-04:00`)
     .lte("scheduled_at", `${d}T23:59:59-04:00`)
@@ -139,26 +139,29 @@ export async function getMyCaja(date) {
 
   if (error) throw error;
 
-  const total      = (data || []).reduce((s, b) => s + Number(b.price_final != null ? b.price_final : (b.price || 0)), 0);
-  const deliveries = (data || []).reduce((s, b) => s + Number(b.delivery_fee || 0), 0);
-  const model      = barber.payment_model ?? "percentage";
+  const total = (data || []).reduce((s, b) => s + Number(b.price_final != null ? b.price_final : (b.price || 0)), 0);
+  // Venta de productos (ej: shampoo) no cuenta para la comisión del barbero — es venta de la barbería.
+  const productSales = (data || []).reduce((s, b) => s + Number(b.product_sales_total || 0), 0);
+  const serviceTotal  = total - productSales;
+  const deliveries    = (data || []).reduce((s, b) => s + Number(b.delivery_fee || 0), 0);
+  const model         = barber.payment_model ?? "percentage";
 
   let myEarnings = 0;
   let modelInfo  = {};
 
   if (model === "independent") {
-    myEarnings = total + deliveries;
+    myEarnings = serviceTotal + deliveries;
     modelInfo  = {};
   } else if (model === "percentage") {
     const pct  = Number(barber.commission_pct ?? 0);
-    myEarnings = total * (pct / 100);
+    myEarnings = serviceTotal * (pct / 100);
     modelInfo  = { pct };
   } else if (model === "chair_rent") {
-    myEarnings = total;
+    myEarnings = serviceTotal;
     modelInfo  = { rentAmount: Number(barber.chair_rent_amount ?? 0), rentPeriod: barber.chair_rent_period ?? "monthly" };
   } else if (model === "day_rate") {
     const dayRate = Number(barber.day_rate_amount ?? 0);
-    myEarnings    = total - dayRate;
+    myEarnings    = serviceTotal - dayRate;
     modelInfo     = { dayRate };
   }
 

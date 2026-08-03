@@ -32,7 +32,7 @@ async function fetchBarberStats(shopId, period) {
   const [{ data: barbers }, { data: bookings }] = await Promise.all([
     supabase.from("barbers").select("id, full_name, avatar_url, commission_pct, specialty, is_active").eq("shop_id", shopId).order("full_name"),
     supabase.from("bookings")
-      .select("barber_id, price, status, scheduled_at, duration_min, delivery_fee")
+      .select("barber_id, price, product_sales_total, status, scheduled_at, duration_min, delivery_fee")
       .eq("shop_id", shopId)
       .in("status", ["confirmed", "in_progress", "completed", "pending"])
       .gte("scheduled_at", fromISO)
@@ -41,7 +41,9 @@ async function fetchBarberStats(shopId, period) {
 
   return (barbers ?? []).map(b => {
     const bBookings = (bookings ?? []).filter(bk => bk.barber_id === b.id);
-    const revenue   = bBookings.reduce((s, bk) => s + (bk.price ?? 0), 0);
+    // La venta de productos (ej: shampoo) no cuenta como producción del barbero —
+    // es venta de la barbería, se resta del precio total de cada reserva.
+    const revenue   = bBookings.reduce((s, bk) => s + Math.max(0, (bk.price ?? 0) - (bk.product_sales_total ?? 0)), 0);
     const commission = Math.round(revenue * ((b.commission_pct ?? 0) / 100));
     const avg       = bBookings.length > 0 ? Math.round(revenue / bBookings.length) : 0;
     return {
