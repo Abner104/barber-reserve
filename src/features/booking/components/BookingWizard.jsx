@@ -36,6 +36,7 @@ export default function BookingWizard({ slug, shopName, shopLogo }) {
         .wizard-content { flex: 1; overflow-y: auto; }
         .wizard-inner { max-width: 540px; margin: 0 auto; padding: 40px 24px; }
         .summary-drawer { display: none; }
+        .summary-toggle { display: none; }
 
         @media (max-width: 768px) {
           .wizard-sidebar { display: none; }
