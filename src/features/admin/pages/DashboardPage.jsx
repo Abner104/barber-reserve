@@ -215,7 +215,7 @@ export default function DashboardPage() {
                   borderRadius: 12, overflow: "hidden",
                   borderLeft: `4px solid ${accentColor}`,
                 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 18px 14px 14px", flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 18px 14px 14px", flex: 1, minWidth: 0, flexWrap: "wrap", rowGap: 8 }}>
                     {/* hora */}
                     <div style={{ textAlign: "center", minWidth: 48, flexShrink: 0 }}>
                       <p style={{ fontWeight: 700, fontSize: 15, color: "var(--text)" }}>
@@ -227,7 +227,7 @@ export default function DashboardPage() {
                     <div style={{ width: 1, height: 36, background: "var(--border)", flexShrink: 0 }} />
 
                     {/* info */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ flex: "1 1 140px", minWidth: 0 }}>
                       <p style={{ fontWeight: 600, color: "var(--text)", fontSize: 14, marginBottom: 2 }}>
                         {b.clients?.full_name ?? "Cliente"}
                       </p>
@@ -237,13 +237,13 @@ export default function DashboardPage() {
                       </p>
                     </div>
 
-                    {/* precio */}
-                    <p style={{ fontWeight: 700, color: "var(--brand)", fontSize: 14, flexShrink: 0 }}>{formatCurrency(b.price)}</p>
-
-                    {/* status badge */}
-                    <span style={{ padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: statusColor.bg, color: statusColor.text, flexShrink: 0, whiteSpace: "nowrap" }}>
-                      {BOOKING_STATUS_LABEL[b.status]}
-                    </span>
+                    {/* precio + status badge */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0, marginLeft: "auto" }}>
+                      <p style={{ fontWeight: 700, color: "var(--brand)", fontSize: 14, flexShrink: 0 }}>{formatCurrency(b.price)}</p>
+                      <span style={{ padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: statusColor.bg, color: statusColor.text, flexShrink: 0, whiteSpace: "nowrap" }}>
+                        {BOOKING_STATUS_LABEL[b.status]}
+                      </span>
+                    </div>
                   </div>
                 </div>
               );

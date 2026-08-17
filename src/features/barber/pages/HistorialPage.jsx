@@ -118,7 +118,7 @@ export default function HistorialPage() {
           const fecha   = format(new Date(b.scheduled_at), "EEE d MMM · HH:mm", { locale: es });
 
           return (
-            <div key={b.id} style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 14, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+            <div key={b.id} style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 14, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", rowGap: 8 }}>
               {/* Fecha */}
               <div style={{ textAlign: "center", minWidth: 44, flexShrink: 0 }}>
                 <p style={{ fontWeight: 800, fontSize: 14, color: "var(--text)" }}>
@@ -131,7 +131,7 @@ export default function HistorialPage() {
 
               <div style={{ width: 1, height: 32, background: "var(--border)", flexShrink: 0 }} />
 
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ flex: "1 1 120px", minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
                   <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 14 }}>{b.clients?.full_name}</p>
                   {b.type === "delivery" && <MapPin size={11} color="#3b82f6" />}
@@ -141,7 +141,7 @@ export default function HistorialPage() {
                 </p>
               </div>
 
-              <div style={{ textAlign: "right", flexShrink: 0 }}>
+              <div style={{ textAlign: "right", flexShrink: 0, marginLeft: "auto" }}>
                 {b.status === "completed" && (
                   <p style={{ fontWeight: 700, color: O, fontSize: 14 }}>{formatCurrency(price)}</p>
                 )}

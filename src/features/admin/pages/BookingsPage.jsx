@@ -238,7 +238,7 @@ export default function BookingsPage() {
             return (
               <div key={b.id} style={{ background: "var(--card-bg)", border: `1px solid ${isOpen ? O + "44" : "var(--card-border)"}`, borderRadius: 14, overflow: "hidden", transition: "border-color 0.2s", borderLeft: `4px solid ${accentColor}` }}>
                 {/* fila principal */}
-                <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", cursor: "pointer" }} onClick={() => setDetailId(isOpen ? null : b.id)}>
+                <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", cursor: "pointer", flexWrap: "wrap", rowGap: 10 }} onClick={() => setDetailId(isOpen ? null : b.id)}>
 
                   {/* hora */}
                   <div style={{ textAlign: "center", minWidth: 48, flexShrink: 0 }}>
@@ -249,7 +249,7 @@ export default function BookingsPage() {
                   <div style={{ width: 1, height: 36, background: "var(--border)", flexShrink: 0 }} />
 
                   {/* info principal */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ flex: "1 1 140px", minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, flexWrap: "wrap" }}>
                       <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 14 }}>{b.clients?.full_name}</p>
                       {b.type === "delivery" && (
@@ -263,17 +263,16 @@ export default function BookingsPage() {
                     </p>
                   </div>
 
-                  {/* precio */}
-                  <p style={{ fontWeight: 700, color: "var(--brand)", fontSize: 14, flexShrink: 0 }}>
-                    {formatCurrency((b.price || 0) + (b.delivery_fee || 0))}
-                  </p>
-
-                  {/* estado badge */}
-                  <span style={{ padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: sc.bg, color: sc.text, flexShrink: 0, whiteSpace: "nowrap" }}>
-                    {BOOKING_STATUS_LABEL[b.status]}
-                  </span>
-
-                  <ChevronDown size={16} color="#333" style={{ transform: isOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s", flexShrink: 0 }} />
+                  {/* precio + estado + chevron */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0, marginLeft: "auto" }}>
+                    <p style={{ fontWeight: 700, color: "var(--brand)", fontSize: 14, flexShrink: 0 }}>
+                      {formatCurrency((b.price || 0) + (b.delivery_fee || 0))}
+                    </p>
+                    <span style={{ padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: sc.bg, color: sc.text, flexShrink: 0, whiteSpace: "nowrap" }}>
+                      {BOOKING_STATUS_LABEL[b.status]}
+                    </span>
+                    <ChevronDown size={16} color="#333" style={{ transform: isOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s", flexShrink: 0 }} />
+                  </div>
                 </div>
 
                 {/* detalle expandible */}

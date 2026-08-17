@@ -637,16 +637,16 @@ function BookingsByBarber({ shopId }) {
                 {isOpen && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "0 10px 10px" }}>
                     {bks.map(b => (
-                      <div key={b.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 10px", background: "#0F0F0F", borderRadius: 8, gap: 8 }}>
-                        <div style={{ display: "flex", gap: 8, alignItems: "center", minWidth: 0 }}>
-                          <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 10, background: STATUS_COLOR[b.status] + "22", color: STATUS_COLOR[b.status], fontWeight: 700, whiteSpace: "nowrap" }}>
+                      <div key={b.id} style={{ display: "flex", alignItems: "center", padding: "6px 10px", background: "#0F0F0F", borderRadius: 8, gap: 8, flexWrap: "wrap", rowGap: 4 }}>
+                        <div style={{ display: "flex", gap: 8, alignItems: "center", minWidth: 0, flex: "1 1 140px" }}>
+                          <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 10, background: STATUS_COLOR[b.status] + "22", color: STATUS_COLOR[b.status], fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>
                             {STATUS_LABEL[b.status] ?? b.status}
                           </span>
-                          <span style={{ fontSize: 12, color: "#ddd", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <span style={{ fontSize: 12, color: "#ddd", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
                             {b.clients?.full_name ?? "—"} · {b.services?.name ?? "—"}
                           </span>
                         </div>
-                        <span style={{ fontSize: 11, color: "#555", whiteSpace: "nowrap" }}>
+                        <span style={{ fontSize: 11, color: "#555", whiteSpace: "nowrap", flexShrink: 0, marginLeft: "auto" }}>
                           {new Date(b.scheduled_at).toLocaleDateString("es-CL", { day: "numeric", month: "short" })}
                         </span>
                       </div>

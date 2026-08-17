@@ -95,7 +95,7 @@ export default function SuperAdminLayout() {
         .sa-layout  { display: flex; min-height: 100vh; background: #0A0A0A; }
         .sa-sidebar { width: 220px; background: #0F0F0F; border-right: 1px solid #1E1E1E; flex-shrink: 0; position: sticky; top: 0; height: 100vh; }
         .sa-topbar  { display: none; }
-        .sa-main    { flex: 1; min-width: 0; }
+        .sa-main    { flex: 1; min-width: 0; overflow-x: hidden; }
         .sa-page    { padding: 32px; }
         .sa-drawer-overlay { display: none; }
         .sa-drawer  { display: none; }

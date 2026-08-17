@@ -502,14 +502,14 @@ export default function AgendaPage() {
 
           return (
             <div key={b.id} id={`booking-${b.id}`} style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 14, overflow: "hidden" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", cursor: "pointer" }} onClick={() => isMobile ? setDetailModal(b) : setExpanded(isOpen ? null : b.id)}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", cursor: "pointer", flexWrap: "wrap", rowGap: 8 }} onClick={() => isMobile ? setDetailModal(b) : setExpanded(isOpen ? null : b.id)}>
                 {/* Hora */}
                 <div style={{ textAlign: "center", minWidth: 44, flexShrink: 0 }}>
                   <p style={{ fontWeight: 800, fontSize: 15, color: "var(--text)" }}>{format(new Date(b.scheduled_at), "HH:mm")}</p>
                   <p style={{ fontSize: 10, color: "var(--text-faint)" }}>{b.duration_min}m</p>
                 </div>
 
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ flex: "1 1 120px", minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
                     <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 14 }}>{b.clients?.full_name}</p>
                     {b.type === "delivery" && <MapPin size={12} color="#3b82f6" />}
@@ -517,7 +517,7 @@ export default function AgendaPage() {
                   <p style={{ fontSize: 12, color: "var(--text-faint)" }}>{b.services?.name}</p>
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, marginLeft: "auto" }}>
                   <p style={{ fontWeight: 700, color: O, fontSize: 13 }}>{formatCurrency(b.price)}</p>
                   <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 20, background: sc.bg, color: sc.text, fontWeight: 700, whiteSpace: "nowrap" }}>
                     {BOOKING_STATUS_LABEL[b.status]}

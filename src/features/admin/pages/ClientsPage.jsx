@@ -158,7 +158,7 @@ export default function ClientsPage() {
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                       {c.bookings.map((b, i) => (
-                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 10px", background: "var(--surface)", borderRadius: 10 }}>
+                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 10px", background: "var(--surface)", borderRadius: 10, flexWrap: "wrap", rowGap: 6 }}>
                           <div style={{ flexShrink: 0, width: 44 }}>
                             <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text)" }}>
                               {format(new Date(b.scheduled_at), "d MMM", { locale: es })}
@@ -167,7 +167,7 @@ export default function ClientsPage() {
                               {format(new Date(b.scheduled_at), "HH:mm")}
                             </p>
                           </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ flex: "1 1 100px", minWidth: 0 }}>
                             <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                               {b.services?.name ?? "Servicio"}
                             </p>
@@ -177,7 +177,7 @@ export default function ClientsPage() {
                               </p>
                             )}
                           </div>
-                          <div style={{ flexShrink: 0, textAlign: "right" }}>
+                          <div style={{ flexShrink: 0, textAlign: "right", marginLeft: "auto" }}>
                             <p style={{ fontWeight: 700, fontSize: 13, color: O }}>{formatCurrency(b.price ?? 0)}</p>
                             <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 10, background: b.status === "completed" ? "rgba(34,197,94,0.1)" : "rgba(255,107,44,0.1)", color: b.status === "completed" ? "#4ade80" : O }}>
                               {b.status === "completed" ? "Completada" : b.status === "confirmed" ? "Confirmada" : "Pendiente"}

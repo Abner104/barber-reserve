@@ -610,6 +610,10 @@ export default function CajaPage() {
   // ── TURNO ABIERTO ────────────────────────────────────────────
   return (
     <div className="admin-page" style={{ maxWidth: "min(900px, 100%)" }}>
+      <style>{`
+        .caja-split-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        @media (max-width: 560px) { .caja-split-grid { grid-template-columns: 1fr; } }
+      `}</style>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
         <div>
@@ -670,7 +674,7 @@ export default function CajaPage() {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <div className="caja-split-grid">
 
         {/* Servicios */}
         <div>
@@ -688,13 +692,13 @@ export default function CajaPage() {
               const sinPago = !m;
               return (
                 <div key={b.id} style={{ background: "var(--card-bg)", border: `1px solid ${sinPago ? "rgba(251,191,36,0.4)" : "var(--border)"}`, borderRadius: 10, overflow: "hidden" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", flexWrap: "wrap", rowGap: 6 }}>
                     <span style={{ fontSize: 14, flexShrink: 0 }}>{cfg ? cfg.emoji : "❓"}</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ flex: "1 1 110px", minWidth: 0 }}>
                       <p style={{ fontWeight: 600, fontSize: 12, color: "var(--text)", marginBottom: 1 }}>{b.clients?.full_name}</p>
                       <p style={{ fontSize: 11, color: "var(--text-faint)" }}>{b.services?.name} · {b.barbers?.full_name}</p>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, marginLeft: "auto" }}>
                       <p style={{ fontWeight: 700, color: O, fontSize: 13 }}>{formatCurrency(amt)}</p>
                       {sinPago && (
                         <button

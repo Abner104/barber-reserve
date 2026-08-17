@@ -52,7 +52,7 @@ export default function BarberLayout() {
         .barber-drawer { animation: drawer-in 0.22s ease; }
       `}</style>
 
-      <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)" }}>
+      <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", overflowX: "hidden", width: "100%" }}>
 
         {/* ── TOPBAR ── */}
         <div style={{ position: "sticky", top: 0, zIndex: 40, background: "var(--surface, #141414)", borderBottom: "1px solid var(--border)", padding: "0 16px" }}>
@@ -101,7 +101,7 @@ export default function BarberLayout() {
         )}
 
         {/* ── CONTENIDO ── */}
-        <div style={{ width: "100%", maxWidth: 960, margin: "0 auto", padding: "clamp(16px, 3vw, 32px)" }}>
+        <div style={{ width: "100%", maxWidth: 960, margin: "0 auto", padding: "clamp(16px, 3vw, 32px)", boxSizing: "border-box", minWidth: 0 }}>
           <Outlet />
         </div>
       </div>
