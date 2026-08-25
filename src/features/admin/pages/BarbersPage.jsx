@@ -55,14 +55,14 @@ export default function BarbersPage() {
 
   return (
     <div className="admin-page" style={{ maxWidth: "min(900px, 100%)" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 32 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 32, flexWrap: "wrap", gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 800, color: "var(--text)" }}>Barberos</h1>
           <p style={{ color: "var(--text-faint)", fontSize: 13, marginTop: 4 }}>Gestiona tu equipo y sus horarios</p>
         </div>
         <button
           onClick={() => setModal("create")}
-          style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", background: "var(--brand)", border: "none", borderRadius: 10, color: "var(--text)", fontWeight: 700, fontSize: 14, cursor: "pointer" }}
+          style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", background: "var(--brand)", border: "none", borderRadius: 10, color: "var(--text)", fontWeight: 700, fontSize: 14, cursor: "pointer", flexShrink: 0 }}
         >
           <Plus size={16} /> Nuevo barbero
         </button>
@@ -164,14 +164,14 @@ function BarberRow({ barber, expanded, onExpand, onEdit, onToggle, onDelete }) {
 
   return (
     <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 12, overflow: "hidden" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", flexWrap: "wrap", rowGap: 10 }}>
         {/* avatar */}
         <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--surface2)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 18, color: "var(--brand)", flexShrink: 0 }}>
           {barber.full_name[0]}
         </div>
 
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ flex: "1 1 140px", minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", rowGap: 4 }}>
             <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 15 }}>{barber.full_name}</p>
             <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: barber.is_active ? "rgba(34,197,94,0.1)" : "rgba(113,113,122,0.1)", color: barber.is_active ? "#22c55e" : "#71717a" }}>
               {barber.is_active ? "Activo" : "Inactivo"}
@@ -183,7 +183,7 @@ function BarberRow({ barber, expanded, onExpand, onEdit, onToggle, onDelete }) {
           {barber.specialty && <p style={{ color: "var(--text-faint)", fontSize: 12, marginTop: 2 }}>{barber.specialty}</p>}
         </div>
 
-        <div style={{ display: "flex", gap: 6 }}>
+        <div style={{ display: "flex", gap: 6, flexShrink: 0, marginLeft: "auto" }}>
           <IconBtn onClick={viewAsBarber} title="Ver panel del barbero"><ExternalLink size={15} /></IconBtn>
           <IconBtn onClick={onEdit} title="Editar"><Pencil size={15} /></IconBtn>
           <IconBtn onClick={onToggle} title={barber.is_active ? "Desactivar" : "Activar"} danger={barber.is_active}>
