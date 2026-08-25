@@ -1,4 +1,4 @@
-import { useParams, Navigate } from "react-router-dom";
+import { useParams, useSearchParams, Navigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
@@ -21,10 +21,17 @@ async function getShopBySlug(slug) {
 
 export default function ShopBookingPage() {
   const { slug }    = useParams();
+  const [searchParams] = useSearchParams();
+  const preferredBarberId = searchParams.get("barber");
   const qc          = useQueryClient();
   const setShopId     = useBookingStore(s => s.setShopId);
   const setShopConfig = useBookingStore(s => s.setShopConfig);
+  const setPreferredBarberId = useBookingStore(s => s.setPreferredBarberId);
   const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    if (preferredBarberId) setPreferredBarberId(preferredBarberId);
+  }, [preferredBarberId]);
 
   // Leer del cache de ShopLandingPage (misma query key)
   const cached = qc.getQueryData(["shop", slug]);

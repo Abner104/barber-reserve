@@ -15,6 +15,7 @@ const INITIAL = {
   services: [],      // array de servicios seleccionados
   people: 1,
   barber: null,
+  preferredBarberId: null, // viene de ?barber=<id> en el link — auto-selecciona en StepBarber
   date: null,
   slot: null,
   address: { line: "", lat: null, lng: null, place_name: "" },
@@ -27,6 +28,7 @@ export const useBookingStore = create((set, get) => ({
 
   setShopId: (shopId) => set({ shopId }),
   setShopConfig: (shopConfig) => set({ shopConfig }),
+  setPreferredBarberId: (preferredBarberId) => set({ preferredBarberId }),
   setStep: (step) => set({ step }),
   nextStep: () => set((s) => ({ step: s.step + 1 })),
   prevStep: () => set((s) => ({ step: Math.max(1, s.step - 1) })),
@@ -46,7 +48,7 @@ export const useBookingStore = create((set, get) => ({
   setDeliveryFee: (deliveryFee) => set({ deliveryFee }),
   setClientInfo: (clientInfo) => set({ clientInfo }),
 
-  reset: () => set((s) => ({ ...INITIAL, shopId: s.shopId, shopConfig: s.shopConfig })),
+  reset: () => set((s) => ({ ...INITIAL, shopId: s.shopId, shopConfig: s.shopConfig, preferredBarberId: s.preferredBarberId })),
 
   // precio total de todos los servicios × personas
   getTotal: () => {

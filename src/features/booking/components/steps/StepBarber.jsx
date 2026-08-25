@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { MapPin, ChevronLeft, ChevronRight, Shuffle, Images, X, Star } from "lucide-react";
 import { useBookingStore } from "../../../../store/bookingStore";
@@ -20,7 +20,9 @@ async function getBarberPortfolio(barberId) {
 export default function StepBarber() {
   const { type, services, barber: selected, setBarber, step, setStep, prevStep } = useBookingStore();
   const shopId = useBookingStore(s => s.shopId);
+  const preferredBarberId = useBookingStore(s => s.preferredBarberId);
   const [portfolioBarber, setPortfolioBarber] = useState(null);
+  const autoChosenRef = useRef(false);
 
   const serviceId = services?.[0]?.id;
 
@@ -29,6 +31,16 @@ export default function StepBarber() {
     queryFn: () => getBarbers({ serviceId, type, shopId }),
     enabled: !!shopId,
   });
+
+  useEffect(() => {
+    if (autoChosenRef.current) return;
+    if (!preferredBarberId || isLoading || barbers.length === 0) return;
+    const match = barbers.find(b => String(b.id) === String(preferredBarberId));
+    if (match) {
+      autoChosenRef.current = true;
+      choose(match);
+    }
+  }, [preferredBarberId, isLoading, barbers]);
 
   const { data: portfolio = [], isLoading: loadingPortfolio } = useQuery({
     queryKey: ["barber-portfolio-booking", portfolioBarber?.id],

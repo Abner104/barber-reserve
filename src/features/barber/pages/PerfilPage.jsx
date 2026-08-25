@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, MapPin, Navigation2 } from "lucide-react";
+import { Loader2, MapPin, Navigation2, Copy, Check, Link2 } from "lucide-react";
 import { getMyBarberProfile, updateMyAvailability } from "../services/barberService";
 import { supabase } from "../../../lib/supabase";
 import ImageUpload from "../../../components/shared/ImageUpload";
@@ -96,6 +96,47 @@ function PushNotifSection({ barberId }) {
       {error && (
         <p style={{ fontSize: 12, color: "#ef4444", marginTop: 8, lineHeight: 1.5 }}>⚠️ {error}</p>
       )}
+    </div>
+  );
+}
+
+function BarberLinkSection({ barber }) {
+  const [copied, setCopied] = useState(false);
+  const slug = barber?.barbershops?.slug;
+  if (!slug || !barber?.id) return null;
+
+  const link = `${window.location.origin}/${slug}/booking?barber=${barber.id}`;
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      toast.success("Link copiado ✅");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("No se pudo copiar");
+    }
+  }
+
+  return (
+    <div style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 16, padding: 20, marginBottom: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <Link2 size={16} color={O} />
+        <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>Tu link de reserva</p>
+      </div>
+      <p style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 14, lineHeight: 1.5 }}>
+        Compartilo con tus clientes — al abrirlo, quedas seleccionado automáticamente sin que tengan que elegirte a mano.
+      </p>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px" }}>
+        <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{link}</span>
+        <button
+          onClick={copyLink}
+          style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8, background: copied ? "#22c55e" : O, color: "#fff", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 12 }}
+        >
+          {copied ? <Check size={13} /> : <Copy size={13} />}
+          {copied ? "Copiado" : "Copiar"}
+        </button>
+      </div>
     </div>
   );
 }
@@ -203,6 +244,8 @@ export default function PerfilPage() {
   return (
     <div>
       <h1 style={{ fontSize: 24, fontWeight: 800, color: "var(--text)", marginBottom: 24 }}>Mi perfil</h1>
+
+      <BarberLinkSection barber={barber} />
 
       {/* Estado */}
       <div style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 16, padding: 20, marginBottom: 16 }}>
