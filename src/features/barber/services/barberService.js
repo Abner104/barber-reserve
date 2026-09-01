@@ -20,7 +20,7 @@ async function getMyBarberId() {
   // Buscar por profile_id (barbero con cuenta propia)
   const { data: byProfile } = await supabase
     .from("barbers")
-    .select("id, shop_id, full_name, phone, email, specialty, does_delivery, delivery_radius, travel_time_min, commission_pct, is_active, avatar_url, lat, lng, address")
+    .select("id, shop_id, full_name, phone, email, specialty, does_delivery, delivery_radius, travel_time_min, commission_pct, is_active, avatar_url, lat, lng, address, barbershops(slug)")
     .eq("profile_id", user.id)
     .maybeSingle();
 
