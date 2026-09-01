@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Save, Loader2, Users, Tag, Calculator } from "lucide-react";
 import { getSaasConfig, updateSaasConfig } from "../services/superAdminService";
 import { formatCurrency } from "../../../lib/utils";
+import { useLoadingSound } from "../../../hooks/useLoadingSound";
 
 const O = "#FF6B2C";
 
@@ -30,6 +31,8 @@ export default function PricingPage() {
     onSuccess: () => { qc.invalidateQueries(["saas-config"]); toast.success("Precios actualizados"); },
     onError:   () => toast.error("Error al guardar"),
   });
+
+  useLoadingSound(mut.isPending);
 
   const inp = {
     width: "100%", padding: "12px 14px", borderRadius: 10, fontSize: 15,

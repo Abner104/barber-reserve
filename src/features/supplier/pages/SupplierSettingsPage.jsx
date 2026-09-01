@@ -6,6 +6,7 @@ import { useActiveSupplier } from "../../../hooks/useActiveSupplier";
 import { supabase } from "../../../lib/supabase";
 import ImageUpload from "../../../components/shared/ImageUpload";
 import { applyTheme } from "../../../lib/applyTheme";
+import { useLoadingSound } from "../../../hooks/useLoadingSound";
 
 const O = "var(--brand, #FF6B2C)";
 
@@ -30,6 +31,8 @@ export default function SupplierSettingsPage() {
   const [uploadingLogo, setUploadingLogo]     = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [form, setForm] = useState(null);
+
+  useLoadingSound(saving || uploadingLogo || uploadingBanner);
 
   const { data: supplier, isLoading } = useActiveSupplier();
 

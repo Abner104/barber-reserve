@@ -5,6 +5,7 @@ import { ArrowLeft, Mail, Calendar, Clock, Scissors, MapPin, X, Loader2 } from "
 import { toast } from "sonner";
 import { supabase } from "../lib/supabase";
 import { applyTheme } from "../lib/applyTheme";
+import { useLoadingSound } from "../hooks/useLoadingSound";
 
 async function getShopBySlug(slug) {
   const { data, error } = await supabase
@@ -60,6 +61,8 @@ export default function ClientBookingsPage() {
   const [loading, setLoading] = useState(false);
   const [bookings, setBookings] = useState([]);
   const [cancelingId, setCancelingId] = useState(null);
+
+  useLoadingSound(!!cancelingId);
 
   // Token en la URL (link del email) tiene prioridad — acceso directo sin pedir login
   useEffect(() => {

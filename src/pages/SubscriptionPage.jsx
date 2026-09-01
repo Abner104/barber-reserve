@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuthStore } from "../store/authStore";
 import { formatCurrency } from "../lib/utils";
 import { Zap, CheckCircle, Clock, AlertCircle, Loader2 } from "lucide-react";
+import { useLoadingSound } from "../hooks/useLoadingSound";
 
 const VPS = import.meta.env.VITE_VPS_URL || "http://31.97.218.107:3001";
 const O   = "#FF6B2C";
@@ -15,6 +16,8 @@ export default function SubscriptionPage() {
   const [loading,  setLoading]  = useState(true);
   const [paying,   setPaying]   = useState(false);
   const [error,    setError]    = useState("");
+
+  useLoadingSound(paying);
 
   const params = new URLSearchParams(window.location.search);
   const paymentResult = params.get("payment");

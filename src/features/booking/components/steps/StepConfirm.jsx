@@ -9,6 +9,7 @@ import { useBookingStore } from "../../../../store/bookingStore";
 import { createBooking } from "../../services/bookingService";
 import { supabase } from "../../../../lib/supabase";
 import { uploadImage } from "../../../../components/shared/ImageUpload";
+import { useLoadingSound } from "../../../../hooks/useLoadingSound";
 
 const O = "var(--brand)";
 const WA_URL    = import.meta.env.VITE_WA_SERVICE_URL ?? "http://localhost:3001";
@@ -137,6 +138,8 @@ export default function StepConfirm({ slug }) {
     },
     onError: (err) => toast.error(err?.message || "Error al crear la reserva"),
   });
+
+  useLoadingSound(mutation.isPending || uploading);
 
   function validate() {
     const e = {};

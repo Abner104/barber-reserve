@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Plus, Pencil, Power, X, Loader2, Clock, Trash2, AlertTriangle } from "lucide-react";
 import ImageUpload from "../../../components/shared/ImageUpload";
 import { getAdminServices, getAdminCategories, createService, updateService, toggleServiceAvailable, deleteService, createCategory, deleteCategory, resolveShopId } from "../services/adminService";
+import { useLoadingSound } from "../../../hooks/useLoadingSound";
 
 const B = "var(--brand, #FF6B2C)";
 const EMPTY_SVC = { name: "", description: "", duration_min: 30, price: 0, allows_local: true, allows_delivery: true, is_available: true, category_id: "", sort_order: 0, image_url: "" };
@@ -58,6 +59,8 @@ export default function ServicesPage() {
     onSuccess: () => { qc.invalidateQueries(["admin-categories"]); toast.success("Categoría eliminada"); },
     onError: () => toast.error("No se puede eliminar: tiene servicios asociados"),
   });
+
+  useLoadingSound(deleteMut.isPending);
 
   return (
     <div className="admin-page" style={{ maxWidth: "min(900px, 100%)" }}>
@@ -189,6 +192,8 @@ function ServiceModal({ service, categories, onClose, onSave, onCreateCategory, 
   const [newCatName, setNewCatName] = useState("");
   const [showNewCat, setShowNewCat] = useState(false);
   const [savingCat, setSavingCat]   = useState(false);
+
+  useLoadingSound(loading || savingCat);
 
   async function handleCreateCat() {
     if (!newCatName.trim()) return;

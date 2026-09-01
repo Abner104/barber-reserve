@@ -8,6 +8,7 @@ import ThemeProvider from "../../../components/shared/ThemeProvider";
 import ImageUpload from "../../../components/shared/ImageUpload";
 import { GOOGLE_KEY, loadPlacesAndGeocoding } from "../../../lib/googlePlaces";
 import { resolveShopId } from "../services/adminService";
+import { useLoadingSound } from "../../../hooks/useLoadingSound";
 
 const O = "var(--brand, #FF6B2C)";
 
@@ -257,6 +258,8 @@ export default function SettingsPage() {
     },
     onError: (e) => { console.error("❌ Settings error:", e); toast.error(e?.message ?? "Error al guardar. Revisa la consola (F12)."); },
   });
+
+  useLoadingSound(mut.isPending);
 
   if (isLoading || !form) return (
     <div className="admin-page" style={{ color: "var(--text-faint)" }}>Cargando configuración...</div>

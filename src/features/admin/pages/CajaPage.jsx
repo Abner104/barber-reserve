@@ -9,6 +9,7 @@ import { resolveShopId } from "../services/adminService";
 import { formatCurrency } from "../../../lib/utils";
 import { useAuthStore } from "../../../store/authStore";
 import ImageUpload from "../../../components/shared/ImageUpload";
+import { useLoadingSound } from "../../../hooks/useLoadingSound";
 
 const PAYMENT_METHODS = [
   { key: "cash",     label: "Efectivo",       emoji: "💵" },
@@ -355,6 +356,8 @@ export default function CajaPage() {
     },
     onError: () => toast.error("Error al cerrar turno"),
   });
+
+  useLoadingSound(abrirMut.isPending || egresoMut.isPending || pagoMut.isPending || ventaMut.isPending || cerrarMut.isPending);
 
   // Cálculos totales
   const totalIngresos  = bookings.reduce((s, b) => s + Number(b.price_final ?? b.price ?? 0), 0);

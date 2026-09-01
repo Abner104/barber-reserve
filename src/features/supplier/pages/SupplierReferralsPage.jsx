@@ -8,6 +8,7 @@ import { getSupplierReferrals, getSupplierCommissions, createReferredShop } from
 import { deleteShop } from "../../superadmin/services/superAdminService";
 import { useActiveSupplier } from "../../../hooks/useActiveSupplier";
 import { formatCurrency } from "../../../lib/utils";
+import { useLoadingSound } from "../../../hooks/useLoadingSound";
 
 const O = "var(--brand, #FF6B2C)";
 const DEMO_SLUG = "noblecut"; // barbería demo para mostrar el sistema en visitas de venta
@@ -110,6 +111,8 @@ export default function SupplierReferralsPage() {
     },
     onError: (e) => toast.error("Error: " + (e?.message ?? "no se pudo crear la barbería")),
   });
+
+  useLoadingSound(createMut.isPending || deleteMut.isPending || sendingEmail);
 
   const referralLink = supplier ? `${window.location.origin}/register?ref=${supplier.id}` : "";
   const pendingTotal  = commissions.filter(c => c.status === "pending").reduce((s, c) => s + (c.commission_amount ?? 0), 0);

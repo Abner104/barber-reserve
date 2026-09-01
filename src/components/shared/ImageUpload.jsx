@@ -3,6 +3,7 @@ import { Upload, X, Loader2, Camera } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
 import { useAuthStore } from "../../store/authStore";
+import { useLoadingSound } from "../../hooks/useLoadingSound";
 
 const O = "#FF6B2C";
 
@@ -39,6 +40,8 @@ export default function ImageUpload({ value, onChange, folder = "logos", label =
   const [loading, setLoading] = useState(false);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef();
+
+  useLoadingSound(loading);
 
   async function handleFile(file) {
     if (!file) return;

@@ -7,11 +7,13 @@ import { supabase } from "../../../lib/supabase";
 import ImageUpload from "../../../components/shared/ImageUpload";
 import { usePushNotifications } from "../../../hooks/usePushNotifications";
 import { Bell, BellOff } from "lucide-react";
+import { useLoadingSound } from "../../../hooks/useLoadingSound";
 
 const O = "var(--brand, #FF6B2C)";
 
 function PushNotifSection({ barberId }) {
   const { supported, permission, subscribed, loading, error, subscribe, unsubscribe } = usePushNotifications(barberId);
+  useLoadingSound(loading);
   const O = "var(--brand, #FF6B2C)";
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
   const isInstalled = window.matchMedia("(display-mode: standalone)").matches;
@@ -234,6 +236,8 @@ export default function PerfilPage() {
     onSuccess: () => { qc.invalidateQueries(["my-barber-profile"]); toast.success("Perfil actualizado ✅"); },
     onError:   () => toast.error("Error al guardar"),
   });
+
+  useLoadingSound(mut.isPending);
 
   if (isLoading || !form) return (
     <div style={{ textAlign: "center", padding: "60px 0", color: "var(--text-faint)" }}>Cargando...</div>

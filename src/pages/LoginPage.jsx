@@ -7,6 +7,7 @@ import { supabase } from "../lib/supabase";
 import { isPlatformAuthAvailable, hasPasskeys, authenticatePasskey } from "../lib/passkey";
 import PasskeyPrompt from "../components/shared/PasskeyPrompt";
 import BarberLoader from "../components/shared/BarberLoader";
+import { useLoadingSound } from "../hooks/useLoadingSound";
 
 const O = "#FF6B2C";
 
@@ -36,6 +37,8 @@ export default function LoginPage() {
   const [forgotEmail, setForgotEmail]           = useState("");
   const [forgotSending, setForgotSending]       = useState(false);
   const [forgotSent, setForgotSent]             = useState(false);
+
+  useLoadingSound(submitting || passkeyLoading || forgotSending);
 
   // Verificar si hay passkey real registrada y el dispositivo la soporta
   useEffect(() => {

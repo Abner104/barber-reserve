@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Loader2, Eye, EyeOff, Check } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../lib/supabase";
+import { useLoadingSound } from "../hooks/useLoadingSound";
 
 const O = "#FF6B2C";
 
@@ -27,6 +28,8 @@ export default function RegisterPage() {
 
   const [account, setAccount] = useState({ full_name: "", email: "", password: "" });
   const [shop, setShop]       = useState({ name: "", slug: "", city: "", phone: "" });
+
+  useLoadingSound(loading);
 
   const { data: pricing } = useQuery({ queryKey: ["saas-config-public"], queryFn: fetchPricing, staleTime: 5 * 60 * 1000 });
   const basePrice    = pricing?.base_price       ?? 11990;

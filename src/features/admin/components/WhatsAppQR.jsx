@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Loader2, CheckCircle, Wifi, WifiOff, AlertTriangle, Trash2, Monitor } from "lucide-react";
+import { useLoadingSound } from "../../../hooks/useLoadingSound";
 
 const WA_URL    = import.meta.env.VITE_WA_SERVICE_URL ?? "http://localhost:3001";
 const WA_SECRET = "barberos2026secret";
@@ -95,6 +96,8 @@ export default function WhatsAppQR({ barberId, barberName, barberPhone }) {
   const isConnected = step === "connected";
   const isLoading   = step === "loading";
   const hasQR       = step === "qr_ready" && qr;
+
+  useLoadingSound(isLoading || resetting);
 
   return (
     <div style={{ padding: 16, background: "var(--surface2)", borderRadius: 12, border: "1px solid var(--border)" }}>

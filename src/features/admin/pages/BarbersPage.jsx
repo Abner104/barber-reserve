@@ -8,6 +8,7 @@ import WhatsAppStatus from "../components/WhatsAppStatus";
 import { getAdminBarbers, createBarber, updateBarber, toggleBarberActive, deleteBarber, getBarberWorkingHours, upsertWorkingHours, getBarberPortfolio, addPortfolioPhoto, deletePortfolioPhoto, resolveShopId } from "../services/adminService";
 import { DAYS_OF_WEEK, DAY_LABEL } from "../../../lib/constants";
 import TimeSelect from "../../../components/shared/TimeSelect";
+import { useLoadingSound } from "../../../hooks/useLoadingSound";
 
 const O = "var(--brand, #FF6B2C)";
 
@@ -274,6 +275,8 @@ function BarberModal({ barber, onClose, onSave, loading }) {
 
   const [formErrors, setFormErrors] = useState({});
 
+  useLoadingSound(loading);
+
   function handleSave() {
     const e = {};
     if (!form.full_name.trim()) e.full_name = "El nombre es obligatorio";
@@ -473,6 +476,8 @@ function PortfolioEditor({ barberId }) {
   const qc       = useQueryClient();
   const inputRef = useRef();
   const [uploading, setUploading] = useState(false);
+
+  useLoadingSound(uploading);
 
   const { data: photos = [], isLoading } = useQuery({
     queryKey: ["barber-portfolio", barberId],

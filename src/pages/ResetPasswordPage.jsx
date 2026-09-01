@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Loader2, Eye, EyeOff, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../lib/supabase";
+import { useLoadingSound } from "../hooks/useLoadingSound";
 
 const O = "#FF6B2C";
 
@@ -15,6 +16,8 @@ export default function ResetPasswordPage() {
   const [done, setDone]           = useState(false);
   const [error, setError]         = useState("");
   const [ready, setReady]         = useState(false);
+
+  useLoadingSound(saving);
 
   useEffect(() => {
     // Supabase pone el token en el hash de la URL al llegar desde el email

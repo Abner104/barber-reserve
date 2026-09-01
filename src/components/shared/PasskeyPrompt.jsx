@@ -5,12 +5,15 @@ import { useState, useEffect } from "react";
 import { Fingerprint, X, Loader2 } from "lucide-react";
 import { registerPasskey, isPlatformAuthAvailable } from "../../lib/passkey";
 import { toast } from "sonner";
+import { useLoadingSound } from "../../hooks/useLoadingSound";
 
 const O = "#FF6B2C";
 
 export default function PasskeyPrompt({ userId, userEmail, onClose }) {
   const [loading, setLoading]   = useState(false);
   const [avail, setAvail]       = useState(null); // null=checking, true/false
+
+  useLoadingSound(loading);
 
   useEffect(() => {
     isPlatformAuthAvailable().then(setAvail);
@@ -34,7 +37,8 @@ export default function PasskeyPrompt({ userId, userEmail, onClose }) {
   }
 
   function handleSkip() {
-    localStorage.setItem("clippr_passkey_skipped", "1");
+    // Solo recordar "no ahora" por esta sesión — el próximo login vuelve a preguntar
+    sessionStorage.setItem("clippr_passkey_skipped", "1");
     onClose();
   }
 

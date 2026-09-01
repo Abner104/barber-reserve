@@ -4,6 +4,7 @@ import { ShoppingCart, Plus, Minus, X, Package, Loader2, Check, ChevronLeft, Che
 import { toast } from "sonner";
 import { getPublicProducts, createOrder, getFirstSupplier } from "../services/supplierService";
 import { formatCurrency } from "../../../lib/utils";
+import { useLoadingSound } from "../../../hooks/useLoadingSound";
 
 const WA_URL    = import.meta.env.VITE_WA_SERVICE_URL ?? "http://localhost:3001";
 const WA_SECRET = import.meta.env.VITE_WA_SECRET ?? "barberos2026secret";
@@ -70,6 +71,8 @@ export default function SupplierCatalog({ supplierOverride } = {}) {
     },
     onError: () => toast.error("Error al enviar el pedido. Intenta de nuevo."),
   });
+
+  useLoadingSound(orderMut.isPending);
 
   function addToCart(p) {
     setCart(c => ({ ...c, [p.id]: (c[p.id] ?? 0) + 1 }));
