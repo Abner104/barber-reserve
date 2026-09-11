@@ -19,31 +19,39 @@ security definer
 set search_path = public
 as $$
 declare
-  v_created_at timestamptz;
-  v_plan       text;
-  v_name       text;
-  v_months     integer;
-  v_due_date   timestamptz;
-  v_diff_days  integer;
+  v_created_at   timestamptz;
+  v_plan         text;
+  v_name         text;
+  v_last_payment timestamptz;
+  v_due_date     timestamptz;
+  v_diff_days    integer;
+  v_grace_days   constant integer := 1;
 begin
-  select created_at, plan, name
+  select b.created_at, b.plan, b.name
     into v_created_at, v_plan, v_name
-    from public.barbershops
-    where id = p_shop_id;
+    from public.barbershops b
+    where b.id = p_shop_id;
 
   if v_created_at is null then
     return;
   end if;
 
-  select 1 + count(*) into v_months
-    from public.shop_payments
-    where shop_id = p_shop_id;
+  select max(sp.paid_at) into v_last_payment
+    from public.shop_payments sp
+    where sp.shop_id = p_shop_id;
 
-  v_due_date  := v_created_at + (v_months || ' months')::interval;
+  -- Vencimiento = 30 días desde el último pago real, o desde el registro
+  -- si nunca pagó (trial). No se ancla a la fecha de creación + cantidad
+  -- de pagos — eso desfasaba el ciclo si un pago se registraba unos días
+  -- antes o después del aniversario mensual (ej: dueños que pagan siempre
+  -- el mismo día del mes, no el mismo día en que se registraron).
+  v_due_date  := coalesce(v_last_payment, v_created_at) + interval '30 days';
   v_diff_days := ceil(extract(epoch from (v_due_date - now())) / 86400);
 
   return query select
-    (v_diff_days > 0)                         as is_active,
+    -- El bloqueo real da 1 día de gracia extra después del vencimiento
+    -- (days_left/due_date siguen mostrando la fecha real, sin el margen)
+    (v_diff_days > (-1 * v_grace_days))       as is_active,
     greatest(0, v_diff_days)                  as days_left,
     (v_diff_days > 0 and v_diff_days <= 7)     as trial_active,
     v_due_date                                as due_date,

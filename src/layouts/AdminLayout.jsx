@@ -229,7 +229,12 @@ export default function AdminLayout() {
             <Lock size={10} /> Suscripción vencida
           </span>
         )}
-        {subStatus?.is_active && subStatus.days_left <= 7 && (
+        {subStatus?.is_active && subStatus.days_left === 0 && (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 10, padding: "3px 9px", borderRadius: 20, background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", fontSize: 10.5, fontWeight: 700, color: "#ef4444" }}>
+            <Lock size={10} /> Venció hoy — pagá ya
+          </span>
+        )}
+        {subStatus?.is_active && subStatus.days_left >= 1 && subStatus.days_left <= 7 && (
           <span style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 10, padding: "3px 9px", borderRadius: 20, background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.25)", fontSize: 10.5, fontWeight: 700, color: "#fbbf24" }}>
             ⏰ Vence en {subStatus.days_left}d
           </span>
@@ -387,8 +392,21 @@ export default function AdminLayout() {
             </div>
           </div>
 
-          {/* Banner trial por vencer (7 días o menos) */}
-          {subStatus?.is_active && subStatus.days_left <= 7 && (
+          {/* Banner: venció hoy, sigue activo solo por el día de gracia */}
+          {subStatus?.is_active && subStatus.days_left === 0 && (
+            <div style={{ background: "rgba(239,68,68,0.1)", borderBottom: "1px solid rgba(239,68,68,0.3)", padding: "12px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+              <p style={{ fontSize: 13, color: "#ef4444", fontWeight: 700 }}>
+                🔴 Tu plan venció hoy. Mañana se bloquea el panel y dejarás de recibir reservas si no renovás.
+              </p>
+              <button onClick={handlePagar} disabled={payLoading}
+                style={{ fontSize: 12, fontWeight: 700, color: "#fff", background: "#ef4444", padding: "6px 16px", borderRadius: 8, border: "none", cursor: "pointer", whiteSpace: "nowrap", opacity: payLoading ? 0.7 : 1 }}>
+                {payLoading ? "Cargando..." : "Pagar con MercadoPago"}
+              </button>
+            </div>
+          )}
+
+          {/* Banner trial por vencer (entre 1 y 7 días) */}
+          {subStatus?.is_active && subStatus.days_left >= 1 && subStatus.days_left <= 7 && (
             <div style={{ background: "rgba(251,191,36,0.08)", borderBottom: "1px solid rgba(251,191,36,0.2)", padding: "10px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
               <p style={{ fontSize: 13, color: "#fbbf24", fontWeight: 600 }}>
                 ⏰ Tu plan vence en {subStatus.days_left} día{subStatus.days_left !== 1 ? "s" : ""}. Renovalo ahora para no perder el acceso.
