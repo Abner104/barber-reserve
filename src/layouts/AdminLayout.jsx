@@ -13,6 +13,9 @@ import { supabase } from "../lib/supabase";
 import OnboardingTour, { useTour } from "../components/shared/OnboardingTour";
 import { IMPERSONATE_SHOP_KEY } from "../features/admin/services/adminService";
 import { getAllShops } from "../features/superadmin/services/superAdminService";
+import { getShopSubscriptionStatus } from "../lib/subscriptionStatus";
+import { formatCurrency } from "../lib/utils";
+import { Lock } from "lucide-react";
 
 const VPS = import.meta.env.VITE_VPS_URL || "http://31.97.218.107:3001";
 
@@ -94,43 +97,14 @@ export default function AdminLayout() {
   const shopId = profile?.shop_id ?? (isSuperAdmin ? impersonatedShopId : undefined);
   const { data: subStatus } = useQuery({
     queryKey: ["sub-status", shopId],
-    queryFn: async () => {
-      const { data: shop } = await supabase
-        .from("barbershops")
-        .select("id, name, created_at, plan, is_active, trial_ends_at")
-        .eq("id", shopId)
-        .maybeSingle();
-      if (!shop) return null;
-
-      const { data: payments } = await supabase
-        .from("shop_payments")
-        .select("id, paid_at")
-        .eq("shop_id", shopId)
-        .order("paid_at");
-
-      // Calcular vencimiento: created_at + 30 días gratis + 30 días por pago
-      const base    = new Date(shop.created_at);
-      const months  = 1 + (payments?.length ?? 0);
-      const dueDate = new Date(base);
-      dueDate.setMonth(dueDate.getMonth() + months);
-
-      const now      = new Date();
-      const diffDays = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
-      const is_active = diffDays > 0;
-
-      return {
-        is_active,
-        days_left:    Math.max(0, diffDays),
-        trial_active: is_active && diffDays <= 7,
-        due_date:     dueDate.toISOString(),
-        plan:         shop.plan,
-        shop_name:    shop.name,
-      };
-    },
+    queryFn:  () => getShopSubscriptionStatus(shopId),
     enabled: !!shopId && profile?.role === "owner",
     refetchInterval: 10 * 60 * 1000,
     retry: false,
   });
+
+  // Bloqueo total del panel si el plan venció — el super_admin impersonando nunca se bloquea (soporte)
+  const isBlocked = !isSuperAdmin && subStatus && !subStatus.is_active;
 
   const [payLoading, setPayLoading] = useState(false);
   async function handlePagar() {
@@ -192,7 +166,29 @@ export default function AdminLayout() {
     );
   }
 
-  // Plan vencido → solo muestra banner, no redirige (para que puedan ver sus datos)
+  // Plan vencido → bloquea el panel entero, solo puede pagar
+  if (isBlocked) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#080808", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+        <div style={{ maxWidth: 420, width: "100%", textAlign: "center" }}>
+          <div style={{ width: 64, height: 64, borderRadius: 16, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+            <Lock size={26} color="#ef4444" />
+          </div>
+          <p style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 8 }}>Suscripción vencida</p>
+          <p style={{ fontSize: 14, color: "#888", lineHeight: 1.6, marginBottom: 28 }}>
+            Tu acceso al panel y las reservas nuevas de tus clientes están suspendidos. Activá tu plan Pro para recuperar el acceso ahora mismo.
+          </p>
+          <a href="/subscription"
+            style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "15px", borderRadius: 12, background: "#FF6B2C", color: "#fff", fontWeight: 800, fontSize: 16, textDecoration: "none", boxShadow: "0 0 30px rgba(255,107,44,.3)", boxSizing: "border-box" }}>
+            Pagar y reactivar mi cuenta
+          </a>
+          <button onClick={handleSignOut} style={{ marginTop: 18, background: "none", border: "none", color: "#555", fontSize: 13, cursor: "pointer" }}>
+            Cerrar sesión
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   function isActive(nav) {
     return nav.exact ? pathname === nav.to : pathname.startsWith(nav.to);
@@ -228,6 +224,16 @@ export default function AdminLayout() {
             <p style={{ fontSize: 10, color: "var(--text-faint, #555)", marginTop: 2 }}>Panel Admin</p>
           </div>
         </Link>
+        {subStatus && !subStatus.is_active && (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 10, padding: "3px 9px", borderRadius: 20, background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", fontSize: 10.5, fontWeight: 700, color: "#ef4444" }}>
+            <Lock size={10} /> Suscripción vencida
+          </span>
+        )}
+        {subStatus?.is_active && subStatus.days_left <= 7 && (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 10, padding: "3px 9px", borderRadius: 20, background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.25)", fontSize: 10.5, fontWeight: 700, color: "#fbbf24" }}>
+            ⏰ Vence en {subStatus.days_left}d
+          </span>
+        )}
       </div>
 
       {/* Nav */}
@@ -380,19 +386,6 @@ export default function AdminLayout() {
               </button>
             </div>
           </div>
-
-          {/* Banner trial vencido */}
-          {subStatus && !subStatus.is_active && (
-            <div style={{ background: "rgba(239,68,68,0.1)", borderBottom: "1px solid rgba(239,68,68,0.3)", padding: "12px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-              <p style={{ fontSize: 13, color: "#ef4444", fontWeight: 700 }}>
-                🔴 Tu período de prueba venció. Renová tu plan para seguir usando Clippr.
-              </p>
-              <button onClick={handlePagar} disabled={payLoading}
-                style={{ fontSize: 12, fontWeight: 700, color: "#fff", background: "#ef4444", padding: "6px 16px", borderRadius: 8, border: "none", cursor: "pointer", whiteSpace: "nowrap", opacity: payLoading ? 0.7 : 1 }}>
-                {payLoading ? "Cargando..." : "Pagar con MercadoPago"}
-              </button>
-            </div>
-          )}
 
           {/* Banner trial por vencer (7 días o menos) */}
           {subStatus?.is_active && subStatus.days_left <= 7 && (

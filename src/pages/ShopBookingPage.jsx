@@ -7,6 +7,8 @@ import ShopIntro from "../features/booking/components/ShopIntro";
 import { useBookingStore } from "../store/bookingStore";
 import { applyTheme } from "../lib/applyTheme";
 import { useShopManifest } from "../lib/useShopManifest";
+import { getShopSubscriptionStatus } from "../lib/subscriptionStatus";
+import { Clock } from "lucide-react";
 
 async function getShopBySlug(slug) {
   const { data, error } = await supabase
@@ -45,6 +47,14 @@ export default function ShopBookingPage() {
   // Aplicar tema y shopId tan pronto tengamos el shop
   const activeShop = shop ?? cached;
   useShopManifest(slug, activeShop?.logo_url);
+
+  const { data: subStatus } = useQuery({
+    queryKey: ["shop-sub-status", activeShop?.id],
+    queryFn:  () => getShopSubscriptionStatus(activeShop.id),
+    enabled:  !!activeShop?.id,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
 
   useEffect(() => {
     if (activeShop?.id) {
@@ -87,6 +97,22 @@ export default function ShopBookingPage() {
   }
 
   if (!activeShop) return <Navigate to="/" replace />;
+
+  if (subStatus && !subStatus.is_active) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#0A0A0A", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+        <div style={{ maxWidth: 380, width: "100%", textAlign: "center" }}>
+          <div style={{ width: 56, height: 56, borderRadius: 14, background: "rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px" }}>
+            <Clock size={24} color="#777" />
+          </div>
+          <p style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 8 }}>{activeShop.name} no está disponible</p>
+          <p style={{ fontSize: 13.5, color: "#777", lineHeight: 1.6 }}>
+            Este negocio no puede recibir reservas por el momento. Intenta más tarde o contacta directamente a la barbería.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (!ready) {
     return (
