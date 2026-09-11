@@ -409,7 +409,7 @@ export default function AdminLayout() {
           {subStatus?.is_active && subStatus.days_left >= 1 && subStatus.days_left <= 7 && (
             <div style={{ background: "rgba(251,191,36,0.08)", borderBottom: "1px solid rgba(251,191,36,0.2)", padding: "10px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
               <p style={{ fontSize: 13, color: "#fbbf24", fontWeight: 600 }}>
-                ⏰ Tu plan vence en {subStatus.days_left} día{subStatus.days_left !== 1 ? "s" : ""}. Renovalo ahora para no perder el acceso.
+                ⏰ Tu plan vence en {subStatus.days_left} día{subStatus.days_left !== 1 ? "s" : ""}. Renuévalo ahora para no perder el acceso.
               </p>
               <button onClick={handlePagar} disabled={payLoading}
                 style={{ fontSize: 12, fontWeight: 700, color: "#fff", background: "#f59e0b", padding: "5px 14px", borderRadius: 8, border: "none", cursor: "pointer", whiteSpace: "nowrap", opacity: payLoading ? 0.7 : 1 }}>
